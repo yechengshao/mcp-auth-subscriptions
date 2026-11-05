@@ -4,11 +4,11 @@ Authentication and subscription service for the sibling [TradingView MCP service
 
 ## Implementation stack
 
-Use **Node.js, Express, and AWS Lambda** for authentication and subscription billing. Express handles HTTP routes through a REST API Gateway Lambda proxy adapter; the authorizer and asynchronous workers use direct Node.js Lambda handlers. The [authentication plan](specs/002-authentication-api-access/plan.md) defines packaging and handler boundaries. Implementation is pending.
+Use **TypeScript, Node.js, Express, and AWS Lambda** for authentication and subscription billing. Express handles HTTP routes through a REST API Gateway Lambda proxy adapter; the authorizer and asynchronous workers use direct Node.js Lambda handlers. The [authentication plan](specs/002-authentication-api-access/plan.md) defines packaging and handler boundaries. Implementation is pending.
 
 ## Ownership
 
-- [Spec 002 — Authentication and API Access](specs/002-authentication-api-access/spec.md): Cognito social login, authorization code + PKCE, client tokens and refresh, DynamoDB-backed Node.js onboarding, REST gateway, independent subscription-enforcing authorizer, and native per-subscriber usage plans.
+- [Spec 002 — Authentication and API Access](specs/002-authentication-api-access/spec.md): Cognito social login, authorization code + PKCE, client tokens and refresh, DynamoDB-backed Node.js onboarding, REST gateway, independent token-validating authorizer, and native per-subscriber usage plans.
 - [Spec 003 — Billing and Subscriptions](specs/003-billing-subscriptions/spec.md): plan selection, orders, Stripe Checkout/portal, verified webhooks, reconciliation, retained billing state, and entitlement publication.
 - The MCP service and provider logic stay in `../tradingview-mcp`. Integration uses its [service-only contract](../tradingview-mcp/specs/001-add-lambda-deployment/contracts/rest-migration.md); do not import identity/payment logic or secrets into that runtime.
 

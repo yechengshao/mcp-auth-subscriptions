@@ -32,7 +32,7 @@ Due-work partitions/indexes, batch/page budgets, lease lengths, schedules, reten
 
 A transition may mark `code_ready` only after current paid entitlement and matching ready usage binding. The authenticated browser resume endpoint rechecks authority, then atomically issues a one-use code and redirects with original state/issuer; workers do not redirect browsers or emit credentials. `/token` independently checks current authority. Retried/concurrent resume and redemption cannot create additional grants.
 
-Keep the 30-minute absolute continuation, 60-second code, five-minute paid-bound access TTL and 24-hour rotating refresh defaults. Every operation checks expiry independently of cleanup; DynamoDB TTL is housekeeping. Cancellation/expiry stops transaction-specific work without changing paid records. Late payment commits normally and fresh authorization reuses the subscription.
+Keep the 30-minute absolute continuation, 60-second code, access/refresh lifetimes in the [authorization contract](authorization.md#denial-and-revocation). Every operation checks expiry independently of cleanup; DynamoDB TTL is housekeeping. Cancellation/expiry stops transaction-specific work without changing paid records. Late payment commits normally and fresh authorization reuses the subscription.
 
 Log only opaque correlation, phase/revision, release and sanitized failure categories; exclude cookies, OAuth state/codes/verifiers, bearer/refresh tokens, native keys and full provider payloads. Coordinator owns sessions/signing and exact billing invocation; event/recovery handlers own scoped work/outbox reads and access transitions; provisioning alone owns native-key management. No access role writes billing or holds Stripe credentials.
 

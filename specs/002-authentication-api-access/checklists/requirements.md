@@ -32,7 +32,7 @@
 
 ## Notes
 
-- Human PKCE and authorizer subscription enforcement are confirmed. The physical billing entitlement resource/read-policy remains a spec-003 planning prerequisite before implementing the adapter; it is not MCP-owned. Local evidence is not live access acceptance.
+- Human PKCE, issuer-side subscription enforcement and token-only authorization with bounded revocation delay are confirmed. The physical billing entitlement resource/read-policy remains a spec-003 planning prerequisite before implementing the adapter; it is not MCP-owned. Local evidence is not live access acceptance.
 - No feature branch or cloud/payment operation was created by this documentation change. The adopted constitution governs documentation revisions.
 
 - 2026-11-03 revision review: requested plan-selection/order/verified-payment/AI-client completion and REST native usage plans are reflected in scenarios, requirements, entities, measurable outcomes and feature boundaries. Pending/failed/expired/replayed and existing-subscriber paths are explicit. Contract/design details live outside the feature specification; no checklist marker denotes implementation, cloud/payment acceptance or business-policy approval.

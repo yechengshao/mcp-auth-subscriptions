@@ -1,12 +1,12 @@
 # Spec 003: Billing and Subscriptions
 
-**Created/updated**: 2026-11-04 · **Branch**: `main` · **Status**: Draft; technical plan/tasks pending.
+**Created/updated**: 2026-11-05 · **Branch**: `main` · **Status**: Draft; technical plan/tasks pending.
 
 **Length exception**: Retain the existing payment-integrity, ownership and recovery requirements together to preserve their IDs and testable failure behavior.
 
 ## Scope and confirmed decisions
 
-Use **Node.js and Express on a separate AWS Lambda, with DynamoDB**, for plan selection, orders, Stripe Checkout/portal, subscription records and entitlement publication. [Spec 002](../002-authentication-api-access/spec.md) owns Cognito/Node.js onboarding, client tokens and subscription enforcement in the authorizer. [Spec 001](../../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) provides MCP only.
+Use **Node.js and Express on a separate AWS Lambda, with DynamoDB**, for plan selection, orders, Stripe Checkout/portal, subscription records and entitlement publication. [Spec 002](../002-authentication-api-access/spec.md) owns Cognito/Node.js onboarding, client tokens and subscription enforcement at login/token issuance/refresh and token validation in the authorizer. [Spec 001](../../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) provides MCP only.
 
 After identity verification, unpaid users may only select/purchase/renew and inspect their purchase through a bounded enrollment continuation; application login and billing management follow [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements). Billing commits trusted plan/expiry plus a durable activation notification. Access completes OAuth only after entitlement and native usage binding are ready. Eligible reconnect and late-payment recovery reuse the subscription without another purchase.
 
@@ -22,7 +22,7 @@ Verify the exact signed body before writes. Duplicate, reordered, concurrent and
 
 ### Story 3 — Publish enforceable entitlements (P1)
 
-Commit identity-bound eligibility/plan/paid-validity/revision. The authorizer uses current reads; denied/expired/missing/unavailable state invokes MCP zero times. Billing outages do not affect internal MCP readiness.
+Commit identity-bound eligibility/plan/paid-validity/revision. The access issuer uses current reads; denied/expired/missing/unavailable state blocks new tokens under the [access revocation bounds](../002-authentication-api-access/contracts/authorization.md#denial-and-revocation). Billing outages do not affect internal MCP readiness.
 
 ### Story 4 — Release and recover independently (P2)
 
@@ -39,12 +39,12 @@ Billing release/rollback and service cleanup preserve identities and billing rec
 - **FR-005**: Durably handle duplicate/retried/reordered/concurrent events and partial failure; reconcile provider authority, prevent stale regression and acknowledge only committed outcomes.
 - **FR-006**: Own customer/subscription/event/reconciliation/entitlement writes; grant access only required projection/outbox reads, and MCP no data access.
 - **FR-007**: Publish identity-keyed eligibility, approved paid plan, future paid-through bound and committed revision. Validity requires active paid eligibility without revocation; scheduled cancellation remains valid through the paid bound, while unpaid trials, pending, past-due and expired states do not qualify. Access enforces the projection; MCP does not.
-- **FR-008**: Deny paid MCP for missing/denied/expired/unavailable data; committed changes affect the next uncached decision and expiry is checked independently of TTL deletion.
+- **FR-008**: Deny login/token issuance/refresh for missing/denied/expired/unavailable entitlement; apply [access FR-008/FR-014](../002-authentication-api-access/spec.md#functional-requirements) to outstanding tokens, checking expiry independently of TTL deletion.
 - **FR-009**: Enforce the login, purchase-only enrollment and paid billing-management boundaries in [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements) on every billing operation; browser claims never establish eligibility. Collect/store no raw card data.
 - **FR-010**: Keep Stripe API/signing secrets billing-only; exclude secrets, access tokens, full provider payloads and unnecessary customer/payment data from logs/evidence.
 - **FR-011**: Provide recoverable reconciliation/retry diagnostics and durable deduplication beyond short-lived request-idempotency tokens; preserve records during recovery.
 - **FR-012**: Retain billing state across releases/default cleanup; destructive cleanup must select owned resources and exclude unrelated/imported records.
-- **FR-013**: Test billing/authorizer boundaries locally; separate fixtures from live Stripe/cloud acceptance and mark unavailable live checks not_run.
+- **FR-013**: Test billing/token-issuer/authorizer boundaries locally; separate fixtures from live Stripe/cloud acceptance and mark unavailable live checks not_run.
 - **FR-014**: Bootstrap storage/read interfaces independently of processor/identity wiring to avoid a Cognito↔billing provisioning cycle.
 - **FR-015**: Provide purchase/renewal plan selection, own-order creation/Checkout and purchase status through a verified bounded enrollment continuation without a paid MCP token/key; grant no general billing-management capability and reject altered/cross-user/arbitrary-price requests.
 - **FR-016**: Durably bind approved plan/order/Checkout/subscription to the same identity/environment; retries cannot duplicate purchases. Reuse eligible subscriptions unless deliberately changing plan.
@@ -62,7 +62,7 @@ Identity/customer mapping; approved catalog; order/Checkout continuation; subscr
 - **SC-001**: Own-account purchase uses the correct identity/catalog; cross-user/arbitrary-price cases cause zero provider effects, and invalid-subscription management cases disclose zero billing records and cause zero management effects.
 - **SC-002**: Invalid signatures/body tampering cause zero writes; at least ten duplicate deliveries, including concurrency, produce one committed business effect.
 - **SC-003**: Reordered/concurrent events converge to authoritative state without stale/incomplete access grants.
-- **SC-004**: Expiry and committed transitions affect the next login, billing-management or uncached authorizer decision; denied cases invoke MCP zero times and internal readiness remains independent.
+- **SC-004**: Expiry and committed transitions affect the next login, billing-management, issuance or refresh decision; outstanding access follows access FR-008/FR-014, invalid/expired tokens invoke MCP zero times and internal readiness remains independent.
 - **SC-005**: Release/recovery/service cleanup preserves customer/subscription/event data without MCP business-logic or identity changes.
 - **SC-006**: Reports distinguish fixtures, live provider results and unperformed checks; browser return/deployment/mocks alone cannot prove payment readiness.
 - **SC-007**: Purchase/reconnect/retry/delayed-payment/expired-OAuth scenarios preserve identity/plan with zero duplicate purchases or unverified activation.

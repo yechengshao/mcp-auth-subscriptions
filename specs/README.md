@@ -17,7 +17,7 @@ flowchart LR
     Gateway -->|Current paid access / metering| MCP[MCP service]
 ```
 
-Eligible subscribers skip purchase. Callbacks advance persisted onboarding after trusted commits; short endpoints complete code/token exchange. Clients send bearer credentials; the authorizer supplies an internal per-subscriber usage key. Native quotas are best effort.
+Eligible subscribers skip purchase. Callbacks advance persisted onboarding after trusted commits; short endpoints complete code/token exchange. Clients send bearer credentials; the authorizer supplies the per-subscriber usage key from the validated signed token. Native quotas are best effort.
 
 This project uses Node.js and Express on AWS Lambda for authentication and subscription billing and owns access infrastructure; see the [runtime plan](002-authentication-api-access/plan.md). The separate MCP service has no authentication/billing/workflow logic or related permissions. Its nine provider settings use native Lambda environment variables without a retrieval hook. Login and billing-management eligibility follow [access FR-003/FR-004](002-authentication-api-access/spec.md#functional-requirements).
 
