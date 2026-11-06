@@ -53,7 +53,7 @@ DynamoDB stores progress between short HTTP/worker requests. Early/duplicate/reo
 - **FR-011**: Retain identity/access/gateway state by default; service cleanup preserves access/billing. Destructive access cleanup requires explicit ownership scope.
 - **FR-012**: Keep component releases/data/evidence independent and provisioning acyclic; MCP receives no identity/billing/signing credentials or permissions.
 - **FR-013**: Bind a bounded transaction across login/payment. After trusted activation, return one-use code/state/issuer; redeem against PKCE/client/redirect/resource. Never return bearer/refresh tokens in callbacks.
-- **FR-014**: Issue signed resource/client/grant/identity-bound access tokens containing `usageIdentifierKey`, plan and paid validity; access expires at min(issuance + 15 minutes, subscription expiry). Rotating refresh credentials expire at subscription expiry, recheck current authority and reject replay; rotation never extends that deadline.
+- **FR-014**: Issue signed resource/client/grant/identity-bound access tokens containing `usageIdentifierKey`, plan and paid validity; access expires at min(issuance + 1 hour, subscription expiry). Rotating refresh credentials expire at subscription expiry, recheck current authority and reject replay; rotation never extends that deadline.
 - **FR-015**: Expose discovery/OAuth/callback/token/JWKS/onboarding without a paid-key gate. Missing/invalid MCP credentials produce upstream 401 resource metadata; ineligible access is denied before MCP.
 - **FR-016**: Assign one private native key per subscriber and matching tier/stage. Use AUTHORIZER key source, required paid-method keys and top-level `usageIdentifierKey` copied from the validated signed claim, not a header; clients send bearer only. Provision outside authorization; unready bindings block issuance/refresh.
 - **FR-017**: Make tier rates/bursts/quotas explicit inputs; native request limits are best effort, not strict billing credits/cost caps.
@@ -71,7 +71,7 @@ Verified Cognito identity; bound OAuth transaction; versioned onboarding state/d
 - **SC-001**: Paid users meeting readiness checks can log in; all ineligible/unverifiable login cases produce zero successful application logins or service credentials; denied service requests invoke MCP zero times.
 - **SC-002**: Unpaid purchase/renewal works without premature login; every invalid-subscription or cross-account billing case discloses zero billing records and causes zero management effects; eligible reconnect creates no purchase.
 - **SC-003**: Distinct-endpoint migration/rollback preserves legacy resources and identities.
-- **SC-004**: Committed plan/eligibility changes affect the next login/management/issuance/refresh; revoked refresh returns `invalid_grant`, while existing access lasts at most 15 minutes and never past its signed subscription expiry.
+- **SC-004**: Committed plan/eligibility changes affect the next login/management/issuance/refresh; revoked refresh returns `invalid_grant`, while existing access lasts at most 1 hour and never past its signed subscription expiry.
 - **SC-005**: Evidence separates simulation from real host/identity/gateway/payment/retention checks; missing live checks cannot establish readiness.
 - **SC-006**: Simulated purchase/reconnect completes once; tampered/replayed/cancelled/expired/unverified-payment flows issue zero unauthorized grants.
 - **SC-007**: Same-tier subscribers have distinct metering identities; issuance/refresh after plan changes cannot use stale ready bindings; outstanding access follows SC-004.
