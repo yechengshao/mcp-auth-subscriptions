@@ -14,9 +14,9 @@ Use **TypeScript, Node.js, Express, and AWS Lambda** for authentication and subs
 
 ## Current status
 
-Created on 2026-11-04 by moving the existing complete `specs/002-authentication-api-access/` and `specs/003-billing-subscriptions/` directories from `tradingview-mcp`. Requirements are preserved with the current runtime and onboarding decisions reflected in the linked plans. Authentication has 25 unchecked tasks; billing remains a draft requiring its technical plan and task list. No authentication/billing implementation, cloud deployment, payment action, or live acceptance is claimed by this project creation.
+Created on 2026-11-04 by moving the existing complete `specs/002-authentication-api-access/` and `specs/003-billing-subscriptions/` directories from `tradingview-mcp`. Requirements are preserved with the current runtime and onboarding decisions reflected in the linked plans. Authentication has 25 unchecked tasks; billing now has a draft technical plan, physical interface and 14 unchecked tasks. No authentication/billing implementation, cloud deployment, payment action, or live acceptance is claimed by this project creation.
 
-Start with the [specification index](specs/README.md), [authentication plan](specs/002-authentication-api-access/plan.md), [authentication tasks](specs/002-authentication-api-access/tasks.md), and [billing specification](specs/003-billing-subscriptions/spec.md). The active feature selector points to spec 002; this minimal project does not copy the service repository's workflow/skill scaffold.
+Start with the [specification index](specs/README.md), [authentication plan](specs/002-authentication-api-access/plan.md), [authentication tasks](specs/002-authentication-api-access/tasks.md), and [billing specification](specs/003-billing-subscriptions/spec.md). The active feature selector points to spec 003; this minimal project does not copy the service repository's workflow/skill scaffold.
 
 ## Project layout
 

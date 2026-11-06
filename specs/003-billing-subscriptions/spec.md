@@ -1,6 +1,6 @@
 # Spec 003: Billing and Subscriptions
 
-**Created/updated**: 2026-11-05 · **Branch**: `main` · **Status**: Draft; technical plan/tasks pending.
+**Created/updated**: 2026-11-05 · **Branch**: `main` · **Status**: Planned; technical plan/tasks drafted, implementation pending.
 
 **Length exception**: Retain the existing payment-integrity, ownership and recovery requirements together to preserve their IDs and testable failure behavior.
 
@@ -77,4 +77,4 @@ Identity/customer mapping; approved catalog; order/Checkout continuation; subscr
 - Technical planning must finalize catalog/status policy, tables/indexes, secrets, Stripe versions, retention/reconciliation, and outbox/stream/read/reconciliation interfaces for access.
 - Testing is local-only; no real charges, Stripe configuration, webhook registration or AWS provisioning is authorized by this draft.
 
-[Entitlements](contracts/entitlements.md) · [Checkout/onboarding](contracts/checkout-onboarding.md) · [Feature boundaries](../../../tradingview-mcp/specs/README.md)
+[Plan](plan.md) · [Tasks](tasks.md) · [Physical interface](contracts/storage-operations.md) · [Entitlements](contracts/entitlements.md) · [Checkout/onboarding](contracts/checkout-onboarding.md) · [Feature boundaries](../../../tradingview-mcp/specs/README.md)

@@ -2,6 +2,8 @@
 
 **Status**: Planned, not implemented. Applies to the REST target profile; [Node.js onboarding](onboarding-workflow.md), [authorization](authorization.md), [gateway](rest-gateway.md) and [billing continuation](../../003-billing-subscriptions/contracts/checkout-onboarding.md) define the trust boundaries.
 
+HTTP methods, route names and browser/server handoffs are defined in the [endpoint contract](endpoints.md).
+
 ## Browser and client sequence
 
 1. ChatGPT/Claude connect/sign-in/first protected request initiates authorization when the host chooses. Installation alone is not a portable redirect hook. Missing/invalid bearer access receives an upstream 401 with `WWW-Authenticate: Bearer resource_metadata="<advertised HTTPS metadata URL>"`. The resource metadata identifies the exact canonical MCP resource and access-coordinator issuer.
@@ -11,7 +13,7 @@
 5. Browser Checkout return displays pending/success/cancelled state through short status requests. Billing commits a verified activation outbox before the access event handler advances matching transactions; a browser return cannot establish payment. Transition logic and resume endpoint require server-side verification: committed current billing entitlement plus matching ready subscriber usage-plan binding. Payment-confirmed-but-binding-pending remains activation pending; no access code/token yet. Bounded status checks/retry permit API Gateway key-association propagation. Stripe redirect parameters are never payment authority.
 6. After a conditional transition marks OAuth completion ready and the browser resume endpoint confirms the transaction is still valid, return a short-lived one-use code, original state and exact issuer `iss` to the registered AI callback. Errors to a previously validated redirect include state and matching issuer too. An invalid/unregistered redirect is a local error, never a redirect. No access/refresh token, usage key or subscription record enters the callback URL.
 7. At `/token`, verify the code atomically once, client, exact redirect, original S256 verifier and resource. Recheck entitlement and ready binding before issuing access/refresh tokens in a noncacheable JSON response. The host stores them and sends `Authorization: Bearer <access_token>` on subsequent MCP requests. The resource audience matches the canonical `/mcp` URL exactly.
-8. Refresh rotates the opaque refresh credential, checks grant/client/resource binding and current paid entitlement/binding, rejects replay and enforces grant expiry/revocation. Eligible reconnect and refresh never create new Stripe orders. Unpaid users may reopen only purchase/renewal enrollment; paid application login, refresh and billing management remain denied.
+8. At the same `/token` endpoint, `grant_type=refresh_token` rotates the opaque refresh credential, checks grant/client/resource binding and current paid entitlement/binding, rejects replay and enforces grant expiry/revocation. Eligible reconnect and refresh never create new Stripe orders. Unpaid users may reopen only purchase/renewal enrollment; paid application login, refresh and billing management remain denied.
 
 ## Durable state and bounds
 
@@ -25,7 +27,11 @@ Upstream Cognito logout, coordinator browser logout, grant/refresh revocation an
 
 ## Discovery and host compatibility
 
-Expose protected-resource metadata at an explicit advertised HTTPS URL. Use a path-based coordinator issuer compatible with the named REST stage, with its OIDC discovery document at `<issuer>/.well-known/openid-configuration`; advertise only OAuth scopes/capabilities actually implemented. No OIDC identity scopes or ID-token/userinfo capability is implied by using that discovery format. Issuer strings match exactly in discovery, resource metadata, callbacks and service JWTs. Authorization-server discovery must be checked against both real hosts, including path issuers. Do not invent a root-domain well-known route that a stage-only API cannot serve; a custom domain is a separate decision if host compatibility requires it.
+Expose public protected-resource metadata with `resource` and `authorization_servers`; its exact URL is advertised in the 401 challenge. Standard well-known resource locations insert `/.well-known/oauth-protected-resource` before the MCP resource path, with a root metadata fallback. These are URL routes, not required physical folders; multiple resource documents may share one authorization server.
+
+Support OAuth authorization-server metadata and OIDC discovery compatibility documents containing exact issuer, authorization/token/JWKS endpoints, code/refresh grant types, S256 and registered-public-client authentication `none`. For issuer `https://host/prefix`, client lookup order is `https://host/.well-known/oauth-authorization-server/prefix`, then `https://host/.well-known/openid-configuration/prefix`, then `https://host/prefix/.well-known/openid-configuration`; root issuers use the corresponding root well-known URLs. Publish consistent documents at reachable configured locations. A named-stage-only API cannot invent origin-root routes: explicitly plan gateway/custom-domain mappings for selected discovery aliases, retain the stage-prefixed OIDC fallback, and report unsupported lookup paths rather than claiming they exist. Verify the complete advertised chain with ChatGPT and Claude before cutover; resolve mapping/domain requirements first if a host cannot use the fallback.
+
+Advertise only implemented capabilities, with exact matching issuer/resource/callback/JWT strings; discovery does not imply OIDC ID-token/userinfo support or dynamic client registration.
 
 Public discovery, `/authorize`, Cognito callback, `/token`, JWKS and browser onboarding endpoints do not require a paid token/native key. This means only the protocol entry point is public: session/token/CSRF validation still protects each operation. CORS is limited to the metadata/authorization surfaces needed by tested clients; no browser MCP transport is added to spec 001.
 

@@ -32,7 +32,7 @@
 
 ## Notes
 
-- Separate Lambda/DynamoDB and issuer-side subscription enforcement and token-only authorization are confirmed. Active-paid/no-grace, hosted billing and catalog/retention details are explicit reviewable assumptions or operator/planning inputs; no prices or payment actions are invented. This draft needs billing-policy review and technical planning before implementation.
+- Separate Lambda/DynamoDB and issuer-side subscription enforcement and token-only authorization are confirmed. Active-paid/no-grace, hosted billing and catalog/retention details are explicit reviewable assumptions or operator/planning inputs; no prices or payment actions are invented. The draft plan/tasks and physical interface now exist; catalog inputs, bounded deployment settings and billing-policy review remain prerequisites before live implementation acceptance.
 - No feature branch or cloud/payment operation was created by this documentation change. The adopted constitution governs documentation revisions.
 
 - 2026-11-03 revision review: requested plan-selection/order/verified-payment/AI-client completion and REST native usage plans are reflected in scenarios, requirements, entities, measurable outcomes and feature boundaries. Pending/failed/expired/replayed and existing-subscriber paths are explicit. Contract/design details live outside the feature specification; no checklist marker denotes implementation, cloud/payment acceptance or business-policy approval.

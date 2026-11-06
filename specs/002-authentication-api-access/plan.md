@@ -10,7 +10,7 @@ Cognito human PKCE → billing plan/order/Stripe → committed entitlement → n
 |---|---|
 | `access/` | Node.js/ARM64 Express OAuth/session/code/refresh endpoints with REST-v1 proxy adapter; direct callback/provisioning/reconciliation workers; own transaction/grant/binding state |
 | `authorizer/` | Independently packaged Node.js/ARM64 direct REST REQUEST handler using `methodArn`; signature/claim validation without datastore reads; exact-method policy and usageIdentifierKey; TTL 0 |
-| `infra/access/auth.yaml` | Retained Cognito create/compatible reuse, access stores/KMS signing/JWKS, worker/authorizer functions/versions/roles/logs |
+| `infra/access/auth.yaml` | Retained Cognito create/compatible reuse, access stores/Parameter Store signing-key configuration/JWKS, worker/authorizer functions/versions/roles/logs |
 | `infra/access/background.yaml` | Scoped DynamoDB Streams mappings, EventBridge recovery schedule, bounded retries/failure retention and worker invoke permissions |
 | `infra/access/gateway.yaml` | Base REST API, then all methods/integrations/permissions, deployment/named stage, discovery/GatewayResponses and native tier plans |
 | Publication/verifiers | Independent protected OIDC/ECR component workflows; read-only cutover manifest and separate local/live access evidence |
@@ -24,9 +24,9 @@ Export the Express app separately from its Lambda adapter and local listener. Us
 | Contract | Owns these details |
 |---|---|
 | [Client onboarding](contracts/client-onboarding.md) | Discovery, exact client/redirect/state/issuer/resource/S256 binding, browser session, code exchange and recovery |
-| [Authorization](contracts/authorization.md) | Separate Cognito/service issuers, JWT claims/KMS/JWKS, refresh/revocation bounds and IAM |
+| [Authorization](contracts/authorization.md) | Separate Cognito/service issuers, JWT claims/local signing/JWKS, refresh/revocation bounds and IAM |
 | [Node.js onboarding](contracts/onboarding-workflow.md) | Conditional transitions, durable work/outbox, leases, deadlines, scheduled recovery and release compatibility |
-| [REST gateway](contracts/rest-gateway.md) | Stage-prefixed endpoint, native subscriber keys/plans, REST-v1 transport and legacy cutover |
+| [Endpoints](contracts/endpoints.md) / [gateway](contracts/rest-gateway.md) | Routes/callers, discovery, subscriber metering, REST transport and cutover |
 | [Infrastructure](contracts/managed-infrastructure.md) / [service boundary](contracts/service-integration.md) | Resource/output ownership, roles, bootstrap and cleanup |
 
 Login/enrollment/management gates follow [FR-003/FR-004](spec.md#functional-requirements). Defaults: 30-minute absolute OAuth continuation; 60-second one-use code; one-hour access TTL bounded by subscription expiry; rotating refresh deadline at subscription expiry. Initial host clients are explicitly registered public clients. Do not advertise unimplemented CIMD/DCR/OIDC capabilities; verify actual callbacks and stage/path-issuer discovery before deployment.

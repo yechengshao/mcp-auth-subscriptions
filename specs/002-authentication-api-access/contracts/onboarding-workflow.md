@@ -18,6 +18,8 @@ All transitions use conditional writes against expected phase/revision, identity
 
 Workers claim bounded leases with owner/fencing revisions. Every completion checks the current lease and transaction/entitlement revision; stale workers cannot publish readiness or overwrite newer results. Recheck entitlement before and after native-key updates and reconcile any stale external association. A lease cannot make an external API call atomic with DynamoDB, so uncertain provider effects need explicit recovery tests.
 
+Routes and caller/response boundaries follow the [endpoint contract](endpoints.md); authorization starts a transaction, resume continues it, and both share completion guards.
+
 ## Triggers and delivery
 
 1. `/authorize` validates the complete client request, durably creates a bounded transaction and returns a Cognito redirect. The validated Cognito callback conditionally binds identity and advances from current entitlement; repeated or concurrent callbacks cannot create extra grants/orders.

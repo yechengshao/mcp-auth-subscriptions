@@ -2,6 +2,8 @@
 
 **Status**: User-confirmed target, pending implementation. The existing `infra/lambda/runtime.yaml` and verifier/report v1 remain the legacy HTTP API profile. HTTP API IDs, `$default`, route IDs and payload 2.0 are not the REST target.
 
+HTTP routes/methods and browser handoffs follow the [endpoint contract](endpoints.md). Discovery aliases and stage/domain routing follow the [client contract](client-onboarding.md#discovery-and-host-compatibility).
+
 ## REST surface and ownership
 
 Spec 002 owns `AWS::ApiGateway::RestApi`, resources, methods, AWS_PROXY integrations, REQUEST authorizer/binding/permission, deployments, explicit named stage, sanitized logs, GatewayResponses, native usage plans and all REST backend-alias invocation permissions. Spec 001's planned `infra/lambda/runtime-rest.yaml` supplies the MCP function/version/live alias/log group and native provider environment; it creates no gateway resource or invoke grant. Spec 003 owns billing Lambda/storage/business logic and its outputs; the gateway assembles the dedicated REST ingress, including a Stripe-signature-verified billing webhook targeting the exact billing alias. No HTTP-API import helper is needed for this migration.

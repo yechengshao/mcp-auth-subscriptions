@@ -4,7 +4,7 @@
 
 | Planned resource/artifact | Owner and interface |
 |---|---|
-| `infra/access/auth.yaml` | Cognito create/compatible reuse; retained transaction/work/grant/binding stores and due-work indexes; KMS signing/JWKS; coordinator/event/recovery/provisioning/authorizer aliases, roles and scoped logs |
+| `infra/access/auth.yaml` | Cognito create/compatible reuse; retained transaction/work/grant/binding stores and due-work indexes; Parameter Store signing-key configuration/JWKS; coordinator/event/recovery/provisioning/authorizer aliases, roles and scoped logs |
 | `infra/access/background.yaml` | Scoped access/billing-outbox stream mappings, EventBridge recovery schedule, worker invoke policies and retry/failure retention |
 | `infra/access/gateway.yaml` | Dedicated REST API, resources/methods/proxy integrations, REQUEST authorizer and all exact alias permissions, deployments/named stage/logs/GatewayResponses, tier usage plans |
 | `access/`, `authorizer/` | Independent npm-locked TypeScript/Node.js components/images; Express coordinator and direct authorizer/workers, no MCP production dependency changes |
@@ -20,7 +20,7 @@ Cognito reuse inputs form one compatible issuer/pool/client/domain set. Register
 
 ## Permissions and lifecycle
 
-MCP role: own logs only. Billing role: billing data/Stripe and independent configuration. Authorizer role: own logs and trusted JWKS retrieval only; no datastore grants. Coordinator role: own state/signing, read entitlement, exact billing IAM invocation. Event/recovery handlers have scoped access-state/work writes, billing outbox/entitlement reads, stream checkpoint permissions and exact worker/billing alias invocation; provisioning alone manages native keys/plans and bindings. EventBridge may invoke only the selected recovery alias. No Step Functions resources or `states:*` grants. Separate reader/provisioner roles and minimize supported key-management action/resource scopes. Wiring in background.yaml follows storage and worker aliases, with no billing-to-access resource dependency.
+MCP role: own logs only. Billing role: billing data/Stripe and independent configuration. Authorizer role: own logs and trusted JWKS retrieval only; no datastore grants. Coordinator role: own state, exact Parameter Store signing-key read/required decrypt under the authorization contract, read entitlement and exact billing IAM invocation; no kms:Sign grant. Event/recovery handlers have scoped access-state/work writes, billing outbox/entitlement reads, stream checkpoint permissions and exact worker/billing alias invocation; provisioning alone manages native keys/plans and bindings. EventBridge may invoke only the selected recovery alias. No Step Functions resources or `states:*` grants. Separate reader/provisioner roles and minimize supported key-management action/resource scopes. Wiring in background.yaml follows storage and worker aliases, with no billing-to-access resource dependency.
 
 Gateway owns all REST integration and authorizer invocation permissions, pinned to exact aliases/API/stage/method paths plus SourceAccount. No MCP function URL or alternate public proxy. Billing Stripe webhook is a separate explicit route to billing with signature verification; it does not need a paid key. Public OAuth routes require their protocol/session checks, never an existing paid token.
 
