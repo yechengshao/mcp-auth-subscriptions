@@ -1,6 +1,6 @@
 # Spec 002: Authentication and API Access
 
-**Created/updated**: 2026-11-05 · **Branch**: `main` · **Status**: Planned; implementation pending.
+**Created/updated**: 2026-11-06 · **Branch**: `main` · **Status**: Planned; implementation pending.
 
 **Length exception**: Retain the existing security, migration and workflow acceptance requirements together to preserve their IDs and testable failure behavior.
 
@@ -83,4 +83,4 @@ Verified Cognito identity; bound OAuth transaction; versioned onboarding state/d
 
 Purchase-only enrollment preserves first purchase and renewal without granting application login or general billing management. Eligibility policy belongs to [billing FR-007](../003-billing-subscriptions/spec.md#functional-requirements). Initial clients are explicitly registered public clients; CIMD/DCR and other capabilities require implementation before advertisement. Operators supply exact callbacks/client IDs, account/region/stage and tier limits. WAF defaults, baseline protection and the separate enablement decision are defined in the [REST gateway contract](contracts/rest-gateway.md#waf-and-baseline-protection). Lifetimes and signing/storage choices are technical defaults in the contracts. Local-only testing remains in force; no AWS/Stripe changes or charges are implied. The adopted constitution governs revisions.
 
-[Endpoints](contracts/endpoints.md) · [Plan](plan.md) · [Tasks](tasks.md) · [Client flow](contracts/client-onboarding.md) · [Workflow](contracts/onboarding-workflow.md) · [Authorization](contracts/authorization.md) · [REST gateway](contracts/rest-gateway.md)
+[Background delivery](contracts/background-delivery.md) · [Endpoints](contracts/endpoints.md) · [Plan](plan.md) · [Tasks](tasks.md) · [Client flow](contracts/client-onboarding.md) · [Workflow](contracts/onboarding-workflow.md) · [Authorization](contracts/authorization.md) · [REST gateway](contracts/rest-gateway.md)

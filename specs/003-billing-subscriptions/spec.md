@@ -1,6 +1,6 @@
 # Spec 003: Billing and Subscriptions
 
-**Created/updated**: 2026-11-05 · **Branch**: `main` · **Status**: Planned; technical plan/tasks drafted, implementation pending.
+**Created/updated**: 2026-11-06 · **Branch**: `main` · **Status**: Planned; technical plan/tasks drafted, implementation pending.
 
 **Length exception**: Retain the existing payment-integrity, ownership and recovery requirements together to preserve their IDs and testable failure behavior.
 

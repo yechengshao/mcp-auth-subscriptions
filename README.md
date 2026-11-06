@@ -31,3 +31,5 @@ mcp-auth-subscriptions/
 ```
 
 Keep this project and `tradingview-mcp` as sibling folders so local integration links resolve. The service repository owns spec 001. The `origin` remote is [yechengshao/mcp-auth-subscriptions](https://github.com/yechengshao/mcp-auth-subscriptions), using SSH; the default branch is `main`.
+
+Planned runtime: four Lambdas total including MCP—access (HTTP/background), authorizer, billing, and MCP—with SQS/Pipes and replay schedules on existing consumers; see the [background delivery contract](specs/002-authentication-api-access/contracts/background-delivery.md).

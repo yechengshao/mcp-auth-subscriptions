@@ -1,6 +1,6 @@
 # Plan 002: Authentication and API Access
 
-**Updated**: 2026-11-05 · **Status**: Planned; 25 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-06 · **Status**: Planned; 25 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 
@@ -8,16 +8,16 @@ Cognito human PKCE → billing plan/order/Stripe → committed entitlement → n
 
 | Planned component | Responsibility |
 |---|---|
-| `access/` | Node.js/ARM64 Express OAuth/session/code/refresh endpoints with REST-v1 proxy adapter; direct callback/provisioning/reconciliation workers; own transaction/grant/binding state |
+| `access/` | Node.js/ARM64 Express OAuth/session/code/refresh endpoints with REST-v1 proxy adapter; native SQS activation/provisioning/replay in the same function; own transaction/grant/binding state |
 | `authorizer/` | Independently packaged Node.js/ARM64 direct REST REQUEST handler using `methodArn`; signature/claim validation without datastore reads; exact-method policy and usageIdentifierKey; TTL 0 |
-| `infra/access/auth.yaml` | Retained Cognito create/compatible reuse, access stores/Parameter Store signing-key configuration/JWKS, worker/authorizer functions/versions/roles/logs |
-| `infra/access/background.yaml` | Scoped DynamoDB Streams mappings, EventBridge recovery schedule, bounded retries/failure retention and worker invoke permissions |
+| `infra/access/auth.yaml` | Retained Cognito create/compatible reuse, access stores/Parameter Store signing-key configuration/JWKS, access/authorizer functions/versions/roles/logs |
+| `infra/access/background.yaml` | SQS/Pipes/DLQs, delayed retries and replay schedules on existing consumers |
 | `infra/access/gateway.yaml` | Base REST API, then all methods/integrations/permissions, deployment/named stage, discovery/GatewayResponses and native tier plans |
 | Publication/verifiers | Independent protected OIDC/ECR component workflows; read-only cutover manifest and separate local/live access evidence |
 
-Use strict TypeScript with NodeNext ES modules, maintained OAuth/JWT libraries and AWS SDK for JavaScript v3. Each component owns `package.json`/`package-lock.json` and `tsconfig.json`; use `npm ci`, `npm run typecheck` (`tsc --noEmit`) and `npm run build` (`tsc`). Compile `.ts` sources/tests/scripts to JavaScript; run emitted tests with Node's test runner and package compiled handlers/runtime dependencies only. Pin TypeScript, Node/Express/Lambda types, adapter and supported Node.js LTS ARM64 Lambda image/digest; match local/CI runtimes. Lambda entrypoints target emitted `.js`. Coordinator/event-worker/provisioner/authorizer permissions remain separate; authorizer cannot sign, provision keys or write billing. Access holds no Stripe secrets or billing-write grant.
+Use strict TypeScript with NodeNext ES modules, maintained OAuth/JWT libraries and AWS SDK for JavaScript v3. Each component owns `package.json`/`package-lock.json` and `tsconfig.json`; use `npm ci`, `npm run typecheck` (`tsc --noEmit`) and `npm run build` (`tsc`). Compile `.ts` sources/tests/scripts to JavaScript; run emitted tests with Node's test runner and package compiled handlers/runtime dependencies only. Pin TypeScript, Node/Express/Lambda types, adapter and supported Node.js LTS ARM64 Lambda image/digest; match local/CI runtimes. Lambda entrypoints target emitted `.js`. Access/authorizer/billing roles remain separate; authorizer cannot sign, provision keys or write billing. Access holds no Stripe secrets or billing-write grant.
 
-Export the Express app separately from its Lambda adapter and local listener. Use form parsing for OAuth token requests; test REST-v1 stage/path handling, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and stream/scheduled handlers bypass Express. Test the app over HTTP and exported handlers with Lambda events. Billing uses the same stack in its own package/function; its physical interfaces remain spec 003 planning work. DynamoDB holds progress between requests; no required work runs in detached promises or process-local timers.
+Export the Express app separately from its Lambda adapter and local listener. Use form parsing for OAuth token requests; test REST-v1 stage/path handling, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and access SQS/scheduled handlers bypass Express. Test the app over HTTP and exported handlers with Lambda events. Billing uses the same stack in its own package/function; its physical interfaces remain spec 003 planning work. DynamoDB holds progress between requests; no required work runs in detached promises or process-local timers.
 
 ## Authoritative contracts
 
@@ -31,7 +31,7 @@ Export the Express app separately from its Lambda adapter and local listener. Us
 
 Login/enrollment/management gates follow [FR-003/FR-004](spec.md#functional-requirements). Defaults: 30-minute absolute OAuth continuation; 60-second one-use code; one-hour access TTL bounded by subscription expiry; rotating refresh deadline at subscription expiry. Initial host clients are explicitly registered public clients. Do not advertise unimplemented CIMD/DCR/OIDC capabilities; verify actual callbacks and stage/path-issuer discovery before deployment.
 
-Callbacks atomically persist trusted state and required work; streams trigger idempotent workers and EventBridge invokes bounded due-work/expiry recovery. Conditional revisions, leases and current reads handle duplicates, crashes and stale workers. Browser status reads persisted progress; resume issues a code only after current readiness, and `/token` rechecks authority. Cancellation/retry never extends expiry or reverses paid state. See the onboarding contract for outbox-gap and uncertain-provider recovery.
+Callbacks atomically persist trusted state and required work; Pipes/SQS trigger access background handlers; replay schedules recover due work on existing functions. Conditional revisions, leases and current reads handle duplicates, crashes and stale workers. Browser status reads persisted progress; resume issues a code only after current readiness, and `/token` rechecks authority. Cancellation/retry never extends expiry or reverses paid state. See [delivery](contracts/background-delivery.md) for four-function boundaries and recovery.
 
 Keys are per subscriber, associated with tier/stage outside authorization. Signed JWTs expose `usageIdentifierKey` to holders; authorizer returns that claim, never a header. Current entitlement/binding gates issuance/refresh; revocation leaves existing access valid until expiry. Native quotas are best effort.
 
