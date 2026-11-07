@@ -1,13 +1,3 @@
-<!--
-Sync Impact Report (temporary review note; remove before committing):
-Version change: not established -> 1.0.0 (initial adoption).
-Added principle: Concise, Precise Documentation.
-Added sections: Documentation Scope; Compliance Review; Governance.
-Removed: unused template placeholders/examples; no adopted rules removed.
-Dependent templates/commands: unchanged; live constitution is the policy source.
-Follow-up TODOs: none.
--->
-
 # MCP Auth and Subscriptions Constitution
 
 ## Core Principles
@@ -28,6 +18,32 @@ Follow-up TODOs: none.
   criteria, or necessary implementation details.
 - Revisions MUST preserve existing requirement/task IDs and completion states.
 
+### Idempotent, Resumable Operations
+
+- User workflows MUST allow safe retries and reconnection using durable server-side
+  state; completion MUST NOT depend on keeping a browser, HTTP request or Lambda
+  invocation open through payment, propagation or human delays.
+- Each request MUST perform bounded work and return a completed, pending, denied or
+  retryable outcome. Pending responses MUST identify how to resume and provide
+  bounded retry/backoff guidance; no detached post-return work or process-local timer
+  may carry required progress.
+- Retries, concurrent requests and duplicate/reordered events MUST NOT duplicate
+  purchases, charges, native usage keys, provisioning effects or credential grants.
+  Use stable operation identity, conditional state/revision checks and recoverable
+  leases where needed; repeated calls may return the same result, current progress
+  or a safe rejection rather than repeat an effect.
+- Uncertain external effects MUST be reconciled against authoritative provider and
+  persisted state before retrying; a timeout alone is not proof that an effect failed.
+  Security one-use codes and rotating refresh credentials MUST retain replay rejection.
+- Confirmed payment/subscription state MUST survive browser closure, expired login
+  continuations and application retries. Eligible reconnect MUST reuse the existing
+  subscription rather than require another purchase; expired continuations require
+  fresh authorization and MUST NOT be revived or extended by retries.
+- Prefer request-driven retry/resume for access activation. Background queues or
+  schedules MAY be used when work must progress without user requests, such as
+  payment reconciliation, but their necessity and recovery guarantees MUST be explicit.
+  Retryability MUST NOT bypass current eligibility, ownership, CSRF or expiry checks.
+
 ## Documentation Scope
 
 Apply these rules to future generated or revised specifications, plans, tasks, and
@@ -39,6 +55,8 @@ diagrams only when they clarify necessary detail without repeating existing cont
 
 Before finishing an artifact, check its word budget, remove repetition, and confirm
 that requirements, task states, and essential security/failure details remain intact.
+Review retry/concurrency, uncertain-effect recovery, browser closure and reconnect
+acceptance without weakening replay protection or duplicating paid effects.
 This adoption does not automatically rewrite existing feature documents.
 
 ## Governance
@@ -48,4 +66,11 @@ the changed rule, rationale, version, and amendment date. Use a major version fo
 incompatible rule changes, a minor version for new or expanded principles, and a
 patch version for clarifications. Reviews MUST check compliance with this constitution.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-04
+## Amendment Record
+
+- **1.1.0 — 2026-11-06**: Added Idempotent, Resumable Operations and corresponding
+  compliance review. Rationale: users must be able to retry or reconnect without
+  holding requests open, losing confirmed payment or repeating side effects; keep
+  autonomous payment recovery distinct from request-driven access activation.
+
+**Version**: 1.1.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-06
