@@ -17,11 +17,11 @@ Use `PK`/`SK` strings. `identity_key` is SHA-256 of the unambiguous UTF-8 JSON a
 | BillingEntitlements | `ENV#<env>#IDENTITY#<identity_key>` | `ENTITLEMENT` | Logical entitlement fields from entitlements contract, schema_version=1 |
 | BillingActivationOutbox | `ENV#<env>#IDENTITY#<identity_key>` | `REV#<zero-padded-revision>` | notification_id, own order ref, verified tuple, decision revision/status, created_at, schema_version=1; no tokens/keys/payment secrets |
 
-Storage outputs expose table ARNs/names, exact entitlement key algorithm/schema, outbox stream ARN and index names; no customer/key/token values. Access token issuer receives only entitlement GetItem; access Lambda readers receive required projection/outbox GetItem/Query and outbox stream read actions. Authorizer/MCP receive none. Billing alone mutates these tables; access delivery checkpoints remain in access-owned storage.
+Storage outputs expose table ARNs/names and exact entitlement key/schema; no key/token/customer values. Access receives scoped entitlement GetItem and exact billing operation invocation, not billing event/outbox stream access. Billing alone writes billing tables and reads its durable decision/reconciliation history; MCP/authorizer receive no grants.
 
 ## Indexes and recovery
 
-Outbox uses NEW_IMAGE streams with no secret columns; a managed Pipe filters inserted v1 records and sends references to activation SQS. Revisions are per identity/environment, allocated conditionally. Outbox GSI `RecoveryByTime` has `recovery_bucket=ENV#<env>#DAY#<UTC-date>#SHARD#<00..15>` and sort `created_at#notification_id`; shard derives from notification ID hash. Polling pages durable buckets, including replay lookback, with bounded continuation cursors and an access-owned per-shard checkpoint; timestamp ties must not skip records. Re-read authoritative base records; GSI lag and late inserts require overlap/revisiting checkpoints, never authorization by index.
+BillingActivationOutbox retains atomic decision history by identity/revision. No stream/Pipe/activation queue or access recovery index is required for that table; access reads the current entitlement instead of replaying history. BillingState reconciliation work retains its stream and due-work index for billing-only SQS/replay.
 
 BillingState GSI `DueWork` has environment/shard partition and `next_attempt_at#operation_id` sort for explicit work records. Consistently re-read and conditionally claim work. Pages/attempts/deadlines/lookback/retention are explicit deployment config with validation; absent budgets fail startup, not unbounded scans. Retention must exceed the supported recovery horizon; cleanup requires verified consumer progress, never DynamoDB TTL alone. Retain event/order/provider-effect idempotency evidence so expired Stripe idempotency windows cannot recreate charges.
 
@@ -32,7 +32,7 @@ Only selected access coordinator roles may invoke the exact billing alias. These
 | Operation | Input | Result / scope |
 |---|---|---|
 | `listPlans` | none | Approved nonsecret plan display/catalog version; verified purchase continuation |
-| `createCheckout` | approved plan_id, purchase intent | Own order and approved transient Checkout URL, or existing eligibility/pending outcome; no arbitrary price/redirect/customer |
+| `createCheckout` | approved plan_id, purchase intent | Own order, persisted reconciliation intent and delayed billing check, then approved transient Checkout URL, or existing eligibility/pending outcome; no arbitrary price/redirect/customer |
 | `getOrder` | order_id | Own sanitized state and activation reference; another identity receives no disclosure |
 | `reconcileOrder` | order_id | One bounded provider reconciliation then committed/pending/retryable outcome; no wait loop |
 | `manageSubscription` | explicit allowed action + own subscription reference | Current-paid/ownership-gated management; cancellation of renewal versus immediate revocation remains distinct |
@@ -54,4 +54,6 @@ Eligibility is defined only in spec FR-007 and the logical entitlement contract;
 
 The [background delivery contract](../../002-authentication-api-access/contracts/background-delivery.md) owns message v1, delays and queue failure handling. BillingState uses NEW_IMAGE streams; its billing-owned Pipe filters reconciliation work inserts/updates and transforms only reference fields to BillingReconcileQueue. Set a work kind so provider/event/customer records cannot route as jobs. Missing due-time or schema is invalid. Before/alongside Checkout effects, persist own reconciliation work; consumer reads due time and schedules bounded delayed checks.
 
-Billing's handler accepts separate HTTP webhook, trusted native operation, SQS record-batch and scheduled replay event shapes; reject ambiguity. SQS consumers do not require a browser continuation: resolve trusted identity/order from persisted work under queue IAM. Existing-function replay re-enqueues due records and recovers delivery gaps/leases. Billing background resources own this queue/Pipe/mapping/schedule and no access-state grants; access background owns activation transport. Checkpoint ownership remains separate from billing business records.
+Billing's handler accepts separate HTTP webhook, trusted native operation, SQS record-batch and scheduled replay event shapes; reject ambiguity. SQS consumers do not require a browser continuation: resolve trusted identity/order from persisted work under queue IAM. Existing-function replay re-enqueues due records and recovers delivery gaps/leases. Billing background resources own this queue/Pipe/mapping/schedule and no access-state grants; access deploys no activation transport. Billing replay checkpoint ownership remains billing-only; access has no queue consumer/checkpoint.
+
+Component IaC and handlers must implement the shared [CloudWatch/X-Ray contract](../../002-authentication-api-access/contracts/observability.md), including finite log retention, credential redaction, telemetry IAM, dashboards/alarms and separately validated live delivery.

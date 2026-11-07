@@ -14,6 +14,4 @@ The host obtains a short-lived MCP bearer via code exchange after confirmed acti
 
 ## Node.js onboarding and recovery
 
-Follow the [onboarding contract](contracts/onboarding-workflow.md): implement conditional DynamoDB transitions, durable access work and billing outbox consumption, the access Lambda SQS handler and managed stream Pipes and `infra/access/background.yaml`. Deploy storage and worker aliases before Pipes, SQS mappings and replay scheduling on existing aliases. Keep all human/payment waits in saved state; no process-local timers or detached work after return. Test crashes, duplicate/early/reordered events, stale leases, stream gaps, retries, expiry, browser closure and compatible releases/rollback. Scheduled recovery must resume outstanding work without a browser. Local simulations do not prove live event/schedule delivery; live checks remain not_run.
-
-Use the [four-function background delivery contract](contracts/background-delivery.md); delayed payment checks invoke billing directly through its SQS mapping, not an HTTP endpoint.
+Follow the [onboarding contract](contracts/onboarding-workflow.md): status/resume and fresh login perform bounded, idempotent provisioning with persisted leases/retry hints. No access queue/Pipe/DLQ/mapping/schedule is deployed. Billing owns delayed reconciliation and replay; test closed-browser payment recovery separately from request-driven activation. The [delivery contract](contracts/background-delivery.md) defines four functions and billing-only transport.

@@ -8,7 +8,7 @@
 
 Use **Node.js and Express on a separate AWS Lambda, with DynamoDB**, for plan selection, orders, Stripe Checkout/portal, subscription records and entitlement publication. [Spec 002](../002-authentication-api-access/spec.md) owns Cognito/Node.js onboarding, client tokens and subscription enforcement at login/token issuance/refresh and token validation in the authorizer. [Spec 001](../../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) provides MCP only.
 
-After identity verification, unpaid users may only select/purchase/renew and inspect their purchase through a bounded enrollment continuation; application login and billing management follow [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements). Billing commits trusted plan/expiry plus a durable activation notification. Access completes OAuth only after entitlement and native usage binding are ready. Eligible reconnect and late-payment recovery reuse the subscription without another purchase.
+After identity verification, unpaid users may only select/purchase/renew and inspect their purchase through a bounded enrollment continuation; application login and billing management follow [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements). Billing commits trusted plan/expiry plus a durable decision history. Access completes OAuth only after entitlement and native usage binding are ready. Eligible reconnect and late-payment recovery reuse the subscription without another purchase.
 
 ## User scenarios and acceptance
 
@@ -41,7 +41,7 @@ Billing release/rollback and service cleanup preserve identities and billing rec
 - **FR-007**: Publish identity-keyed eligibility, approved paid plan, future paid-through bound and committed revision. Validity requires active paid eligibility without revocation; scheduled cancellation remains valid through the paid bound, while unpaid trials, pending, past-due and expired states do not qualify. Access enforces the projection; MCP does not.
 - **FR-008**: Deny login/token issuance/refresh for missing/denied/expired/unavailable entitlement; apply [access FR-008/FR-014](../002-authentication-api-access/spec.md#functional-requirements) to outstanding tokens, checking expiry independently of TTL deletion.
 - **FR-009**: Enforce the login, purchase-only enrollment and paid billing-management boundaries in [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements) on every billing operation; browser claims never establish eligibility. Collect/store no raw card data.
-- **FR-010**: Keep Stripe API/signing secrets billing-only; exclude secrets, access tokens, full provider payloads and unnecessary customer/payment data from logs/evidence.
+- **FR-010**: Provide CloudWatch logs/metrics/alarms and X-Ray diagnostics under the shared observability contract; keep Stripe API/signing secrets billing-only; exclude secrets, access tokens, full provider payloads and unnecessary customer/payment data from logs/evidence.
 - **FR-011**: Provide recoverable reconciliation/retry diagnostics and durable deduplication beyond short-lived request-idempotency tokens; preserve records during recovery.
 - **FR-012**: Retain billing state across releases/default cleanup; destructive cleanup must select owned resources and exclude unrelated/imported records.
 - **FR-013**: Test billing/token-issuer/authorizer boundaries locally; separate fixtures from live Stripe/cloud acceptance and mark unavailable live checks not_run.
@@ -50,8 +50,8 @@ Billing release/rollback and service cleanup preserve identities and billing rec
 - **FR-016**: Durably bind approved plan/order/Checkout/subscription to the same identity/environment; retries cannot duplicate purchases. Reuse eligible subscriptions unless deliberately changing plan.
 - **FR-017**: Report activation only after verified provider state commits plan/expiry; distinguish paid/pending/failed/cancelled outcomes. Access alone issues tokens/provisions native keys/completes OAuth.
 - **FR-018**: Preserve payment through delayed/expired OAuth and reuse it after fresh login. Use approved opaque return redirects; send no OAuth state/verifiers/bearer/refresh credentials to Stripe.
-- **FR-019**: Commit a durable activation notification with the billing decision before signaling access; recover failed/duplicate/reordered delivery without lost payment or repurchase. Keep access-owned transaction/work state outside billing/Stripe/client interfaces.
-- **FR-020**: Provide short idempotent own-order reconciliation for onboarding recovery. Billing queries Stripe; access persists pending state and schedules bounded recovery/retries.
+- **FR-019**: Commit durable decision history with the billing entitlement; access reads the current entitlement on requests rather than consuming activation notifications; billing reconciliation recovers missed payment delivery without lost payment or repurchase. Keep access-owned transaction/work state outside billing/Stripe/client interfaces.
+- **FR-020**: Provide short idempotent own-order reconciliation for onboarding recovery. Billing queries Stripe and schedules durable payment checks/replay; access persists pending state and retries binding on user requests.
 
 ## Key entities
 

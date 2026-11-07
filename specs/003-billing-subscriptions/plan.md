@@ -13,13 +13,13 @@ Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing
 | Artifact | Responsibility |
 |---|---|
 | `billing/` | Isolated package, provider adapter, eligibility reducer, transaction repository, order operations, webhook and bounded reconciliation dispatcher |
-| `infra/billing/storage.yaml` | Retained billing-state, entitlement and activation-outbox tables/indexes/streams; no Cognito/gateway/function dependency |
+| `infra/billing/storage.yaml` | Retained billing-state, entitlement/decision-history tables and billing-work indexes/stream; no Cognito/gateway/function dependency |
 | `infra/billing/runtime.yaml` | Billing function/version/alias/logs, scoped storage/Stripe-secret access and configuration; no gateway attachments |
 | `infra/billing/background.yaml` | Reconciliation SQS/DLQ, work-stream Pipe, SQS mapping and replay schedule on billing alias |
 | `infra/billing/publication.yaml` | Independent ECR/protected OIDC publication bootstrap without access/MCP publishing rights |
 | `scripts/verify_billing.ts` | Redacted local/live evidence, selected tests, schemas and artifact identity; no provisioning or charge side effects |
 
-Expose separate entitlement and outbox tables so access cannot read payment/customer/event records. Strong base-table reads decide eligibility; indexes are scheduling/discovery hints. Conditional transactions commit projection, subscription summary, event outcome and outbox together. Never hold a request through human payment. Managed Pipes route activation jobs to SQS; billing delayed reconciliation and replay use its existing alias; billing grants no orchestration rights and never writes access stores.
+Expose separate entitlement and outbox tables so access cannot read payment/customer/event records. Strong base-table reads decide eligibility; indexes are scheduling/discovery hints. Conditional transactions commit projection, subscription summary, event outcome and outbox together. Never hold a request through human payment. Access consistently reads entitlement on requests; only billing reconciliation work routes through its Pipe/SQS and existing-function replay; billing grants no orchestration rights and never writes access stores.
 
 Technical lifecycle cases are mapped in the [subscription lifecycle contract](contracts/subscription-lifecycle.md).
 
@@ -31,7 +31,7 @@ Use test mode for fixtures/future authorized acceptance; reject mixed environmen
 
 Hosted portal is disabled until its sessions/actions can meet FR-009's current-paid gate, including saved links; implement guarded own-account management operations otherwise. Refund/dispute automation, pricing/tax design and strict usage-credit billing remain outside this feature.
 
-Function inventory, delayed SQS jobs, managed routing and outbox replay follow the access [background delivery contract](../002-authentication-api-access/contracts/background-delivery.md); total target is four Lambdas including MCP, with no dedicated recovery function.
+Function inventory, delayed billing SQS jobs, managed routing and billing-work replay follow the access [background delivery contract](../002-authentication-api-access/contracts/background-delivery.md); total target is four Lambdas including MCP, with no dedicated recovery function.
 
 ## Delivery and validation
 
@@ -43,4 +43,6 @@ Function inventory, delayed SQS jobs, managed routing and outbox replay follow t
 
 Tests cover ten duplicate/concurrent deliveries, out-of-order provider events, crash before/after Stripe effects or DynamoDB commits, expired leases/fencing, missed streams, unsigned/raw-body tampering, cross-account/order/price attacks, renewal/cancellation/revocation, unavailable state, expired OAuth/closed browser and no duplicate charge. Typecheck/build, packaged adapter tests, IaC lint and current-run test counts are required. Mocks cannot prove live payment or host interoperability.
 
-Retain records across release/rollback; support existing schema versions. Explicit operator retention and recovery budgets must be configured before deployment; no TTL deletion of entitlement/history/outbox while consumers may need recovery. Preserve spec/task IDs and report prepared artifacts separately from deployed resources.
+Retain records across release/rollback; support existing schema versions. Explicit billing retention and recovery budgets must be configured before deployment; no TTL deletion of entitlement/history/outbox while consumers may need recovery. Preserve spec/task IDs and report prepared artifacts separately from deployed resources.
+
+CloudWatch logs/metrics/alarms and X-Ray tracing follow the [observability contract](../002-authentication-api-access/contracts/observability.md).

@@ -34,7 +34,7 @@ Keep old HTTP and new REST endpoints distinct; verify transport, discovery, OAut
 
 ### Story 5 — Resume asynchronous onboarding (P1)
 
-DynamoDB stores progress between short HTTP/worker requests. Early/duplicate/reordered callbacks advance the correct transaction without duplicate effects. Crash/cancellation/retry preserves the original deadline; scheduled recovery works with the browser closed, and late payment requires no repurchase.
+DynamoDB stores progress between short HTTP/worker requests. Early/duplicate/reordered callbacks advance the correct transaction without duplicate effects. Crash/cancellation/retry preserves the original deadline; billing payment recovery works with the browser closed; access activation resumes on user requests and late payment requires no repurchase.
 
 **Edge cases**: altered state/PKCE/redirect/resource; code/refresh replay; CSRF/concurrent tabs; cross-user continuation; abandoned/delayed payment; key rotation/propagation; stale plan/revision; unavailable stores; alternate-stage/proxy/legacy bypasses; expiry during login or an existing billing session; saved portal links.
 
@@ -44,9 +44,9 @@ DynamoDB stores progress between short HTTP/worker requests. Early/duplicate/reo
 - **FR-002**: Independently deploy the authorizer; validate signature/issuer/type/audience/client/signed grant ID/scope/times. Cognito login tokens and service access tokens remain distinct.
 - **FR-003**: Require current billing-owned paid entitlement before successful application login, token issuance or refresh; identity verification alone cannot log the user in. Missing/denied/expired/malformed/unavailable evidence fails closed; distinguish subscription-required from retryable-unavailable outcomes. Authorizer validates tokens without grant, subscription or binding reads.
 - **FR-004**: Permit billing management only with current valid paid entitlement and verified own-account ownership; deny billing disclosure, invoices, portal/payment-method access, plan changes and cancellation otherwise, including via old links/sessions. Unpaid users may only verify identity, purchase/renew and inspect that purchase through a bounded enrollment continuation; this is not application login.
-- **FR-005**: Own REST API/named stage/deployment/logging, REQUEST binding, methods/integrations/permissions and native usage plans through repository IaC.
+- **FR-005**: Own REST API/named stage/deployment/logging and CloudWatch/X-Ray observability, REQUEST binding, methods/integrations/permissions and native usage plans through repository IaC.
 - **FR-006**: Create REST separately from legacy HTTP; use controlled endpoint cutover/rollback without automatic takeover, replacement or deletion.
-- **FR-007**: Scope policies/permissions to exact account/API/stage/function; prevent bypasses. Authorizer has scoped logs and trusted JWKS access, no datastore, signing, provisioning or billing permissions.
+- **FR-007**: Scope policies/permissions to exact account/API/stage/function; prevent bypasses. Authorizer has scoped logs/tracing and trusted JWKS access, no datastore, signing, provisioning or billing permissions.
 - **FR-008**: Use current reads for login, management, issuance and refresh; revocation blocks new credentials while issued access remains valid until expiry. Authorizer decision caching stays disabled; MCP readiness remains independent.
 - **FR-009**: Document connection, refresh/logout/revocation bounds, deployment/migration, rollback and retention; preserve compatible identities.
 - **FR-010**: Exclude credentials, verifiers and raw keys/private claims from logs, infrastructure outputs and evidence; the signed token intentionally exposes its subscriber usage key to its holder. Callback URLs carry only permitted OAuth response fields; distinguish identity/entitlement/activation/configuration failures.
@@ -58,9 +58,9 @@ DynamoDB stores progress between short HTTP/worker requests. Early/duplicate/reo
 - **FR-016**: Assign one private native key per subscriber and matching tier/stage. Use AUTHORIZER key source, required paid-method keys and top-level `usageIdentifierKey` copied from the validated signed claim, not a header; clients send bearer only. Provision outside authorization; unready bindings block issuance/refresh.
 - **FR-017**: Make tier rates/bursts/quotas explicit inputs; native request limits are best effort, not strict billing credits/cost caps.
 - **FR-018**: Validate purchase/reconnect, payment failures/delays, refresh/replay, plan/expiry, subscriber isolation and real host interoperability separately from local fixtures.
-- **FR-019**: Implement onboarding in Node.js/Express with durable DynamoDB transitions, short event handlers and scheduled recovery; use no Step Functions. Requests/invocations never wait through human/payment delays or rely on background work after return.
+- **FR-019**: Implement onboarding in Node.js/Express with durable DynamoDB transitions, bounded request-driven activation and billing-owned payment recovery; use no Step Functions. Requests/invocations never wait through human/payment delays or rely on background work after return.
 - **FR-020**: Commit verified decisions and required durable work before notification; use conditional transitions, idempotent effects and recoverable leases to handle early/duplicate/reordered/uncertain/stale callbacks without lost activation or cross-user/duplicate effects.
-- **FR-021**: Preserve absolute expiry and paid billing state through crashes/cancellation/retries/replay; recover missed events and abandoned leases without an open browser. Restrict state/work access, exclude secrets from events/logs, and support existing records across releases/rollback.
+- **FR-021**: Preserve absolute expiry and paid billing state through crashes/cancellation/retries/replay; recover missed payment events in billing without an open browser, and abandoned access leases on the next valid request. Restrict state/work access, exclude secrets from events/logs, and support existing records across releases/rollback.
 
 ## Key entities
 
@@ -77,7 +77,7 @@ Verified Cognito identity; bound OAuth transaction; versioned onboarding state/d
 - **SC-007**: Same-tier subscribers have distinct metering identities; issuance/refresh after plan changes cannot use stale ready bindings; outstanding access follows SC-004.
 - **SC-008**: Supported hosts discover and complete OAuth without manual usage-key headers or bearer callback URLs.
 - **SC-009**: Early/duplicate/reordered/late/mismatched/failed callback delivery preserves progress with zero duplicate purchases/unauthorized grants and no HTTP/worker wait through payment.
-- **SC-010**: Crash/cancellation/retry/replay preserves expiry and paid state; missed-event/lease recovery completes with the browser closed, and evidence distinguishes live delivery from simulation without credentials.
+- **SC-010**: Crash/cancellation/retry/replay preserves expiry and paid state; payment recovery continues with the browser closed while access lease/provisioning recovery waits for resume or fresh login, and evidence distinguishes live delivery from simulation without credentials.
 
 ## Assumptions and references
 

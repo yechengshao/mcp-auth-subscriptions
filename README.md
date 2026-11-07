@@ -4,7 +4,7 @@ Authentication and subscription service for the sibling [TradingView MCP service
 
 ## Implementation stack
 
-Use **TypeScript, Node.js, Express, and AWS Lambda** for authentication and subscription billing. Express handles HTTP routes through a REST API Gateway Lambda proxy adapter; the authorizer and asynchronous workers use direct Node.js Lambda handlers. The [authentication plan](specs/002-authentication-api-access/plan.md) defines packaging and handler boundaries. Implementation is pending.
+Use **TypeScript, Node.js, Express, and AWS Lambda** for authentication and subscription billing. Express handles HTTP routes through a REST API Gateway Lambda proxy adapter; the authorizer uses a direct handler and billing dispatches native SQS/replay events. The [authentication plan](specs/002-authentication-api-access/plan.md) defines packaging and handler boundaries. Implementation is pending.
 
 ## Ownership
 
@@ -32,4 +32,4 @@ mcp-auth-subscriptions/
 
 Keep this project and `tradingview-mcp` as sibling folders so local integration links resolve. The service repository owns spec 001. The `origin` remote is [yechengshao/mcp-auth-subscriptions](https://github.com/yechengshao/mcp-auth-subscriptions), using SSH; the default branch is `main`.
 
-Planned runtime: four Lambdas total including MCP—access (HTTP/background), authorizer, billing, and MCP—with SQS/Pipes and replay schedules on existing consumers; see the [background delivery contract](specs/002-authentication-api-access/contracts/background-delivery.md).
+Planned runtime: four Lambdas total including MCP—access (HTTP/on-demand provisioning), authorizer, billing, and MCP—with billing SQS/Pipe and replay schedule on existing consumers; see the [background delivery contract](specs/002-authentication-api-access/contracts/background-delivery.md).
