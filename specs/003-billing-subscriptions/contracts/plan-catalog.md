@@ -33,7 +33,7 @@ Billing validates provider payment/ownership against the order snapshot, then at
 
 The binding stores subscriber/environment, plan_id, catalog_version, entitlement_revision, usage_plan_id, rest_api_id, stage, native key ID/value under existing scoped encrypted access, and readiness/provisioning lease state. It must match the current trusted entitlement snapshot before issuance/refresh. A missing snapshot is a configuration/migration error; do not silently map historical purchases through today's catalog. Binding preparation remains bounded, request-driven and idempotent, with no activation queue.
 
-For active subscribers with a matching ready binding, login/issuance/refresh reads current DynamoDB grant/entitlement/binding state without fetching the latest plan catalog or listing AWS usage plans. JWT signing-key retrieval/cache is separate and unchanged. New binding after loss can use the purchased mapping snapshot; native association APIs may still need to verify/create the association. Database-only eligibility decisions do not mean no signing/management dependency calls ever occur.
+For active subscribers with a matching ready binding, login/issuance/refresh reads current DynamoDB grant/entitlement/binding state without fetching the latest plan catalog or listing AWS usage plans. JWT signing-key retrieval/cache is separate and unchanged. New binding after loss can use the purchased mapping snapshot; native association APIs create/configure the association; routine read-back/probes after success are not required, while uncertain results need state reconciliation. Database-only eligibility decisions do not mean no signing/management dependency calls ever occur.
 
 ## Updates and rollout validation
 

@@ -8,7 +8,7 @@
 
 Eligible subscribers skip checkout. Cognito verifies identity; billing verifies Stripe and owns entitlement writes. Access Express handles authorization, login callbacks, browser status/resume and code/token exchange. Bounded status/resume or fresh-login requests prepare native usage bindings using persisted idempotency/revision/lease guards. Billing ingress routes the Stripe webhook directly to billing. There is no access queue, stream consumer or scheduled worker; payment reconciliation continues in billing without a browser, while binding activation waits for the next access request.
 
-Each request loads durable state, validates its trigger, performs bounded work, saves progress and returns promptly. Human/payment/native-propagation delays remain persisted pending state; no detached promise, timer or process-local session carries required work after return. A closed page pauses access provisioning without losing payment. Fresh authorization reuses entitlement after the original continuation expires.
+Each request loads durable state, validates its trigger, performs bounded work, saves progress and returns promptly. Human/payment/failed-or-uncertain-setup delays remain persisted pending state; no detached promise, timer or process-local session carries required work after return. A closed page pauses access provisioning without losing payment. Fresh authorization reuses entitlement after the original continuation expires.
 
 ## Durable state and transitions
 
@@ -27,10 +27,12 @@ The [delivery contract](background-delivery.md) owns the four-function inventory
 1. `/authorize` saves a bounded transaction and redirects to Cognito; the validated callback binds identity and reads current entitlement.
 2. Billing commits verified entitlement plus durable decision history; access learns the latest state by consistent reads, not activation notifications.
 3. Browser status/resume requests advance eligible activation using bounded native-key operations and leases; duplicate/concurrent requests re-read current authority and cannot duplicate effects.
-4. Pending activation stores next_attempt_at, bounded attempts and sanitized outcome; browser polling backs off and stops on ready/terminal/expired state, with no sleeps inside Lambda. Only a due request can retry; exhausted failures expose repairable error.
+4. Pending activation stores next_attempt_at, bounded attempts and sanitized outcome; browser polling backs off and stops on ready/terminal/expired state, with no sleeps inside Lambda. Only a due request can retry; AWS call failures/timeouts return an activation error with retry/reconnect guidance immediately, retaining recoverable internal state; exhausted/permanent failures include support guidance.
 5. Billing's delayed queue and scheduled replay handle missed payment webhooks, including when the browser is closed. Access may request a bounded own-order billing reconciliation but never queries Stripe.
 
 On return/reconnect, reclaim expired provisioning leases conditionally, inspect uncertain external effects, and recheck entitlement around key changes. Cancellation/retry cannot extend the original OAuth deadline. No closed-browser access-completion guarantee is made.
+
+Binding readiness follows the [REST configuration-success rule](rest-gateway.md#native-metering): successful AWS API response plus matching conditional persistence, no routine read-back/probe or propagation wait.
 
 ## Completion, expiry and releases
 
