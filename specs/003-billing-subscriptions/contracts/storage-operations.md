@@ -9,8 +9,8 @@ Use `PK`/`SK` strings. `identity_key` is SHA-256 of the unambiguous UTF-8 JSON a
 | Table / record | PK | SK | Required data |
 |---|---|---|---|
 | BillingState customer | `ENV#<env>#IDENTITY#<identity_key>` | `CUSTOMER` | Verified tuple, Stripe account/customer, revision, schema_version |
-| BillingState subscription | Same identity partition | `SUB#<subscription_id>` | Own customer/order, approved plan, provider status, paid_through, cancel/revoke state, revision |
-| BillingState order | Same identity partition | `ORDER#<order_id>` | Immutable identity/environment/catalog snapshot, intent, state/revision, Checkout/payment linkage, durable operation outcome |
+| BillingState subscription | Same identity partition | `SUB#<subscription_id>` | Own customer/order, plan_id, catalog_version and purchased usage mapping snapshot, provider status, paid_through, cancel/revoke state, revision |
+| BillingState order | Same identity partition | `ORDER#<order_id>` | Immutable identity/environment/catalog-version/price/usage-mapping snapshot, intent, state/revision, Checkout/payment linkage, durable operation outcome |
 | BillingState own work/lease | Same identity partition | `WORK#<operation_id>` / `LEASE` | Due time, owner, fence, expiry, attempts, outcome/error class |
 | BillingState provider lookup | `ENV#<env>#STRIPE#<account>#<object_type>#<object_id>` | `OWNER` | Verified owning identity/order, conditionally unique mapping |
 | BillingState event ledger | `ENV#<env>#EVENT#<account>#<event_id>` | `EVENT` | Minimal trusted event identifiers, processing state/lease/fence, committed revision, digest; no full provider payload |
@@ -57,3 +57,5 @@ The [background delivery contract](../../002-authentication-api-access/contracts
 Billing's handler accepts separate HTTP webhook, trusted native operation, SQS record-batch and scheduled replay event shapes; reject ambiguity. SQS consumers do not require a browser continuation: resolve trusted identity/order from persisted work under queue IAM. Existing-function replay re-enqueues due records and recovers delivery gaps/leases. Billing background resources own this queue/Pipe/mapping/schedule and no access-state grants; access deploys no activation transport. Billing replay checkpoint ownership remains billing-only; access has no queue consumer/checkpoint.
 
 Component IaC and handlers must implement the shared [CloudWatch/X-Ray contract](../../002-authentication-api-access/contracts/observability.md), including finite log retention, credential redaction, telemetry IAM, dashboards/alarms and separately validated live delivery.
+
+Catalog source/schema, immutable order/entitlement mapping snapshots and cache/update rules follow the shared [plan catalog](plan-catalog.md).

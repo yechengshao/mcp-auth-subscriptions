@@ -33,7 +33,7 @@ Billing release/rollback and service cleanup preserve identities and billing rec
 ## Functional requirements
 
 - **FR-001**: Deploy billing independently in its own Lambda/configuration/version/role with DynamoDB state.
-- **FR-002**: Use explicit approved Stripe products/prices/currencies/plans and test/live environment inputs; invent no pricing defaults.
+- **FR-002**: Use a versioned shared Parameter Store catalog for approved plan details, Stripe prices and API Gateway usage-plan mappings; snapshot the selected version/mapping for purchases and preserve existing subscriptions on catalog updates; invent no prices.
 - **FR-003**: Derive ownership from verified Cognito issuer/subject supplied by access; email/client/customer IDs cannot establish ownership.
 - **FR-004**: Verify Stripe signatures over exact received bytes before mutation; webhook targets billing, never MCP, without requiring human login.
 - **FR-005**: Durably handle duplicate/retried/reordered/concurrent events and partial failure; reconcile provider authority, prevent stale regression and acknowledge only committed outcomes.

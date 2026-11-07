@@ -17,6 +17,8 @@ Provider-to-projection cases follow the [lifecycle reducer contract](subscriptio
 | identity_issuer, identity_subject | Verified immutable Cognito identity key |
 | allowed | Billing policy eligibility, not native key readiness |
 | plan_id | Approved stable catalog tier; never an arbitrary client/Stripe metadata override |
+| catalog_version | Immutable purchased catalog release and parameter version reference |
+| usage_mapping | Purchased usage_plan_id/rest_api_id/stage snapshot from verified order; no subscriber key |
 | valid_until | Explicit UTC paid access expiry, checked without relying on database deletion |
 | revision | Monotonic committed decision revision, including meaningful plan/status/validity changes |
 | updated_at | Trusted processing/reconciliation observation time |
@@ -42,3 +44,5 @@ Local tests cover plan/expiry/revision transitions, exact identity binding, unpa
 Billing atomically commits a sanitized activation-outbox record with its decision. Include opaque event/order references, verified identity binding, committed revision and status for scoped internal readers; exclude payment secrets and OAuth credentials. No access activation consumer/queue/Pipe is provisioned; billing never writes access state or invokes access transitions. Access reads current entitlement on requests; the outbox is durable decision history, not an access wakeup transport. Physical table/key/transaction/stream/filter/read grants follow the storage-operation contract; deployment outputs remain prerequisites for live adapters.
 
 Billing work-stream/SQS delivery may duplicate or expire; billing owns durable reconciliation work and scheduled replay. Access need not receive every decision-history event: status/resume, new login and token operations consistently read current entitlement and verify their own revision/binding. Browser closure pauses binding preparation, not verified payment. Late payment survives OAuth expiry and is reused on fresh authorization.
+
+Purchased mapping snapshots follow the [shared catalog contract](plan-catalog.md); access reads the current entitlement snapshot rather than resolving old purchases through the latest catalog.

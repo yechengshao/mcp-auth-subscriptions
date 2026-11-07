@@ -32,7 +32,7 @@ Login/enrollment/management gates follow [FR-003/FR-004](spec.md#functional-requ
 
 Callbacks persist verified identity; access reads current entitlement and retries bounded provisioning through status/resume or fresh login. Billing alone owns delayed SQS and scheduled payment recovery. Conditional revisions, leases and current reads handle duplicates, crashes and stale workers. Browser status reads persisted progress; resume issues a code only after current readiness, and `/token` rechecks authority. Cancellation/retry never extends expiry or reverses paid state. See [delivery](contracts/background-delivery.md) for four-function boundaries and recovery.
 
-Keys are per subscriber, associated with tier/stage outside authorization. Signed JWTs expose `usageIdentifierKey` to holders; authorizer returns that claim, never a header. Current entitlement/binding gates issuance/refresh; revocation leaves existing access valid until expiry. Native quotas are best effort.
+Keys are per subscriber, associated with tier/stage outside authorization. Signed JWTs expose `usageIdentifierKey` to holders; authorizer returns that claim, never a header. Purchased Parameter Store catalog/mapping snapshots persist; current entitlement/binding gates issuance/refresh; revocation leaves existing access valid until expiry. Native quotas are best effort.
 
 ## Delivery and prerequisites
 

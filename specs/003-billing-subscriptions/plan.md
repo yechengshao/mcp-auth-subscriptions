@@ -46,3 +46,5 @@ Tests cover ten duplicate/concurrent deliveries, out-of-order provider events, c
 Retain records across release/rollback; support existing schema versions. Explicit billing retention and recovery budgets must be configured before deployment; no TTL deletion of entitlement/history/outbox while consumers may need recovery. Preserve spec/task IDs and report prepared artifacts separately from deployed resources.
 
 CloudWatch logs/metrics/alarms and X-Ray tracing follow the [observability contract](../002-authentication-api-access/contracts/observability.md).
+
+Plan details, Stripe/usage-plan mapping and purchase snapshots follow the versioned Parameter Store [catalog contract](contracts/plan-catalog.md); existing-ready login/refresh uses DynamoDB snapshots.

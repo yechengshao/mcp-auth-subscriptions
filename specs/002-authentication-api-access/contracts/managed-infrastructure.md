@@ -30,3 +30,5 @@ The [onboarding contract](onboarding-workflow.md) governs durable request-driven
 Function counts, SQS delays, retry/DLQ handling and replay guarantees are authoritative in [background delivery](background-delivery.md); no dedicated recovery or routing Lambda is provisioned.
 
 Component IaC and handlers must implement the shared [CloudWatch/X-Ray contract](observability.md), including finite log retention, credential redaction, telemetry IAM, dashboards/alarms and separately validated live delivery.
+
+Access and billing receive exact-parameter read permission for the nonsecret shared catalog under the [catalog contract](../../003-billing-subscriptions/contracts/plan-catalog.md); no runtime catalog-write grant. Active-ready login/refresh uses current DynamoDB snapshots without requiring the latest catalog.
