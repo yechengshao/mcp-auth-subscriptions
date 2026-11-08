@@ -40,7 +40,8 @@
       "then": {
         "properties": {
           "count": {
-            "maximum": 3650
+            "maximum": 3650,
+            "type": "integer"
           },
           "time_semantics": {
             "const": "utc_fixed_days"
@@ -59,7 +60,8 @@
       "then": {
         "properties": {
           "count": {
-            "maximum": 120
+            "maximum": 120,
+            "type": "integer"
           },
           "time_semantics": {
             "const": "utc_calendar_clamp"
@@ -78,7 +80,8 @@
       "then": {
         "properties": {
           "count": {
-            "maximum": 10
+            "maximum": 10,
+            "type": "integer"
           },
           "time_semantics": {
             "const": "utc_calendar_clamp"

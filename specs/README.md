@@ -28,3 +28,5 @@ Read [client flow](002-authentication-api-access/contracts/client-onboarding.md)
 The [background delivery contract](002-authentication-api-access/contracts/background-delivery.md) defines four Lambdas total: MCP, access (HTTP/on-demand provisioning), authorizer and billing; billing SQS/Pipe and replay schedule add no functions.
 
 Data ownership has two domains and three physical tables: access owns AccessState; billing owns BillingState and BillingEntitlements. The entitlement projection separates eligibility reads from payment/customer data; verified updates commit atomically across billing tables.
+
+[Future enhancements](future-work.md) tracks the deferred subscription/setup-confirmation email; it is not part of current implementation acceptance.

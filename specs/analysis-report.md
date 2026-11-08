@@ -62,4 +62,10 @@ No additional planning blockers found in this scoped recheck. A01–A06 remain r
 
 ## Recommended order
 
+### Shared-session implementation review — 2026-11-08
+
+The shared session contract aligns with the access storage and endpoint contracts: one 30-minute absolute session mechanism, purpose-bound transaction routing, identity verification before management, current entitlement/ownership checks and no MCP-token handoff. Expired mutation replay and atomic session rotation remain handler acceptance requirements, not schema guarantees.
+
+The first [local contract foundation](../billing/contracts/README.md) adds executable schemas, synthetic fixtures and tests for catalog scope/durations, purchased snapshots, selected database records, native requests/failures, queue references, UTC term calculation and session/management expiry/ownership boundaries. Full B001/T014 schemas and conditional transaction implementations remain unfinished; all 39 task checkboxes retain their prior state. Provider, IAM, cookie/Cognito, queue delivery and host-reconnect acceptance remain not_run.
+
 Review/commit the remediated planning baseline when requested, then start B001/access boundary fixtures. Carry each resolution's runtime acceptance cases into implementation; keep all implementation/live tasks unchecked until executed with evidence. This remediation does not authorize deployment, payments, support emails or external notifications.

@@ -19,7 +19,9 @@
 
 The [analysis recheck](../../analysis-report.md#resolution-and-recheck) resolves six planning findings; the subsequent [consolidated-plan review](../../analysis-report.md#post-consolidation-plan-review) validates the three-table baseline. Runtime acceptance remains pending.
 
-## First implementation gates — not yet executed
+## First implementation gates — partially started
+
+The [local contract foundation](../../../billing/contracts/README.md) implements initial catalog/message/selected-record validation, synthetic boundary fixtures and UTC term calculation. Full row coverage, operation results, budgets, cache, transactions and runtime/IAM tests are still required; the gates below remain unchecked.
 
 - [ ] B001: machine-validating schemas and valid/invalid fixtures for catalog, paid terms, upgrade quotes, billing records/envelopes and queue references.
 - [ ] T001/T014/T022: boundary tests and access-schema/atomic-update fixtures using the access storage contract, not an invented alternate model.
