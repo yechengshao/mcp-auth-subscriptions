@@ -1,0 +1,141 @@
+{
+  "description": "Contract validation vectors; not implemented application test results",
+  "valid": [
+    {
+      "unit": "day",
+      "count": 1,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": 3650,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "month",
+      "count": 1,
+      "time_semantics": "utc_calendar_clamp"
+    },
+    {
+      "unit": "month",
+      "count": 120,
+      "time_semantics": "utc_calendar_clamp"
+    },
+    {
+      "unit": "year",
+      "count": 1,
+      "time_semantics": "utc_calendar_clamp"
+    },
+    {
+      "unit": "year",
+      "count": 10,
+      "time_semantics": "utc_calendar_clamp"
+    }
+  ],
+  "invalid": [
+    {},
+    {
+      "unit": "minute",
+      "count": 1,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": 0,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": -1,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": 1.5,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": "1",
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": true,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "day",
+      "count": 3651,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "month",
+      "count": 121,
+      "time_semantics": "utc_calendar_clamp"
+    },
+    {
+      "unit": "year",
+      "count": 11,
+      "time_semantics": "utc_calendar_clamp"
+    },
+    {
+      "unit": "day",
+      "count": 1,
+      "time_semantics": "utc_calendar_clamp"
+    },
+    {
+      "unit": "month",
+      "count": 1,
+      "time_semantics": "utc_fixed_days"
+    },
+    {
+      "unit": "year",
+      "count": 1
+    },
+    {
+      "unit": "day",
+      "count": 1,
+      "time_semantics": "utc_fixed_days",
+      "extra": 1
+    }
+  ],
+  "calendar_cases": [
+    {
+      "start": "2023-01-31T12:30:00Z",
+      "unit": "month",
+      "count": 1,
+      "expected_expiry": "2023-02-28T12:30:00Z"
+    },
+    {
+      "start": "2024-01-31T12:30:00Z",
+      "unit": "month",
+      "count": 1,
+      "expected_expiry": "2024-02-29T12:30:00Z"
+    },
+    {
+      "start": "2023-01-31T12:30:00Z",
+      "unit": "month",
+      "count": 2,
+      "expected_expiry": "2023-03-31T12:30:00Z"
+    },
+    {
+      "start": "2024-02-29T09:00:00Z",
+      "unit": "year",
+      "count": 1,
+      "expected_expiry": "2025-02-28T09:00:00Z"
+    },
+    {
+      "start": "2024-02-29T09:00:00Z",
+      "unit": "year",
+      "count": 4,
+      "expected_expiry": "2028-02-29T09:00:00Z"
+    },
+    {
+      "start": "2024-03-10T09:30:00Z",
+      "unit": "day",
+      "count": 1,
+      "expected_expiry": "2024-03-11T09:30:00Z"
+    }
+  ]
+}

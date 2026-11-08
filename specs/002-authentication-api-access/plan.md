@@ -16,7 +16,7 @@ Cognito human PKCE → billing plan/order/Stripe → committed entitlement → n
 
 Use strict TypeScript with NodeNext ES modules, maintained OAuth/JWT libraries and AWS SDK for JavaScript v3. Each component owns `package.json`/`package-lock.json` and `tsconfig.json`; use `npm ci`, `npm run typecheck` (`tsc --noEmit`) and `npm run build` (`tsc`). Compile `.ts` sources/tests/scripts to JavaScript; run emitted tests with Node's test runner and package compiled handlers/runtime dependencies only. Pin TypeScript, Node/Express/Lambda types, adapter and supported Node.js LTS ARM64 Lambda image/digest; match local/CI runtimes. Lambda entrypoints target emitted `.js`. Access/authorizer/billing roles remain separate; authorizer cannot sign, provision keys or write billing. Access holds no Stripe secrets or billing-write grant.
 
-Export the Express app separately from its Lambda adapter and local listener. Use form parsing for OAuth token requests; test REST-v1 stage/path handling, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and billing SQS/scheduled handlers bypass Express. Test the app over HTTP and exported handlers with Lambda events. Billing uses the same stack in its own package/function; its physical interfaces remain spec 003 planning work. Three [access tables](contracts/access-storage.md) hold progress; no required work runs in detached promises or process-local timers.
+Export the Express app separately from its Lambda adapter and local listener. Use form parsing for OAuth token requests; test REST-v1 stage/path handling, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and billing SQS/scheduled handlers bypass Express. Test the app over HTTP and exported handlers with Lambda events. Billing uses the same stack in its own package/function; its interfaces follow spec 003 contracts. One [access table](contracts/access-storage.md) holds progress; no required work runs in detached promises or process-local timers.
 
 ## Authoritative contracts
 
@@ -42,11 +42,11 @@ Keys are per subscriber, associated with tier/stage outside authorization. Signe
 4. Wire all gateway methods/permissions, deployment/stage and tier plans after aliases exist.
 5. Validate before changing host endpoints; keep legacy HTTP secured or explicitly disable it through scoped cutover. Retain rollback, identities and billing/access state.
 
-Spec 003 planning must finalize physical entitlement/outbox keys/read policies, catalog/eligibility, short internal onboarding/reconciliation operations and processor alias. Spec 001 must prove packaged REST-v1 path/header/body behavior and supply its service-only alias/report-v2 interface. REST integration deadline is 29 seconds; service default stays 25 seconds. Legacy HTTP report v1/516 tests cannot establish REST readiness.
+Spec 003 contracts define entitlement/history keys, catalog, eligibility and internal operations; implement/validate these before dependent access adapters. Spec 001 must prove packaged REST-v1 path/header/body behavior and supply its service-only alias/report-v2 interface. REST integration deadline is 29 seconds; service default stays 25 seconds. Legacy HTTP report v1/516 tests cannot establish REST readiness.
 
 ## Validation
 
-Local suites cover OAuth/JWT/refresh, exact policies/token-only authorization, subscription/plan transitions, subscriber isolation, conditional state races, crashes/leases/replay, billing reconciliation and request-driven recovery, privacy, compatible releases/rollback, native handlers, IaC and read-only cutover. See [tasks](tasks.md) for the dependency graph and case assignments.
+Local suites cover OAuth/JWT/refresh, exact policies/token-only authorization, subscription/plan transitions, subscriber isolation, conditional state races, crashes/leases/replay, billing reconciliation and request-driven recovery, privacy, compatible releases/rollback, native handlers, IaC and read-only cutover. See [tasks](tasks.md) and shared [readiness](../003-billing-subscriptions/checklists/implementation-readiness.md).
 
 CI requires isolated installs, typecheck, compilation, emitted tests and packaged-handler checks; missing checks fail. Real ChatGPT/Claude/Cognito/Stripe/stream/schedule/native-metering/cutover acceptance remains not_run under local-only instruction. No provisioning, publication or charges have occurred.
 

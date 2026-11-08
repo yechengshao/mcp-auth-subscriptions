@@ -26,3 +26,5 @@ REST uses a new named-stage endpoint; legacy HTTP commands/report v1 remain sepa
 Read [client flow](002-authentication-api-access/contracts/client-onboarding.md), [workflow](002-authentication-api-access/contracts/onboarding-workflow.md), [REST gateway](002-authentication-api-access/contracts/rest-gateway.md), [service handoff](../../tradingview-mcp/specs/001-add-lambda-deployment/contracts/rest-migration.md) or [billing interface](003-billing-subscriptions/contracts/entitlements.md) for technical details. [History](../../tradingview-mcp/specs/scope-migration.md) records earlier decisions and validation.
 
 The [background delivery contract](002-authentication-api-access/contracts/background-delivery.md) defines four Lambdas total: MCP, access (HTTP/on-demand provisioning), authorizer and billing; billing SQS/Pipe and replay schedule add no functions.
+
+Data ownership has two domains and three physical tables: access owns AccessState; billing owns BillingState and BillingEntitlements. The entitlement projection separates eligibility reads from payment/customer data; verified updates commit atomically across billing tables.

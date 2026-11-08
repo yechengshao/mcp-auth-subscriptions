@@ -1,6 +1,6 @@
 # Spec 002: Authentication and API Access
 
-**Created/updated**: 2026-11-06 · **Branch**: `main` · **Status**: Planned; implementation pending.
+**Created/updated**: 2026-11-07 · **Branch**: `main` · **Status**: Planned; implementation pending.
 
 **Length exception**: Retain the existing security, migration and workflow acceptance requirements together to preserve their IDs and testable failure behavior.
 
@@ -11,6 +11,8 @@ Connect ChatGPT/Claude through this journey:
 **Verify identity → purchase/renew if needed → verified paid entitlement → usage-plan activation → successful application login/OAuth completion → MCP access.**
 
 Use human authorization code + S256 PKCE, persisted Node.js transitions for waiting/recovery, a **REST API with native usage plans**, and an independent custom authorizer validating signed service tokens. Implement access in **Node.js on AWS Lambda**, using **Express** for HTTP/callbacks/token exchange. [Spec 001](../../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) provides MCP only; [spec 003](../003-billing-subscriptions/spec.md) provides separate billing Lambda/DynamoDB/Stripe.
+
+Access uses one `AccessState` table for temporary login records, grants/refresh families, identity references and persistent subscriber bindings, with per-record cleanup rules. Cognito owns credentials; application tables store no user passwords. The billing-owned entitlement projection is the only billing table access may read/check; it cannot read detailed payments/customer history. The [storage contract](contracts/access-storage.md) defines keys and atomic updates.
 
 REST replaces the earlier HTTP-adoption plan through an explicit new-endpoint cutover. Host connect/sign-in/first use controls browser login; installation alone is not a universal trigger. Eligible subscribers skip purchase.
 
@@ -58,7 +60,7 @@ DynamoDB stores progress between short HTTP/worker requests. Early/duplicate/reo
 - **FR-016**: Assign one private native key per subscriber and matching tier/stage. Use AUTHORIZER key source, required paid-method keys and top-level `usageIdentifierKey` copied from the validated signed claim, not a header; clients send bearer only. Provision outside authorization; unready bindings block issuance/refresh.
 - **FR-017**: Make tier rates/bursts/quotas explicit inputs; native request limits are best effort, not strict billing credits/cost caps.
 - **FR-018**: Validate purchase/reconnect, payment failures/delays, refresh/replay, plan/expiry, subscriber isolation and real host interoperability separately from local fixtures.
-- **FR-019**: Implement onboarding in Node.js/Express with durable DynamoDB transitions, bounded request-driven activation and billing-owned payment recovery; use no Step Functions. Requests/invocations never wait through human/payment delays or rely on background work after return.
+- **FR-019**: Implement onboarding in Node.js/Express with durable transitions in one AccessState table, bounded request-driven activation and billing-owned payment recovery; use no Step Functions. Requests/invocations never wait through human/payment delays or rely on background work after return.
 - **FR-020**: Commit verified decisions and required durable work before notification; use conditional transitions, idempotent effects and recoverable leases to handle early/duplicate/reordered/uncertain/stale callbacks without lost activation or cross-user/duplicate effects.
 - **FR-021**: Preserve absolute expiry and paid billing state through crashes/cancellation/retries/replay; recover missed payment events in billing without an open browser, and abandoned access leases on the next valid request. Restrict state/work access, exclude secrets from events/logs, and support existing records across releases/rollback.
 

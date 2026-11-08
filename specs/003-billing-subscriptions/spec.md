@@ -1,6 +1,6 @@
 # Spec 003: Billing and Subscriptions
 
-**Created/updated**: 2026-11-06 · **Branch**: `main` · **Status**: Planned; technical plan/tasks drafted, implementation pending.
+**Created/updated**: 2026-11-07 · **Branch**: `main` · **Status**: Planned; technical plan/tasks drafted, implementation pending.
 
 **Length exception**: Retain the existing payment-integrity, ownership and recovery requirements together to preserve their IDs and testable failure behavior.
 
@@ -8,13 +8,15 @@
 
 Use **Node.js and Express on a separate AWS Lambda, with DynamoDB**, for plan selection, orders, Stripe Checkout/portal, application paid-term subscription records and entitlement publication. [Spec 002](../002-authentication-api-access/spec.md) owns Cognito/Node.js onboarding, client tokens and subscription enforcement at login/token issuance/refresh and token validation in the authorizer. [Spec 001](../../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) provides MCP only.
 
+Billing owns two tables: `BillingState` for customer/order/paid-term/payment/credit/work/history records, and `BillingEntitlements` for the small current eligibility projection consumed by access. Together with spec 002's `AccessState`, the application has three DynamoDB tables; no separate history/activation-outbox table is required. Physical keys and grants follow the [storage contract](contracts/storage-operations.md).
+
 Stripe never auto-charges another term; expired users explicitly select and purchase again through onboarding. After identity verification, unpaid users may only select a tier and offered duration, purchase/renew and inspect their purchase through a bounded enrollment continuation; application login and billing management follow [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements). Billing commits trusted plan/expiry plus a durable decision history. Access completes OAuth only after entitlement and native usage binding are ready. Eligible reconnect and late-payment recovery reuse the subscription without another purchase.
 
 ## User scenarios and acceptance
 
 ### Story 1 — Subscribe and manage billing (P1)
 
-Verified users without a subscription can create/reuse an own-account purchase and open Checkout. Only currently eligible paid users may manage billing or enter a management portal. Expiry/revocation blocks the next management request despite prior login or saved links. Reject arbitrary prices and cross-user references; browser returns cannot grant access.
+Verified users without a subscription can create/reuse an own-account purchase and open Checkout. Only currently eligible paid users may perform the allowed paid-upgrade operations; the portal is disabled and financial requests show support contact. Expiry/revocation blocks the next management request despite prior login or saved links. Reject arbitrary prices and cross-user references; browser returns cannot grant access.
 
 ### Story 2 — Process provider events reliably (P1)
 
@@ -37,7 +39,7 @@ Billing release/rollback and service cleanup preserve identities and billing rec
 - **FR-003**: Derive ownership from verified Cognito issuer/subject supplied by access; email/client/customer IDs cannot establish ownership.
 - **FR-004**: Verify Stripe signatures over exact received bytes before mutation; webhook targets billing, never MCP, without requiring human login.
 - **FR-005**: Durably handle duplicate/retried/reordered/concurrent events and partial failure; reconcile provider authority, prevent stale regression and acknowledge only committed outcomes.
-- **FR-006**: Own customer/subscription/event/reconciliation/entitlement writes; grant access only required projection/outbox reads, and MCP no data access.
+- **FR-006**: Own BillingState and BillingEntitlements writes; commit verified payment/business changes and current entitlement/history atomically using one DynamoDB transaction. Grant access only entitlement GetItem/transaction ConditionCheckItem, never BillingState reads/writes/streams; MCP/authorizer receive no table access.
 - **FR-007**: Publish identity-keyed eligibility, approved paid plan, future paid-through bound and committed revision. Validity requires active paid eligibility without revocation; purchased terms never auto-renew, expired users repurchase explicitly, and unpaid/pending/expired terms do not qualify. Access enforces the projection; MCP does not.
 - **FR-008**: Deny login/token issuance/refresh for missing/denied/expired/unavailable entitlement; apply [access FR-008/FR-014](../002-authentication-api-access/spec.md#functional-requirements) to outstanding tokens, checking expiry independently of TTL deletion.
 - **FR-009**: Enforce the login, purchase-only enrollment and paid billing-management boundaries in [access FR-003/FR-004](../002-authentication-api-access/spec.md#functional-requirements) on every billing operation; browser claims never establish eligibility. Do not expose self-service active-term downgrade/cancellation/refund; route these and refund/credit exceptions to configured support email without mutation. Collect/store no raw card data.
@@ -72,7 +74,7 @@ Identity/customer mapping; approved catalog; order/Checkout continuation; subscr
 ## Assumptions and planning inputs
 
 - Paid eligibility is defined in FR-007; catalog/prices and retention remain operator/planning inputs.
-- Billing owns browser plan/order/status content; Stripe hosts payment entry; any management portal must enforce FR-009 even for previously issued sessions/links, or the design must use guarded management operations instead. Pricing design, strict usage-credit billing, tax and refund/dispute automation are outside this initial scope.
+- Billing owns browser plan/order/status content; Stripe hosts payment entry; the portal is disabled in this release and no application refund/cancellation endpoint is implemented; future portal support requires separate scope and current-eligibility review. Pricing design, strict usage-credit billing, tax and refund/dispute automation are outside this initial scope.
 - Provider changes become locally authoritative after verified delivery/reconciliation; immediate awareness before that is not promised.
 - Technical planning must finalize catalog/status policy, tables/indexes, secrets, Stripe versions, retention/reconciliation, and outbox/stream/read/reconciliation interfaces for access.
 - Testing is local-only; no real charges, Stripe configuration, webhook registration or AWS provisioning is authorized by this draft.

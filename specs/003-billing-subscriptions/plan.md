@@ -13,13 +13,13 @@ Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing
 | Artifact | Responsibility |
 |---|---|
 | `billing/` | Isolated package, provider adapter, eligibility reducer, transaction repository, order operations, webhook and bounded reconciliation dispatcher |
-| `infra/billing/storage.yaml` | Retained billing-state, entitlement/decision-history tables and billing-work indexes/stream; no Cognito/gateway/function dependency |
+| `infra/billing/storage.yaml` | Retained BillingState (including history), BillingEntitlements and work indexes/stream; no Cognito/gateway/function dependency |
 | `infra/billing/runtime.yaml` | Billing function/version/alias/logs, scoped storage/Stripe-secret access and configuration; no gateway attachments |
 | `infra/billing/background.yaml` | Reconciliation SQS/DLQ, work-stream Pipe, SQS mapping and replay schedule on billing alias |
 | `infra/billing/publication.yaml` | Independent ECR/protected OIDC publication bootstrap without access/MCP publishing rights |
 | `scripts/verify_billing.ts` | Redacted local/live evidence, selected tests, schemas and artifact identity; no provisioning or charge side effects |
 
-Expose separate entitlement and outbox tables so access cannot read payment/customer/event records. Strong base-table reads decide eligibility; indexes are scheduling/discovery hints. Conditional transactions commit projection, subscription summary, event outcome and outbox together. Never hold a request through human payment. Access consistently reads entitlement on requests; only billing reconciliation work routes through its Pipe/SQS and existing-function replay; billing grants no orchestration rights and never writes access stores.
+Keep BillingEntitlements separate from BillingState (including decision history), so access cannot read payment/customer/event records; AccessState completes the three-table application inventory. Strong base-table reads decide eligibility; indexes are scheduling/discovery hints. Conditional transactions commit projection, subscription summary, event outcome and outbox together. Never hold a request through human payment. Access consistently reads entitlement on requests; only billing reconciliation work routes through its Pipe/SQS and existing-function replay; billing grants no orchestration rights and never writes access stores.
 
 Technical lifecycle cases are mapped in the [subscription lifecycle contract](contracts/subscription-lifecycle.md).
 
@@ -29,7 +29,7 @@ Apply spec FR-007: active paid/no grace, no unpaid trial or past-due eligibility
 
 Use test mode for fixtures/future authorized acceptance; reject mixed environment/account/customer/price mappings. Pin Stripe SDK and explicit API/webhook version together at implementation after compatibility tests, not an unverified version guess. Store Stripe API/webhook secrets in scoped Parameter Store SecureStrings, cache in billing memory with bounded refresh, and fail closed on unavailable/invalid configuration; no secret values in templates, images, logs or evidence. No service JWT private-key access.
 
-Hosted portal is disabled until its sessions/actions can meet FR-009's current-paid gate, including saved links; implement guarded own-account management operations otherwise. Refund/dispute automation, pricing/tax design and strict usage-credit billing remain outside this feature.
+Hosted portal stays disabled. Self-service management permits only positive-payment upgrades; downgrade/cancel/refund/ambiguous-credit requests display support email without application financial adjustment. Refund/dispute automation, pricing/tax design and strict usage-credit billing remain outside this feature.
 
 Function inventory, delayed billing SQS jobs, managed routing and billing-work replay follow the access [background delivery contract](../002-authentication-api-access/contracts/background-delivery.md); total target is four Lambdas including MCP, with no dedicated recovery function.
 
@@ -48,3 +48,5 @@ Retain records across release/rollback; support existing schema versions. Explic
 CloudWatch logs/metrics/alarms and X-Ray tracing follow the [observability contract](../002-authentication-api-access/contracts/observability.md).
 
 Plan details, Stripe/usage-plan mapping and purchase snapshots follow the versioned Parameter Store [catalog contract](contracts/plan-catalog.md); existing-ready login/refresh uses DynamoDB snapshots.
+
+The [readiness checklist](checklists/implementation-readiness.md) defines schema-first development and separate production/live gates.

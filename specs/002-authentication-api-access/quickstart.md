@@ -2,7 +2,7 @@
 
 **Status**: Design and task instructions only. No access templates/code/workflows referenced below have been implemented. User requested local testing; do not provision AWS, publish images, register webhooks or charge Stripe as part of this step.
 
-Read the [endpoint inventory](contracts/endpoints.md), [client onboarding](contracts/client-onboarding.md), [authorization](contracts/authorization.md), [REST gateway](contracts/rest-gateway.md) and [billing onboarding](../003-billing-subscriptions/contracts/checkout-onboarding.md). Generate/finalize spec 003's physical storage/catalog/eligibility/internal operation plan before implementing access adapters that depend on it. [Tasks](tasks.md) contain the pending implementation graph.
+Read the [endpoint inventory](contracts/endpoints.md), [client onboarding](contracts/client-onboarding.md), [authorization](contracts/authorization.md), [REST gateway](contracts/rest-gateway.md) and [billing onboarding](../003-billing-subscriptions/contracts/checkout-onboarding.md). Implement/validate spec 003's existing storage/catalog/eligibility/internal-operation contracts before dependent access adapters. [Tasks](tasks.md) contain the pending implementation graph.
 
 1. Configure exact host public-client IDs/redirects and Cognito coordinator callback/logout URLs, selected account/region/REST stage, resource/issuer/discovery URLs and native plan limits. Do not reuse the old HTTP API ID as a REST ID or guess client redirects. Confirm path-issuer discovery interoperability before deployment.
 2. Bootstrap service publication and billing storage independently; create base REST API only. Use its ID/predictable URLs for identity/access/service/billing deployment; full methods/integrations precede deployment/stage/usage-plan associations. Gateway owns every REST invoke permission and attachment.
@@ -15,3 +15,9 @@ The host obtains a short-lived MCP bearer via code exchange after confirmed acti
 ## Node.js onboarding and recovery
 
 Follow the [onboarding contract](contracts/onboarding-workflow.md): status/resume and fresh login perform bounded, idempotent provisioning with persisted leases/retry hints. No access queue/Pipe/DLQ/mapping/schedule is deployed. Billing owns delayed reconciliation and replay; test closed-browser payment recovery separately from request-driven activation. The [delivery contract](contracts/background-delivery.md) defines four functions and billing-only transport.
+
+## Post-implementation renewal reminder
+
+Before live readiness, execute the [expired-subscription/reconnect acceptance checklist](checklists/manual-renewal-acceptance.md) independently for ChatGPT and Claude; verify actual refresh-failure UI and manual renewal, not an assumed automatic redirect.
+
+Begin schema-first development using the shared [implementation-readiness checklist](../003-billing-subscriptions/checklists/implementation-readiness.md); reviewed planning boxes do not mark implementation or live tasks complete.

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/mcp-billing/service-term-v1",
+  "title": "Service term v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "unit",
+    "count",
+    "time_semantics"
+  ],
+  "properties": {
+    "unit": {
+      "enum": [
+        "day",
+        "month",
+        "year"
+      ]
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "time_semantics": {
+      "enum": [
+        "utc_fixed_days",
+        "utc_calendar_clamp"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "unit": {
+            "const": "day"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "count": {
+            "maximum": 3650
+          },
+          "time_semantics": {
+            "const": "utc_fixed_days"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unit": {
+            "const": "month"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "count": {
+            "maximum": 120
+          },
+          "time_semantics": {
+            "const": "utc_calendar_clamp"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unit": {
+            "const": "year"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "count": {
+            "maximum": 10
+          },
+          "time_semantics": {
+            "const": "utc_calendar_clamp"
+          }
+        }
+      }
+    }
+  ]
+}

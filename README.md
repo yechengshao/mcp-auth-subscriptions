@@ -33,3 +33,5 @@ mcp-auth-subscriptions/
 Keep this project and `tradingview-mcp` as sibling folders so local integration links resolve. The service repository owns spec 001. The `origin` remote is [yechengshao/mcp-auth-subscriptions](https://github.com/yechengshao/mcp-auth-subscriptions), using SSH; the default branch is `main`.
 
 Planned runtime: four Lambdas total including MCP—access (HTTP/on-demand provisioning), authorizer, billing, and MCP—with billing SQS/Pipe and replay schedule on existing consumers; see the [background delivery contract](specs/002-authentication-api-access/contracts/background-delivery.md).
+
+Planned DynamoDB inventory: `AccessState` (access), `BillingState` (billing details/history), and `BillingEntitlements` (billing-owned projection for access). Billing commits detailed state and entitlement atomically; access has no detailed billing-table grants.
