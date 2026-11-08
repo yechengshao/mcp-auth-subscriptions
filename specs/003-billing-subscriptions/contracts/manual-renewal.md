@@ -1,0 +1,25 @@
+# Contract: Manual Paid-Term Renewal
+
+**Status**: User-confirmed no-auto-charge policy; implementation/live validation pending. This contract owns renewal and Stripe payment mode, superseding recurring-renewal assumptions. Eligibility still follows spec FR-007, token bounds follow access authorization, and catalog/purchase snapshots follow the catalog contract.
+
+## Purchase model
+
+Each first purchase or expired-term renewal is an explicit Stripe-hosted Checkout payment for one service term. Use Checkout `mode=payment` with an approved one-time Stripe Price; do not create recurring Stripe Subscriptions, subscription schedules, recurring invoices or automatic/off-session renewal charges. A Stripe Customer may be reused, but saved payment details never authorize another term without a new user-confirmed Checkout. Billing's subscription is an application-owned paid-access record, not a promise of a Stripe Subscription object.
+
+Catalog entries offer approved duration choices per tier, each with one-time product/price, amount/currency and an explicit service_term separate from Stripe price recurrence. Service-term units/count and UTC calendar/rounding semantics must be specified/tested in catalog validation before a plan can be sold; no guessed duration or use of event receipt time. Freeze the selected tier/duration/price/mapping in the order snapshot. Derive its start from the verified successful payment timestamp and its expiry from the snapshotted term rule, so delayed webhooks/retries cannot extend the purchased term. Asynchronous payment methods stay pending until trusted payment success. Store payment/Checkout/customer references for reconciliation; no required Stripe subscription ID for a normal paid term.
+
+## Expiry and renewal journey
+
+At valid_until, application checks deny expired entitlement and refresh independently of database cleanup or event delivery; access JWT expiry is already bounded by that time. Do not enqueue any job that charges or automatically renews. If an AI client's refresh fails, the user reconnects/re-authorizes; exact client UI behavior requires live acceptance.
+
+Cognito verifies the existing identity, then access offers current enabled plans and their configured durations through the same plan-selection/Checkout flow as first purchase. Reuse a pending own renewal order instead of creating another. On verified payment, billing commits a new paid term/current catalog snapshot and revision; access reuses the subscriber's stable API key and configures the selected usage plan only as needed. Successful configuration and persistence permit fresh authorization-code exchange and new refresh credentials. Preserve identity, paid history and key identity; no new account registration is required.
+
+An already-active eligible user reconnects without paying again. Renewal described here begins after expiry; early renewal/stacking requires separate policy; active-term downgrades are not self-service; paid upgrades use the [new-term credit contract](plan-upgrade.md), not a loophole to create overlapping charges. Every new expired-term purchase uses the newly confirmed catalog offer, not automatic grandfathered recurring pricing; existing unexpired purchase snapshots remain unchanged. Late confirmation preserves that verified term without reviving expired OAuth, and fresh authorization reuses it if still valid.
+
+## Cancellation support boundary
+
+There is no automatic renewal to switch off. No active-term self-service downgrade, cancellation or refund is exposed. All downgrade/cancellation/refund-related requests go through a configured support email/ticket channel, not a self-service financial adjustment. Email alone proves neither identity nor payment ownership and never directly mutates entitlement. Authorized staff verify the own-account request and use an auditable restricted billing operation; the published support email is an explicit required nonsecret deployment input for the management UI; handling times, effective date and any refund/credit decision are support policy inputs. Until policy authorizes a change, no automatic refund or immediate paid-access termination is inferred. Preserve current-paid management/ownership guards and distinct administrative revocation. Do not send cancellation emails or perform payments from this documentation task.
+
+## Acceptance
+
+Verify Checkout payment mode and one-time prices; reject recurring prices/schedules, automatic-renewal/off-session intents and subscription-mode events as entitlement authority. Test expiry without webhook, reconnect to plan selection, current-version repurchase, pending-renewal idempotency, same-identity/key reuse, no extra charge while active, verified payment timestamps/term rules, delayed success and no automatic period extension. Payment reconciliation still uses billing SQS; it observes existing payments and never creates a new renewal charge. B003/B005/B007/B008/B009/B012 cover policy/handler integration; access T018/T020 cover expired-to-purchase versus active-to-completion branching.

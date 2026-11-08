@@ -6,7 +6,7 @@
 
 Billing verifies Stripe events/reconciles authoritative provider state and writes orders/customer/subscription/event/projection records. Access coordinator verifies upstream Cognito login, preserves OAuth transactions and calls billing internally with immutable `(identity_issuer, identity_subject)`. Derive that pair only from verified login/grant state, never browser customer/subject/email. The access issuer resolves it through the verified access-owned grant; downstream service JWT issuer is not the Cognito ownership issuer. MCP has no Stripe, DynamoDB, OAuth or signing configuration/dependencies/IAM.
 
-Billing owns writes and status→paid-validity policy. Access coordinator/token issuer gets narrowly scoped read access to the entitlement interface only, not arbitrary payment/customer/event data. Access's separate state owns grants/revocation and native subscriber-key bindings; billing does not write keys, mint tokens or decide their cryptographic expiry. Spec 002 owns REST webhook/method/integration/invocation resources; spec 003 defines the billing alias and webhook operation/raw-body verification.
+Billing owns writes and status→paid-validity policy. Access coordinator/token issuer gets narrowly scoped GetItem/transaction ConditionCheckItem read access to the entitlement interface only, not arbitrary payment/customer/event data. Access's separate state owns grants/revocation and native subscriber-key bindings; billing does not write keys, mint tokens or decide their cryptographic expiry. Spec 002 owns REST webhook/method/integration/invocation resources; spec 003 defines the billing alias and webhook operation/raw-body verification.
 
 Provider-to-projection cases follow the [lifecycle reducer contract](subscription-lifecycle.md), with eligibility policy remaining in spec FR-007.
 
@@ -17,6 +17,7 @@ Provider-to-projection cases follow the [lifecycle reducer contract](subscriptio
 | identity_issuer, identity_subject | Verified immutable Cognito identity key |
 | allowed | Billing policy eligibility, not native key readiness |
 | plan_id | Approved stable catalog tier; never an arbitrary client/Stripe metadata override |
+| duration_option_id / service_term | Purchased allowed duration and immutable term rule; expiry derives from verified payment |
 | catalog_version | Immutable purchased catalog release and parameter version reference |
 | usage_mapping | Purchased usage_plan_id/rest_api_id/stage snapshot from verified order; no subscriber key |
 | valid_until | Explicit UTC paid access expiry, checked without relying on database deletion |
@@ -46,3 +47,5 @@ Billing atomically commits a sanitized activation-outbox record with its decisio
 Billing work-stream/SQS delivery may duplicate or expire; billing owns durable reconciliation work and scheduled replay. Access need not receive every decision-history event: status/resume, new login and token operations consistently read current entitlement and verify their own revision/binding. Browser closure pauses binding preparation, not verified payment. Late payment survives OAuth expiry and is reused on fresh authorization.
 
 Purchased mapping snapshots follow the [shared catalog contract](plan-catalog.md); access reads the current entitlement snapshot rather than resolving old purchases through the latest catalog.
+
+Subscriptions are application-owned paid terms under [manual renewal](manual-renewal.md), not automatically recurring Stripe subscriptions. Expiry requires a new confirmed purchase; background reconciliation cannot charge for another term.

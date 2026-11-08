@@ -9,15 +9,15 @@ Use `PK`/`SK` strings. `identity_key` is SHA-256 of the unambiguous UTF-8 JSON a
 | Table / record | PK | SK | Required data |
 |---|---|---|---|
 | BillingState customer | `ENV#<env>#IDENTITY#<identity_key>` | `CUSTOMER` | Verified tuple, Stripe account/customer, revision, schema_version |
-| BillingState subscription | Same identity partition | `SUB#<subscription_id>` | Own customer/order, plan_id, catalog_version and purchased usage mapping snapshot, provider status, paid_through, cancel/revoke state, revision |
-| BillingState order | Same identity partition | `ORDER#<order_id>` | Immutable identity/environment/catalog-version/price/usage-mapping snapshot, intent, state/revision, Checkout/payment linkage, durable operation outcome |
+| BillingState subscription | Same identity partition | `SUB#<application_subscription_id>` | Own customer/order, plan_id, catalog_version and purchased usage mapping snapshot, verified payment/term status, term_start, paid_through, revoke state, revision |
+| BillingState order | Same identity partition | `ORDER#<order_id>` | Immutable identity/environment/plan/duration/service-term/catalog-version/price/usage-mapping snapshot, intent, state/revision, Checkout/payment linkage, durable operation outcome |
 | BillingState own work/lease | Same identity partition | `WORK#<operation_id>` / `LEASE` | Due time, owner, fence, expiry, attempts, outcome/error class |
 | BillingState provider lookup | `ENV#<env>#STRIPE#<account>#<object_type>#<object_id>` | `OWNER` | Verified owning identity/order, conditionally unique mapping |
 | BillingState event ledger | `ENV#<env>#EVENT#<account>#<event_id>` | `EVENT` | Minimal trusted event identifiers, processing state/lease/fence, committed revision, digest; no full provider payload |
 | BillingEntitlements | `ENV#<env>#IDENTITY#<identity_key>` | `ENTITLEMENT` | Logical entitlement fields from entitlements contract, schema_version=1 |
 | BillingActivationOutbox | `ENV#<env>#IDENTITY#<identity_key>` | `REV#<zero-padded-revision>` | notification_id, own order ref, verified tuple, decision revision/status, created_at, schema_version=1; no tokens/keys/payment secrets |
 
-Storage outputs expose table ARNs/names and exact entitlement key/schema; no key/token/customer values. Access receives scoped entitlement GetItem and exact billing operation invocation, not billing event/outbox stream access. Billing alone writes billing tables and reads its durable decision/reconciliation history; MCP/authorizer receive no grants.
+Storage outputs expose table ARNs/names and exact entitlement key/schema; no key/token/customer values. Access receives scoped entitlement GetItem/transaction ConditionCheckItem and exact billing operation invocation, not billing event/outbox stream access. Billing alone writes billing tables and reads its durable decision/reconciliation history; MCP/authorizer receive no grants.
 
 ## Indexes and recovery
 
@@ -32,10 +32,11 @@ Only selected access coordinator roles may invoke the exact billing alias. These
 | Operation | Input | Result / scope |
 |---|---|---|
 | `listPlans` | none | Approved nonsecret plan display/catalog version; verified purchase continuation |
-| `createCheckout` | approved plan_id, purchase intent | Own order, persisted reconciliation intent and delayed billing check, then approved transient Checkout URL, or existing eligibility/pending outcome; no arbitrary price/redirect/customer |
+| `createCheckout` | approved plan_id, duration_option_id, catalog_version and purchase intent | Own order, persisted reconciliation intent and delayed billing check, then approved transient Checkout URL, or existing eligibility/pending outcome; no arbitrary price/redirect/customer |
 | `getOrder` | order_id | Own sanitized state and activation reference; another identity receives no disclosure |
 | `reconcileOrder` | order_id | One bounded provider reconciliation then committed/pending/retryable outcome; no wait loop |
-| `manageSubscription` | explicit allowed action + own subscription reference | Current-paid/ownership-gated management; cancellation of renewal versus immediate revocation remains distinct |
+| `quoteUpgrade` / `confirmUpgrade` | Current source revision, target plan/duration/catalog version or accepted quote ID | Verified paid owner; immutable server quote and one-use credit reservation under plan-upgrade contract |
+| `manageSubscription` | explicit allowed action + own application subscription reference | Current-paid/ownership-gated management; only self-service strictly higher-tier paid upgrades; downgrade/cancel/refund returns support_required without mutation; separate audited support/admin operations are not callable through browser management |
 | `openPortal` | own subscription reference | Disabled until hosted-session enforcement proves FR-009; otherwise use guarded management |
 
 Results carry schema_version, correlation_id and a discriminated outcome `ok|pending|denied|retryable_unavailable|conflict|invalid_request`, with sanitized state/revision and bounded retry hint where appropriate. Native responses are not HTTP status codes. Access maps them to its browser protocol without leaking Stripe IDs or trusted identity. Provider reconciliation is billing-only; webhook is a separate raw-body HTTP operation.
@@ -48,7 +49,7 @@ Persist effect intent before Stripe calls and use stable per-operation Stripe id
 
 Commit the event outcome, own subscription/order summary, incremented entitlement revision and inserted outbox record in one TransactWriteItems, conditioned on current schema/revision/fence. Duplicate committed events acknowledge without another effect; partial/uncommitted failures remain retryable. HTTP 2xx means durably committed or already committed; invalid signatures fail before writes. Bound work to configured invocation budgets; expired leases are recoverable and unknown state cannot grant access.
 
-Eligibility is defined only in spec FR-007 and the logical entitlement contract; physical records do not redefine policy. Renewal cannot blindly extend paid_through from an unpaid invoice. Cancellation/revocation and paid validity changes advance the projection revision and publish an outbox event. Access checks current projection at login/issuance/refresh, not in the token-only authorizer.
+Eligibility is defined only in spec FR-007 and the logical entitlement contract; physical records do not redefine policy. Renewal requires a fresh explicit paid-term Checkout under the manual-renewal contract; no unpaid invoice/recurring event can extend paid_through. Cancellation/revocation and paid validity changes advance the projection revision and publish an outbox event. Access checks current projection at login/issuance/refresh, not in the token-only authorizer.
 
 ## Queue and replay interface
 

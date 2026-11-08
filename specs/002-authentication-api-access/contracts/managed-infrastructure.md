@@ -4,7 +4,7 @@
 
 | Planned resource/artifact | Owner and interface |
 |---|---|
-| `infra/access/auth.yaml` | Cognito create/compatible reuse; retained transaction/work/grant/binding stores and due-work indexes; Parameter Store signing-key configuration/JWKS; access/authorizer aliases, roles and scoped logs |
+| `infra/access/auth.yaml` | Cognito create/compatible reuse; three access tables (transient, grants, bindings), selective TTL and exact-key access; Parameter Store signing-key configuration/JWKS; access/authorizer aliases, roles and scoped logs |
 | `infra/access/gateway.yaml` | Dedicated REST API, resources/methods/proxy integrations, REQUEST authorizer and all exact alias permissions, deployments/named stage/logs/GatewayResponses, tier usage plans |
 | `access/`, `authorizer/` | Independent npm-locked TypeScript/Node.js components/images; Express access with request-driven provisioning and direct authorizer, no MCP production dependency changes |
 | `scripts/prepare_gateway_cutover.ts` | Read-only before/target manifest, no import/update/delete/client reconfiguration |
@@ -32,3 +32,5 @@ Function counts, SQS delays, retry/DLQ handling and replay guarantees are author
 Component IaC and handlers must implement the shared [CloudWatch/X-Ray contract](observability.md), including finite log retention, credential redaction, telemetry IAM, dashboards/alarms and separately validated live delivery.
 
 Access and billing receive exact-parameter read permission for the nonsecret shared catalog under the [catalog contract](../../003-billing-subscriptions/contracts/plan-catalog.md); no runtime catalog-write grant. Active-ready login/refresh uses current DynamoDB snapshots without requiring the latest catalog.
+
+Three-table fields/keys/TTL and cross-table transaction IAM are authoritative in the [access storage contract](access-storage.md); billing entitlement ConditionCheckItem is read-only authority validation, never a billing-write grant.

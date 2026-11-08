@@ -25,7 +25,7 @@ Technical lifecycle cases are mapped in the [subscription lifecycle contract](co
 
 ## Policy and secrets
 
-Apply spec FR-007: active paid/no grace, no unpaid trial or past-due eligibility; cancelling renewal retains paid-through access, immediate eligibility revocation blocks issuance/refresh under access token bounds. Final approved price/catalog mapping and account/region are operator inputs, not fabricated defaults. Persist paid-through from verified paid provider state, never merely a Checkout browser return or an unpaid future subscription period.
+Apply spec FR-007: active paid/no grace, no unpaid trial or past-due eligibility; no automatic renewal/charge, manual expired-user repurchase and support-assisted current-term cancellation under the [renewal contract](contracts/manual-renewal.md); revocation follows access token bounds. Final approved price/catalog mapping and account/region are operator inputs, not fabricated defaults. Persist paid-through from verified paid provider state, never merely a Checkout browser return or an unverified future paid term.
 
 Use test mode for fixtures/future authorized acceptance; reject mixed environment/account/customer/price mappings. Pin Stripe SDK and explicit API/webhook version together at implementation after compatibility tests, not an unverified version guess. Store Stripe API/webhook secrets in scoped Parameter Store SecureStrings, cache in billing memory with bounded refresh, and fail closed on unavailable/invalid configuration; no secret values in templates, images, logs or evidence. No service JWT private-key access.
 
