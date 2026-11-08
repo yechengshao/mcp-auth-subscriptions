@@ -15,6 +15,8 @@ HTTP methods, route names and browser/server handoffs are defined in the [endpoi
 7. At `/token`, verify the code atomically once, client, exact redirect, original S256 verifier and resource. Recheck entitlement and ready binding before issuing access/refresh tokens in a noncacheable JSON response. The host stores them and sends `Authorization: Bearer <access_token>` on subsequent MCP requests. The resource audience matches the canonical `/mcp` URL exactly.
 8. At the same `/token` endpoint, `grant_type=refresh_token` rotates the opaque refresh credential, checks grant/client/resource binding and current paid entitlement/binding, rejects replay and enforces grant expiry/revocation. Eligible reconnect and refresh never create new Stripe orders. Expired users reopen the same identity-verification/plan-selection/one-time-payment onboarding flow; there is no automatic Stripe renewal. Unpaid users may reopen only purchase/renewal enrollment; paid application login, refresh and billing management remain denied.
 
+Browser management uses the [same session mechanism](browser-sessions.md) and Cognito callback, with fixed local completion rather than an AI OAuth code.
+
 ## Durable state and bounds
 
 The [Node.js onboarding contract](onboarding-workflow.md) implements these phases with conditional DynamoDB writes, durable provisioning state and request-driven retries, with billing-only background payment recovery; browser/session and code/grant storage remain authoritative across retries. No gateway request or Lambda worker remains open for the waiting phases.

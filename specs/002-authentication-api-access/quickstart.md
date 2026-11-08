@@ -21,3 +21,5 @@ Follow the [onboarding contract](contracts/onboarding-workflow.md): status/resum
 Before live readiness, execute the [expired-subscription/reconnect acceptance checklist](checklists/manual-renewal-acceptance.md) independently for ChatGPT and Claude; verify actual refresh-failure UI and manual renewal, not an assumed automatic redirect.
 
 Begin schema-first development using the shared [implementation-readiness checklist](../003-billing-subscriptions/checklists/implementation-readiness.md); reviewed planning boxes do not mark implementation or live tasks complete.
+
+Use the shared [browser session contract](contracts/browser-sessions.md) for onboarding and direct `/billing` management: same cookie/store/30-minute deadline; reauthenticate through Cognito on expiry, never pass the AI client's MCP token to the browser.

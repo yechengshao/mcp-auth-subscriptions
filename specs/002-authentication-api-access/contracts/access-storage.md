@@ -20,12 +20,14 @@ TTL attribute `delete_after`; logical validity is always checked separately. Rec
 
 | Entity | PK / SK | Fields and constraints |
 |---|---|---|
-| OAuth transaction | `ENV#e#TX#random_id` / `STATE` | registered client/redirect/resource/scopes/S256 challenge, original downstream state, issuer, client-config version, phase/revision, absolute expires_at, verified subscriber/identity only after Cognito validation, own-order ref, attempts/next_attempt_at/error category |
-| Browser session | `ENV#e#SESSION#digest` / `SESSION` | tx_id, CSRF-token digest, session revision, created/expires_at; rotate after identity verification, Secure/HttpOnly/SameSite cookie configuration follows tested callbacks |
+| OAuth transaction | `ENV#e#TX#random_id` / `STATE` | purpose discriminator, registered client/redirect/resource/scopes/S256 challenge for onboarding or fixed local destination for management, original downstream state, issuer, client-config version, phase/revision, absolute expires_at, verified subscriber/identity only after Cognito validation, own-order ref, attempts/next_attempt_at/error category |
+| Browser session | `ENV#e#SESSION#digest` / `SESSION` | purpose, authentication_stage, tx_id, CSRF digest, optional verified identity/subscriber, session revision, created/expires_at; shared browser-session contract controls cookie/rotation |
 | Upstream Cognito attempt | `ENV#e#UPSTREAM#state_digest` / `ATTEMPT` | tx_id/session binding, nonce digest, server PKCE verifier, exact Cognito client/issuer/callback, expires_at, consumed flag/revision; verifier is required server-side secret, not merely a digest |
 | Authorization code | `ENV#e#CODE#sha256(code)` / `CODE` | tx/subscriber/client/resource/redirect/S256 bindings, grant_id, issued/expires_at, consumed marker/revision; high-entropy opaque raw code returned once, never stored |
 
 Transaction/session/upstream deadline is at most original start plus 1800 seconds; retries never extend it. Code deadline is min(issue+60 seconds, transaction deadline); refuse zero/expired validity. Store upstream verifier only until callback processing no longer needs it, then remove it. Code/session digests use high-entropy random inputs; do not use email/short user codes. Default cleanup is logical expiry plus 24 hours; this is disposable diagnostic/tombstone retention, not longer authorization. DynamoDB TTL deletion may lag; sensitive temporary fields are removed sooner after successful transitions where safe.
+
+Both transaction purposes and the common 30-minute absolute cookie/session lifecycle follow [browser sessions](browser-sessions.md); no long-lived management credential or extra table.
 
 ## Logical group 2: Identity, grants and refresh credentials
 

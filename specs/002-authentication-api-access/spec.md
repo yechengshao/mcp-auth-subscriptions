@@ -10,6 +10,8 @@ Connect ChatGPT/Claude through this journey:
 
 **Verify identity → purchase/renew if needed → verified paid entitlement → usage-plan activation → successful application login/OAuth completion → MCP access.**
 
+Onboarding and later subscription management share the same bounded cookie/DynamoDB session strategy; Cognito verifies identity, access issues/rotates sessions, and expired sessions require identity verification again.
+
 Use human authorization code + S256 PKCE, persisted Node.js transitions for waiting/recovery, a **REST API with native usage plans**, and an independent custom authorizer validating signed service tokens. Implement access in **Node.js on AWS Lambda**, using **Express** for HTTP/callbacks/token exchange. [Spec 001](../../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) provides MCP only; [spec 003](../003-billing-subscriptions/spec.md) provides separate billing Lambda/DynamoDB/Stripe.
 
 Access uses one `AccessState` table for temporary login records, grants/refresh families, identity references and persistent subscriber bindings, with per-record cleanup rules. Cognito owns credentials; application tables store no user passwords. The billing-owned entitlement projection is the only billing table access may read/check; it cannot read detailed payments/customer history. The [storage contract](contracts/access-storage.md) defines keys and atomic updates.
