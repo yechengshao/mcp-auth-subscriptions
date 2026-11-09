@@ -20,6 +20,8 @@ const map = (value: Schema): Schema => ({
   type: 'object', minProperties: 1, maxProperties: 100,
   propertyNames: id, additionalProperties: value,
 });
+export const correlation = { type: 'string', pattern: '^[A-Za-z0-9_-]{1,64}$' };
+export const traceContext = object({ 'x-amzn-trace-id': { type: 'string', minLength: 1, maxLength: 512 } });
 export const identity = object({ issuer: { ...text, pattern: '^https://' }, subject: text });
 export const mapping = object({ usage_plan_id: id, rest_api_id: id, stage: id });
 export const term: Schema = termSchema;
@@ -61,12 +63,13 @@ export const orderSchema = object({
   state: choice('pending', 'paid', 'failed', 'expired', 'repair_required'), snapshot: snapshotSchema,
   created_at: epoch, updated_at: epoch,
   checkout_session_id: { ...text, pattern: '^cs_' }, payment_id: { ...text, pattern: '^pi_' },
-}, ['checkout_session_id', 'payment_id']);
+  quote_id: id, payable_minor: positive, credit_minor: integer,
+}, ['checkout_session_id', 'payment_id', 'quote_id', 'payable_minor', 'credit_minor']);
 export const queueSchema = object({
   schema_version: constant(1), kind: constant('reconcile_payment'),
   message_type: choice('dispatch_hint', 'run'), generation: positive, environment: id,
   durable_record_key: object({ PK: text, SK: { ...text, pattern: '^WORK#[A-Za-z0-9_-]+$' } }),
-  operation_id: id, correlation_id: id,
+  operation_id: id, correlation_id: correlation,
 });
 const target = { plan_id: id, duration_option_id: id, catalog_version: id };
 const operations: Record<string, Schema> = {
@@ -80,8 +83,8 @@ const operations: Record<string, Schema> = {
 };
 export const operationSchema: Schema = { oneOf: Object.entries(operations).map(([operation, input]) => object({
   schema_version: constant(1), operation: constant(operation), environment: id,
-  correlation_id: id, idempotency_key: text, identity, continuation_ref: id, input,
-}, ['continuation_ref'])) };
+  correlation_id: correlation, idempotency_key: text, identity, continuation_ref: id, trace_context: traceContext, input,
+}, ['continuation_ref', 'trace_context'])) };
 // Error payloads are closed. Operation-specific success payloads are a separate follow-up.
 export const failureSchema: Schema = { oneOf: [
   ['denied', false, ['not_eligible', 'not_owner']],
@@ -90,7 +93,7 @@ export const failureSchema: Schema = { oneOf: [
   ['invalid_request', false, ['invalid_request']],
   ['support_required', false, ['unsupported_credit_case', 'financial_support_required', 'feature_unavailable']],
 ].map(([outcome, retryable, codes]) => object({
-  schema_version: constant(1), correlation_id: id, outcome: constant(outcome as string),
+  schema_version: constant(1), correlation_id: correlation, outcome: constant(outcome as string),
   error_code: choice(...codes as string[]), retryable: constant(retryable as boolean),
   message: text,
 })) };

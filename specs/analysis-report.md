@@ -69,3 +69,17 @@ The shared session contract aligns with the access storage and endpoint contract
 The first [local contract foundation](../billing/contracts/README.md) adds executable schemas, synthetic fixtures and tests for catalog scope/durations, purchased snapshots, selected database records, native requests/failures, queue references, UTC term calculation and session/management expiry/ownership boundaries. Full B001/T014 schemas and conditional transaction implementations remain unfinished; all 39 task checkboxes retain their prior state. Provider, IAM, cookie/Cognito, queue delivery and host-reconnect acceptance remain not_run.
 
 Review/commit the remediated planning baseline when requested, then start B001/access boundary fixtures. Carry each resolution's runtime acceptance cases into implementation; keep all implementation/live tasks unchecked until executed with evidence. This remediation does not authorize deployment, payments, support emails or external notifications.
+
+## B001 completion review — 2026-11-08
+
+The [contract implementation](../billing/contracts/README.md) now covers all 12 billing and 8 access record kinds with exact scoped keys, closed fields, cleanup rules and positive/negative fixtures; canonical native results; quote/reservation/credit/work metadata; required bounded budgets; projection-only read/alias grant fragments; and versioned, bounded catalog caching with injected loader/clock. Sixty local tests pass, including all existing service-term vectors and calendar arithmetic, identity/session binding, unsupported financial paths and secret-sentinel rejection. TypeScript typecheck/build pass.
+
+B001 is complete at its contract/schema prerequisite scope; the other 38 tasks remain open. Neither schema validation nor pure grant fragments implement atomic DynamoDB updates, provider verification, actual IAM, cookies/CSRF, queue delivery or logging/tracing adapters. These remain their owning tasks, with live CloudWatch/X-Ray, Stripe, Cognito and host acceptance not_run. The next billing task is B002 retained storage IaC, with B003 lifecycle/policy implementation following the approved dependency order; access T001/T014/T022 boundaries remain unfinished.
+
+## AWS-native monitoring foundation — 2026-11-08
+
+User chose AWS-native monitoring only. [Logging helpers and prepared IaC](../observability/README.md) use Node standard libraries, CloudWatch JSON/EMF and native Lambda/REST X-Ray settings; no OpenTelemetry, external tracing SDK, custom segment/exporter, collector or monitoring worker remains. Existing AWS trace metadata and saved correlation IDs are relayed without manufacturing application spans. Native invocation/service tracing is coarser; safe log timings cover application failures.
+
+The prepared template retains finite logs, native sampling, scoped policies and bounded dashboard/alarms. Business handlers, stage/role wiring and actual transition/metric callsites remain pending. Local redaction/context/template tests do not establish native graph propagation or cloud delivery. B001 remains the only completed full task, with 38 open; no cloud deployment, payment or notification occurred.
+
+Native-only validation: 77 auth/billing tests with typecheck/build and cfn-lint; relayed AWS headers parse consistently in both projects without a tracing SDK. Live graph/header propagation and handler integration remain unverified.

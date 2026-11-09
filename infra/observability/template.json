@@ -1,0 +1,1211 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Prepared access/billing monitoring; attach outputs in component-owned runtime/stage stacks",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "Default": "development",
+      "AllowedValues": [
+        "development",
+        "test",
+        "production"
+      ]
+    },
+    "Tracing": {
+      "Type": "String",
+      "Default": "auto",
+      "AllowedValues": [
+        "auto",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "EnableAlarms": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "SamplingPriority": {
+      "Type": "Number",
+      "MinValue": 1,
+      "MaxValue": 9999
+    },
+    "MetricPeriodSeconds": {
+      "Type": "Number",
+      "Default": 60,
+      "AllowedValues": [
+        60,
+        300,
+        900
+      ]
+    },
+    "EvaluationPeriods": {
+      "Type": "Number",
+      "MinValue": 1,
+      "MaxValue": 60
+    },
+    "MissingDataPolicy": {
+      "Type": "String",
+      "AllowedValues": [
+        "breaching",
+        "notBreaching",
+        "ignore",
+        "missing"
+      ]
+    },
+    "NotificationTopicArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+$"
+    },
+    "RestApiId": {
+      "Type": "String",
+      "AllowedPattern": "^[a-z0-9]+$"
+    },
+    "RestApiName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_. -]{1,128}$"
+    },
+    "StageName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "AccessFunctionName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "AuthorizerFunctionName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "BillingFunctionName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "BillingQueueName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "BillingDlqName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "BillingPipeName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "AccessTableName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "BillingTableName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "EntitlementTableName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "ErrorThreshold": {
+      "Type": "Number",
+      "MinValue": 1
+    },
+    "QueueAgeThreshold": {
+      "Type": "Number",
+      "MinValue": 1
+    },
+    "DueAgeThreshold": {
+      "Type": "Number",
+      "MinValue": 1
+    },
+    "PipeFailureThreshold": {
+      "Type": "Number",
+      "MinValue": 1
+    },
+    "ThrottleThreshold": {
+      "Type": "Number",
+      "MinValue": 1
+    }
+  },
+  "Conditions": {
+    "Production": {
+      "Fn::Equals": [
+        {
+          "Ref": "Environment"
+        },
+        "production"
+      ]
+    },
+    "TracingEnabled": {
+      "Fn::Or": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "Tracing"
+            },
+            "enabled"
+          ]
+        },
+        {
+          "Fn::And": [
+            {
+              "Condition": "Production"
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "Tracing"
+                },
+                "auto"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "AlarmsEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnableAlarms"
+        },
+        "true"
+      ]
+    }
+  },
+  "Resources": {
+    "AccessLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AccessFunctionName}"
+        },
+        "RetentionInDays": {
+          "Fn::If": [
+            "Production",
+            14,
+            3
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "AccessTelemetryPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Description": "Attach to the existing access role; no business-data rights",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AccessFunctionName}:log-stream:*"
+              }
+            },
+            {
+              "Fn::If": [
+                "TracingEnabled",
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "xray:PutTraceSegments",
+                    "xray:PutTelemetryRecords"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Ref": "AWS::NoValue"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "AuthorizerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AuthorizerFunctionName}"
+        },
+        "RetentionInDays": {
+          "Fn::If": [
+            "Production",
+            14,
+            3
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "AuthorizerTelemetryPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Description": "Attach to the existing authorizer role; no business-data rights",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AuthorizerFunctionName}:log-stream:*"
+              }
+            },
+            {
+              "Fn::If": [
+                "TracingEnabled",
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "xray:PutTraceSegments",
+                    "xray:PutTelemetryRecords"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Ref": "AWS::NoValue"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "BillingLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${BillingFunctionName}"
+        },
+        "RetentionInDays": {
+          "Fn::If": [
+            "Production",
+            14,
+            3
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "BillingTelemetryPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Description": "Attach to the existing billing role; no business-data rights",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${BillingFunctionName}:log-stream:*"
+              }
+            },
+            {
+              "Fn::If": [
+                "TracingEnabled",
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "xray:PutTraceSegments",
+                    "xray:PutTelemetryRecords"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Ref": "AWS::NoValue"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "GatewayLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/apigateway/${RestApiId}/${StageName}/access"
+        },
+        "RetentionInDays": {
+          "Fn::If": [
+            "Production",
+            14,
+            3
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "GatewayTelemetryPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Description": "Attach to the existing gateway role; no business-data rights",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/${RestApiId}/${StageName}/access:log-stream:*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:API-Gateway-Execution-Logs_${RestApiId}/${StageName}:log-stream:*"
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:DescribeLogStreams"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/${RestApiId}/${StageName}/access"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:API-Gateway-Execution-Logs_${RestApiId}/${StageName}"
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:DescribeLogGroups"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "GatewayExecutionLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "API-Gateway-Execution-Logs_${RestApiId}/${StageName}"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ],
+        "RetentionInDays": {
+          "Fn::If": [
+            "Production",
+            14,
+            3
+          ]
+        }
+      }
+    },
+    "GatewaySampling": {
+      "Type": "AWS::XRay::SamplingRule",
+      "Condition": "TracingEnabled",
+      "Properties": {
+        "SamplingRule": {
+          "Version": 1,
+          "Priority": {
+            "Ref": "SamplingPriority"
+          },
+          "ReservoirSize": 0,
+          "FixedRate": 0.01,
+          "Host": "*",
+          "HTTPMethod": "*",
+          "URLPath": "*",
+          "ServiceName": "*",
+          "ServiceType": "AWS::ApiGateway::Stage",
+          "ResourceARN": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/restapis/${RestApiId}/stages/${StageName}"
+          }
+        }
+      }
+    },
+    "AccessErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "errors",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Lambda",
+                "MetricName": "Errors",
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "AccessFunctionName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "ErrorThreshold"
+        }
+      }
+    },
+    "AuthorizerErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "errors",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Lambda",
+                "MetricName": "Errors",
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "AuthorizerFunctionName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "ErrorThreshold"
+        }
+      }
+    },
+    "BillingErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "errors",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Lambda",
+                "MetricName": "Errors",
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "BillingFunctionName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "ErrorThreshold"
+        }
+      }
+    },
+    "GatewayErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "errors",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/ApiGateway",
+                "MetricName": "5XXError",
+                "Dimensions": [
+                  {
+                    "Name": "ApiName",
+                    "Value": {
+                      "Ref": "RestApiName"
+                    }
+                  },
+                  {
+                    "Name": "Stage",
+                    "Value": {
+                      "Ref": "StageName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "ErrorThreshold"
+        }
+      }
+    },
+    "BillingDlq": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "visible",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/SQS",
+                "MetricName": "ApproximateNumberOfMessagesVisible",
+                "Dimensions": [
+                  {
+                    "Name": "QueueName",
+                    "Value": {
+                      "Ref": "BillingDlqName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Maximum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "ErrorThreshold"
+        }
+      }
+    },
+    "BillingQueueAge": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "age",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/SQS",
+                "MetricName": "ApproximateAgeOfOldestMessage",
+                "Dimensions": [
+                  {
+                    "Name": "QueueName",
+                    "Value": {
+                      "Ref": "BillingQueueName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Maximum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "QueueAgeThreshold"
+        }
+      }
+    },
+    "BillingDurableDueAge": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "age",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "MCP/Operations",
+                "MetricName": "BillingReconcileDueAgeSeconds",
+                "Dimensions": [
+                  {
+                    "Name": "service",
+                    "Value": "billing"
+                  },
+                  {
+                    "Name": "environment",
+                    "Value": {
+                      "Ref": "Environment"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Maximum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "DueAgeThreshold"
+        }
+      }
+    },
+    "BillingPipeFailures": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "failures",
+            "ReturnData": true,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Pipes",
+                "MetricName": "ExecutionFailed",
+                "Dimensions": [
+                  {
+                    "Name": "PipeName",
+                    "Value": {
+                      "Ref": "BillingPipeName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          }
+        ],
+        "Threshold": {
+          "Ref": "PipeFailureThreshold"
+        }
+      }
+    },
+    "AggregateLambdaThrottles": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "m0",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Lambda",
+                "MetricName": "Throttles",
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "AccessFunctionName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m1",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Lambda",
+                "MetricName": "Throttles",
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "AuthorizerFunctionName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m2",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Lambda",
+                "MetricName": "Throttles",
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "BillingFunctionName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "total",
+            "ReturnData": true,
+            "Expression": "SUM(METRICS())"
+          }
+        ],
+        "Threshold": {
+          "Ref": "ThrottleThreshold"
+        }
+      }
+    },
+    "DynamoThrottles": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "AlarmsEnabled",
+      "Properties": {
+        "EvaluationPeriods": {
+          "Ref": "EvaluationPeriods"
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": {
+          "Ref": "MissingDataPolicy"
+        },
+        "AlarmActions": [
+          {
+            "Ref": "NotificationTopicArn"
+          }
+        ],
+        "Metrics": [
+          {
+            "Id": "m00",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/DynamoDB",
+                "MetricName": "ReadThrottleEvents",
+                "Dimensions": [
+                  {
+                    "Name": "TableName",
+                    "Value": {
+                      "Ref": "AccessTableName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m01",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/DynamoDB",
+                "MetricName": "WriteThrottleEvents",
+                "Dimensions": [
+                  {
+                    "Name": "TableName",
+                    "Value": {
+                      "Ref": "AccessTableName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m10",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/DynamoDB",
+                "MetricName": "ReadThrottleEvents",
+                "Dimensions": [
+                  {
+                    "Name": "TableName",
+                    "Value": {
+                      "Ref": "BillingTableName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m11",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/DynamoDB",
+                "MetricName": "WriteThrottleEvents",
+                "Dimensions": [
+                  {
+                    "Name": "TableName",
+                    "Value": {
+                      "Ref": "BillingTableName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m20",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/DynamoDB",
+                "MetricName": "ReadThrottleEvents",
+                "Dimensions": [
+                  {
+                    "Name": "TableName",
+                    "Value": {
+                      "Ref": "EntitlementTableName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "m21",
+            "ReturnData": false,
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/DynamoDB",
+                "MetricName": "WriteThrottleEvents",
+                "Dimensions": [
+                  {
+                    "Name": "TableName",
+                    "Value": {
+                      "Ref": "EntitlementTableName"
+                    }
+                  }
+                ]
+              },
+              "Period": {
+                "Ref": "MetricPeriodSeconds"
+              },
+              "Stat": "Sum"
+            }
+          },
+          {
+            "Id": "total",
+            "ReturnData": true,
+            "Expression": "SUM(METRICS())"
+          }
+        ],
+        "Threshold": {
+          "Ref": "ThrottleThreshold"
+        }
+      }
+    },
+    "Dashboard": {
+      "Type": "AWS::CloudWatch::Dashboard",
+      "Condition": "Production",
+      "Properties": {
+        "DashboardBody": {
+          "Fn::Sub": "{\"widgets\":[{\"type\":\"metric\",\"width\":12,\"height\":6,\"properties\":{\"title\":\"Lambda errors\",\"region\":\"${AWS::Region}\",\"view\":\"timeSeries\",\"stat\":\"Sum\",\"period\":60,\"metrics\":[[\"AWS/Lambda\",\"Errors\",\"FunctionName\",\"${AccessFunctionName}\"],[\"AWS/Lambda\",\"Errors\",\"FunctionName\",\"${AuthorizerFunctionName}\"],[\"AWS/Lambda\",\"Errors\",\"FunctionName\",\"${BillingFunctionName}\"]]}},{\"type\":\"metric\",\"width\":12,\"height\":6,\"properties\":{\"title\":\"Lambda duration\",\"region\":\"${AWS::Region}\",\"view\":\"timeSeries\",\"stat\":\"p95\",\"period\":60,\"metrics\":[[\"AWS/Lambda\",\"Duration\",\"FunctionName\",\"${AccessFunctionName}\"],[\"AWS/Lambda\",\"Duration\",\"FunctionName\",\"${AuthorizerFunctionName}\"],[\"AWS/Lambda\",\"Duration\",\"FunctionName\",\"${BillingFunctionName}\"]]}},{\"type\":\"metric\",\"width\":12,\"height\":6,\"properties\":{\"title\":\"Billing backlog\",\"region\":\"${AWS::Region}\",\"view\":\"timeSeries\",\"stat\":\"Maximum\",\"period\":60,\"metrics\":[[\"AWS/SQS\",\"ApproximateAgeOfOldestMessage\",\"QueueName\",\"${BillingQueueName}\"],[\"MCP/Operations\",\"BillingReconcileDueAgeSeconds\",\"service\",\"billing\",\"environment\",\"${Environment}\"]]}}]}"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "AccessLogGroupArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "AccessLogGroup",
+          "Arn"
+        ]
+      }
+    },
+    "AccessTelemetryPolicyArn": {
+      "Value": {
+        "Ref": "AccessTelemetryPolicy"
+      }
+    },
+    "AuthorizerLogGroupArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "AuthorizerLogGroup",
+          "Arn"
+        ]
+      }
+    },
+    "AuthorizerTelemetryPolicyArn": {
+      "Value": {
+        "Ref": "AuthorizerTelemetryPolicy"
+      }
+    },
+    "BillingLogGroupArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "BillingLogGroup",
+          "Arn"
+        ]
+      }
+    },
+    "BillingTelemetryPolicyArn": {
+      "Value": {
+        "Ref": "BillingTelemetryPolicy"
+      }
+    },
+    "GatewayLogGroupArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "GatewayLogGroup",
+          "Arn"
+        ]
+      }
+    },
+    "GatewayTelemetryPolicyArn": {
+      "Value": {
+        "Ref": "GatewayTelemetryPolicy"
+      }
+    },
+    "GatewayExecutionLogGroupArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "GatewayExecutionLogGroup",
+          "Arn"
+        ]
+      }
+    },
+    "LambdaTracingMode": {
+      "Value": {
+        "Fn::If": [
+          "TracingEnabled",
+          "Active",
+          "PassThrough"
+        ]
+      }
+    },
+    "GatewayAccessFormat": {
+      "Value": "{\"request_id\":\"$context.requestId\",\"extended_request_id\":\"$context.extendedRequestId\",\"operation\":\"$context.httpMethod $context.resourcePath\",\"status\":\"$context.status\",\"latency_ms\":\"$context.responseLatency\",\"integration_latency_ms\":\"$context.integrationLatency\"}"
+    }
+  }
+}

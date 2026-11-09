@@ -1,6 +1,6 @@
 # Access/Billing Implementation Readiness
 
-**Status**: Planning review only. Checked items mean the written design has been reconciled, not code completion, business-price approval, live interoperability or deployment. Implementation tasks stay unchecked.
+**Status**: Design reviewed; B001 contract foundation complete locally. Reviewed-decision checkmarks describe design agreement; implementation-gate checkmarks require the cited local evidence and never imply live interoperability or deployment.
 
 ## Reviewed decisions
 
@@ -21,16 +21,16 @@ The [analysis recheck](../../analysis-report.md#resolution-and-recheck) resolves
 
 ## First implementation gates — partially started
 
-The [local contract foundation](../../../billing/contracts/README.md) implements initial catalog/message/selected-record validation, synthetic boundary fixtures and UTC term calculation. Full row coverage, operation results, budgets, cache, transactions and runtime/IAM tests are still required; the gates below remain unchecked.
+The [local contract foundation](../../../billing/contracts/README.md) implements initial catalog/message/selected-record validation, synthetic boundary fixtures and UTC term calculation. Record coverage, operation-result schemas, budget checks and injected-loader cache tests now pass; transactions, provider adapters and runtime/IAM integration remain pending.
 
-- [ ] B001: machine-validating schemas and valid/invalid fixtures for catalog, paid terms, upgrade quotes, billing records/envelopes and queue references.
+- [x] B001: machine-validating schemas and valid/invalid fixtures for catalog, paid terms, upgrade quotes, billing records/envelopes and queue references.
 - [ ] T001/T014/T022: boundary tests and access-schema/atomic-update fixtures using the access storage contract, not an invented alternate model.
 - [ ] B003: tested paid-term calculations, minor-unit credit rounding and upgrade-eligibility policy; ambiguous taxes/fees/refund-credit valuation routes to support, not an unverified charge.
-- [ ] Pin compatible Node/TypeScript/Stripe/OpenTelemetry versions and install isolated lockfile-backed packages; development is local, non-provisioning and uses generated test credentials.
+- [ ] Pin compatible Node/TypeScript/Stripe versions and install isolated lockfile-backed packages; development is local, non-provisioning and uses generated test credentials.
 - [ ] Enforce quoted catalog/source revisions, stable effect identity, exact ownership/expiry/replay guards and no duplicate payment/key/credit effects in meaningful failing/passing tests.
 - [ ] Validate both task dependency graphs and actual implemented prerequisite artifacts before proceeding to consumers; mocks do not finalize a missing contract or satisfy live checks.
 
-Start with B001 plus access boundary/schema fixtures. Billing storage/policy adapters precede dependent access onboarding, while isolated authorizer tests can use the finalized token contract. B012 waits for actual access handlers; full integration must not become a prerequisite for the billing contracts it consumes. No code implementation is implied by this checklist.
+Start with B001 plus access boundary/schema fixtures. Billing storage/policy adapters precede dependent access onboarding, while isolated authorizer tests can use the finalized token contract. B012 waits for actual access handlers; full integration must not become a prerequisite for the billing contracts it consumes. Only the cited contract utilities are implemented; full handlers and infrastructure remain pending.
 
 ## Production/operator inputs — not blockers to schema development
 
@@ -46,3 +46,12 @@ Start with B001 plus access boundary/schema fixtures. Billing storage/policy ada
 Typecheck/build/emitted tests, packaged handlers, IaC/redaction checks and meaningful current-run counts are required when implemented. Keep passed/failed/skipped/unavailable/not_run distinct. Billing support agents' manual refund procedures are outside application implementation; the app must not execute refunds. Cloud publication, charge/refund, email or alarm notification require their own authorization; a planning review does not provide it.
 
 [Access plan](../../002-authentication-api-access/plan.md) · [Billing plan](../plan.md) · [Access storage](../../002-authentication-api-access/contracts/access-storage.md) · [Billing interfaces](../contracts/storage-operations.md)
+
+
+## Monitoring foundation
+
+- [x] Local Node telemetry and prepared log/policy/sampling/dashboard/alarm templates, with fake-handler redaction/context tests.
+- [ ] Attach wrappers to real auth/billing/authorizer handlers and dependency clients, emit transitions/metrics only at verified commit points, and merge component role/environment/stage settings.
+- [ ] Supply monthly budget/alert destinations, exact resource identities and alarm thresholds, then separately validate actual CloudWatch/X-Ray/ARM64 delivery.
+
+See [implementation scope](../../../observability/README.md); no monitoring deployment or notification has run.

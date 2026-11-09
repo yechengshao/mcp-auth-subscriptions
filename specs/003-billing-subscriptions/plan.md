@@ -1,6 +1,6 @@
 # Plan 003: Billing and Subscriptions
 
-**Updated**: 2026-11-06 · **Status**: Planned; implementation and live acceptance pending. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-08 · **Status**: Planned; implementation and live acceptance pending. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 
@@ -45,7 +45,7 @@ Tests cover ten duplicate/concurrent deliveries, out-of-order provider events, c
 
 Retain records across release/rollback; support existing schema versions. Explicit billing retention and recovery budgets must be configured before deployment; no TTL deletion of entitlement/history/outbox while consumers may need recovery. Preserve spec/task IDs and report prepared artifacts separately from deployed resources.
 
-CloudWatch logs/metrics/alarms and X-Ray tracing follow the [observability contract](../002-authentication-api-access/contracts/observability.md).
+Monitoring follows the [contract](../002-authentication-api-access/contracts/observability.md); [local wrappers/templates](../../observability/README.md) are implemented, with handler/deployment wiring still pending under B010/B013.
 
 Plan details, Stripe/usage-plan mapping and purchase snapshots follow the versioned Parameter Store [catalog contract](contracts/plan-catalog.md); existing-ready login/refresh uses DynamoDB snapshots.
 

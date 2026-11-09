@@ -30,7 +30,7 @@ export const session = {
 };
 export const transaction = {
   PK: 'ENV#test#TX#tx_fixture', SK: 'STATE', schema_version: 1, entity_type: 'transaction', revision: 1,
-  environment, purpose: 'management', local_destination: '/billing', phase: 'identity_verified',
+  environment, purpose: 'management', local_destination: '/billing', phase: 'identity_verified', identity, subscriber_id: 'subscriber_fixture',
   created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,
 };
 export const message = {

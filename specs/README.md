@@ -30,3 +30,5 @@ The [background delivery contract](002-authentication-api-access/contracts/backg
 Data ownership has two domains and three physical tables: access owns AccessState; billing owns BillingState and BillingEntitlements. The entitlement projection separates eligibility reads from payment/customer data; verified updates commit atomically across billing tables.
 
 [Future enhancements](future-work.md) tracks the deferred subscription/setup-confirmation email; it is not part of current implementation acceptance.
+
+[Monitoring implementation and remaining runtime/live gates](../observability/README.md).

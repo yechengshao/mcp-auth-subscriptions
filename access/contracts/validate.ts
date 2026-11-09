@@ -7,7 +7,7 @@ interface Session {
   subscriber_id?: string; created_at: number; expires_at: number; delete_after: number;
 }
 interface Transaction {
-  PK: string; environment: string; purpose: 'onboarding' | 'management'; phase: string;
+  PK: string; environment: string; purpose: 'onboarding' | 'management'; phase: string; identity?: { issuer: string; subject: string }; subscriber_id?: string;
   created_at: number; expires_at: number; delete_after: number;
 }
 const reject = (): never => { throw new Error('invalid_session_context'); };
@@ -26,7 +26,9 @@ export function validateSessionContext(input: unknown, txInput: unknown, environ
       !session.PK.startsWith(prefix) || !/^[a-f0-9]{64}$/.test(session.PK.slice(prefix.length)) ||
       tx.PK !== `ENV#${environment}#TX#${session.tx_id}` || session.purpose !== tx.purpose ||
       session.expires_at !== tx.expires_at ||
-      (session.authentication_stage === 'pending_identity') !== (tx.phase === 'pending_identity')) reject();
+      (session.authentication_stage === 'pending_identity') !== (tx.phase === 'pending_identity') ||
+      (session.authentication_stage === 'identity_verified' && (tx.identity?.issuer !== session.identity?.issuer ||
+        tx.identity?.subject !== session.identity?.subject || tx.subscriber_id !== session.subscriber_id))) reject();
   return structuredClone(session);
 }
 export function validateManagementContext(session: unknown, tx: unknown, entitlement: unknown, environment: string, now: number): void {

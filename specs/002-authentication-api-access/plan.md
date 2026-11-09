@@ -1,10 +1,10 @@
 # Plan 002: Authentication and API Access
 
-**Updated**: 2026-11-06 · **Status**: Planned; 25 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-08 · **Status**: Planned; 25 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 
-Cognito human PKCE → billing plan/order/Stripe → committed entitlement → native usage binding → OAuth code exchange → short-lived service bearer. Existing eligible subscribers skip purchase. Node.js application logic coordinates persisted DynamoDB transitions; short access requests and billing payment recovery advance the flow without Step Functions. The REQUEST authorizer checks every paid request synchronously. MCP remains authentication/billing/workflow-free.
+Cognito human PKCE → billing plan/order/Stripe → committed entitlement → native usage binding → OAuth code exchange → short-lived service bearer. Existing eligible subscribers skip purchase. Node.js application logic coordinates persisted DynamoDB transitions; short access requests and billing payment recovery advance the flow without Step Functions. The REQUEST authorizer validates JWTs synchronously. MCP remains authentication/billing/workflow-free.
 
 | Planned component | Responsibility |
 |---|---|
@@ -14,7 +14,7 @@ Cognito human PKCE → billing plan/order/Stripe → committed entitlement → n
 | `infra/access/gateway.yaml` | Base REST API, then all methods/integrations/permissions, deployment/named stage, discovery/GatewayResponses and native tier plans |
 | Publication/verifiers | Independent protected OIDC/ECR component workflows; read-only cutover manifest and separate local/live access evidence |
 
-Use strict TypeScript with NodeNext ES modules, maintained OAuth/JWT libraries and AWS SDK for JavaScript v3. Each component owns `package.json`/`package-lock.json` and `tsconfig.json`; use `npm ci`, `npm run typecheck` (`tsc --noEmit`) and `npm run build` (`tsc`). Compile `.ts` sources/tests/scripts to JavaScript; run emitted tests with Node's test runner and package compiled handlers/runtime dependencies only. Pin TypeScript, Node/Express/Lambda types, adapter and supported Node.js LTS ARM64 Lambda image/digest; match local/CI runtimes. Lambda entrypoints target emitted `.js`. Access/authorizer/billing roles remain separate; authorizer cannot sign, provision keys or write billing. Access holds no Stripe secrets or billing-write grant.
+Use strict TypeScript/NodeNext, maintained OAuth/JWT libraries and AWS SDK v3. Each component owns `package.json`/`package-lock.json` and `tsconfig.json`; use `npm ci`, `npm run typecheck` (`tsc --noEmit`) and `npm run build` (`tsc`). Compile `.ts` sources/tests/scripts to JavaScript; run emitted tests with Node's test runner and package compiled handlers/runtime dependencies only. Pin TypeScript, Node/Express/Lambda types, adapter and supported Node.js LTS ARM64 Lambda image/digest; match local/CI runtimes. Lambda entrypoints target emitted `.js`. Access/authorizer/billing roles remain separate; authorizer cannot sign, provision keys or write billing. Access holds no Stripe secrets or billing-write grant.
 
 Export the Express app separately from its Lambda adapter and local listener. Use form parsing for OAuth token requests; test REST-v1 stage/path handling, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and billing SQS/scheduled handlers bypass Express. Test the app over HTTP and exported handlers with Lambda events. Billing uses the same stack in its own package/function; its interfaces follow spec 003 contracts. One [access table](contracts/access-storage.md) holds progress; no required work runs in detached promises or process-local timers.
 
@@ -50,4 +50,4 @@ Local suites cover OAuth/JWT/refresh, exact policies/token-only authorization, s
 
 CI requires isolated installs, typecheck, compilation, emitted tests and packaged-handler checks; missing checks fail. Real ChatGPT/Claude/Cognito/Stripe/stream/schedule/native-metering/cutover acceptance remains not_run under local-only instruction. No provisioning, publication or charges have occurred.
 
-CloudWatch logs/metrics/alarms and X-Ray tracing follow the [observability contract](contracts/observability.md).
+Monitoring follows the [contract](contracts/observability.md) with [implemented helpers/templates](../../observability/README.md); runtime wiring and live acceptance remain pending.

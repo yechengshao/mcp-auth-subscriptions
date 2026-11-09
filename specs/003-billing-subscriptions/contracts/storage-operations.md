@@ -30,7 +30,7 @@ BillingState GSI `DueWork` has environment/shard partition and `next_attempt_at#
 
 ## Native operation envelope
 
-Only selected access coordinator roles may invoke the exact billing alias. These trusted native Lambda events bypass Express and have `{schema_version:1, operation, environment, correlation_id, idempotency_key, identity:{issuer,subject}, continuation_ref?, input}`. Access derives identity from verified server-side state; IAM callers cannot be broadened to arbitrary clients. Binding/expiry validation of the enrollment session stays in access; billing checks own records, identity tuple, environment and per-operation eligibility independently.
+Only selected access coordinator roles may invoke the exact billing alias. These trusted native Lambda events bypass Express and have `{schema_version:1, operation, environment, correlation_id, idempotency_key, identity:{issuer,subject}, continuation_ref?, trace_context?, input}`. Optional trace_context carries only a bounded x-amzn-trace-id; correlation_id is 1–64 opaque ASCII letters/digits/underscore/hyphen. These fields are diagnostics, never identity, eligibility or payment authority. Access derives identity from verified server-side state; IAM callers cannot be broadened to arbitrary clients. Binding/expiry validation of the enrollment session stays in access; billing checks own records, identity tuple, environment and per-operation eligibility independently.
 
 | Operation | Input | Result / scope |
 |---|---|---|
