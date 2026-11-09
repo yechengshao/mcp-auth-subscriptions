@@ -11,12 +11,21 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test --test-isolation=none dist/tests/access/*.test.js dist/tests/billing/*.test.js dist/tests/observability/*.test.js",
     "check": "npm run typecheck && npm test",
-    "render:observability": "npm run build && node dist/infra/observability/render.js"
+    "render:observability": "npm run build && node dist/infra/observability/render.js",
+    "render:billing-runtime": "npm run build && node dist/infra/billing/release.js"
   },
   "dependencies": {
-    "ajv": "8.17.1"
+    "@aws-sdk/client-dynamodb": "3.1164.0",
+    "@aws-sdk/client-sqs": "3.1164.0",
+    "@aws-sdk/client-ssm": "3.1164.0",
+    "@aws-sdk/lib-dynamodb": "3.1164.0",
+    "@codegenie/serverless-express": "5.0.0",
+    "ajv": "8.17.1",
+    "express": "5.3.0",
+    "stripe": "23.1.0"
   },
   "devDependencies": {
+    "@types/express": "5.0.6",
     "@types/node": "24.10.0",
     "typescript": "5.9.3"
   }

@@ -251,7 +251,7 @@
     },
     "ReconciliationInsertFilter": {
       "Description": "Required filter for the future billing Pipe; the table stream itself is unfiltered.",
-      "Value": "{\"eventName\":[\"INSERT\"],\"dynamodb\":{\"Keys\":{\"SK\":{\"S\":[{\"prefix\":\"WORK#\"}]}},\"NewImage\":{\"entity_type\":{\"S\":[\"reconciliation_work\"]},\"kind\":{\"S\":[\"reconcile_payment\"]},\"schema_version\":{\"N\":[\"1\"]}}}}"
+      "Value": "{\"eventName\":[\"INSERT\"],\"dynamodb\":{\"Keys\":{\"SK\":{\"S\":[{\"prefix\":\"WORK#\"}]}},\"NewImage\":{\"entity_type\":{\"S\":[\"reconciliation_work\"]},\"kind\":{\"S\":[\"reconcile_payment\"]},\"schema_version\":{\"N\":[\"1\"]},\"generation\":{\"N\":[\"1\"]}}}}"
     }
   }
 }

@@ -24,9 +24,8 @@ Access receives only GetItem/ConditionCheckItem on BillingEntitlements.
 
 The NEW_IMAGE stream is unfiltered at the table. ReconciliationInsertFilter is a
 mandatory input contract for the later Pipe: INSERT + WORK# + reconciliation_work
-+ reconcile_payment + schema v1. No queue/Pipe is created by this task. The exact
-stream ARN avoids stream discovery permissions. B008/B010 own delivery wiring,
-message transformation and integration tests.
++ reconcile_payment + schema v1 + initial generation=1. No queue/Pipe is created by the storage template; runtime.yaml owns later delivery wiring. The exact
+stream ARN avoids stream discovery permissions. The runtime template uses literal numeric generation=1 in the INSERT transformer; later run generations come from the common publisher. Live delivery remains unverified.
 
 DynamoDB publishes native CloudWatch metrics automatically. This storage-only
 stack executes no application code and creates no duplicate log groups or tracer.
@@ -35,3 +34,5 @@ including structured CloudWatch logs, correlation IDs and Lambda X-Ray tracing.
 Live resource creation, recovery, IAM authorization and telemetry remain not_run.
 
 Local checks: `npm run check` and `cfn-lint infra/billing/storage.yaml`.
+
+`runtime.yaml`, `release.ts` and the [setup guide](../../docs/billing-setup.md) now provide the billing runtime, queue/Pipe/replay and immutable-version rendering. Billing-only replay checkpoint rows share BillingState and cannot enter the work Pipe.

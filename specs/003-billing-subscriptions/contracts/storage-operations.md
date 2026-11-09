@@ -17,6 +17,7 @@ Use `PK`/`SK` strings with server-owned entity_type/schema_version discriminator
 | BillingState own work/lease | Same identity partition | `WORK#<operation_id>` / `LEASE` | Due time, owner, fence, expiry, attempts, outcome/error class |
 | BillingState provider lookup | `ENV#<env>#STRIPE#<account>#<object_type>#<object_id>` | `OWNER` | Verified owning identity/order, conditionally unique mapping |
 | BillingState event ledger | `ENV#<env>#EVENT#<account>#<event_id>` | `EVENT` | Minimal trusted event identifiers, processing state/lease/fence, committed revision, digest; no full provider payload |
+| BillingState replay checkpoint | `ENV#<env>#REPLAY#0` | `CHECKPOINT` | Billing-only shard-0 cursor (base/index keys), conditional revision and bounded replay lease; no customer identity, TTL or consumer/access grants |
 | BillingEntitlements | `ENV#<env>#IDENTITY#<identity_key>` | `ENTITLEMENT` | Logical entitlement fields from entitlements contract, schema_version=1 |
 | BillingState decision history | `ENV#<env>#IDENTITY#<identity_key>` | `HISTORY#<zero-padded-revision>` | notification_id, own order ref, verified tuple, decision revision/status, created_at, schema_version=1; no tokens/keys/payment secrets |
 
@@ -24,9 +25,9 @@ Storage outputs expose table ARNs/names and exact entitlement key/schema; no key
 
 ## Indexes and recovery
 
-Decision history is an immutable HISTORY record group inside BillingState; there is no separate BillingActivationOutbox table. Access reads BillingEntitlements rather than payment/history rows. BillingState uses its existing NEW_IMAGE stream for reconciliation work only: the Pipe requires INSERT plus entity_type=reconciliation_work and the WORK key namespace; history/customer/event/quote/credit inserts and all MODIFY/REMOVE events cannot enqueue jobs. Do not add a history-specific stream/Pipe/queue/index.
+Decision history is an immutable HISTORY record group inside BillingState; there is no separate BillingActivationOutbox table. Access reads BillingEntitlements rather than payment/history rows. BillingState uses its existing NEW_IMAGE stream for reconciliation work only: the Pipe requires INSERT plus entity_type=reconciliation_work and the WORK key namespace; history/customer/event/quote/credit/checkpoint inserts and all MODIFY/REMOVE events cannot enqueue jobs. New work starts at generation=1; the Pipe filters that INSERT and emits a literal integer generation=1 to avoid coercing DynamoDB numeric text into an invalid JSON string. Do not add a history-specific stream/Pipe/queue/index.
 
-BillingState GSI `DueWork` has environment/shard partition and `next_attempt_at#operation_id` sort for explicit work records. Consistently re-read and conditionally claim work. Pages/attempts/deadlines/lookback/retention are explicit deployment config with validation; absent budgets fail startup, not unbounded scans. Retention must exceed the supported recovery horizon; cleanup requires verified consumer progress, never DynamoDB TTL alone. Retain event/order/provider-effect idempotency evidence so expired Stripe idempotency windows cannot recreate charges.
+BillingState GSI `DueWork` has environment/shard partition and `next_attempt_at#operation_id` sort for explicit work records. Consistently re-read and conditionally claim work. Persist a fenced billing-only checkpoint between bounded pages and wrap after reaching the end so early pending work cannot starve later keys. Completed/repair work removes sparse index attributes. Pages/attempts/deadlines/lookback/retention are explicit deployment config with validation; absent budgets fail startup, not unbounded scans. Retention must exceed the supported recovery horizon; cleanup requires verified consumer progress, never DynamoDB TTL alone. Retain event/order/provider-effect idempotency evidence so expired Stripe idempotency windows cannot recreate charges.
 
 ## Native operation envelope
 

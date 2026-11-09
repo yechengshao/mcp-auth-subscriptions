@@ -21,16 +21,16 @@ The [analysis recheck](../../analysis-report.md#resolution-and-recheck) resolves
 
 ## First implementation gates — partially started
 
-The [local contract foundation](../../../billing/contracts/README.md) implements initial catalog/message/selected-record validation, synthetic boundary fixtures and UTC term calculation. Record coverage, operation-result schemas, budget checks and injected-loader cache tests now pass; transactions, provider adapters and runtime/IAM integration remain pending.
+The [local contract foundation](../../../billing/contracts/README.md) implements initial catalog/message/selected-record validation, synthetic boundary fixtures and UTC term calculation. Record coverage, operation-result schemas, budget checks and injected-loader cache tests now pass; real billing transactions, provider adapters and runtime composition are implemented locally; deployed IAM and live integration remain pending.
 
 - [x] B001: machine-validating schemas and valid/invalid fixtures for catalog, paid terms, upgrade quotes, billing records/envelopes and queue references.
 - [ ] T001/T014/T022: boundary tests and access-schema/atomic-update fixtures using the access storage contract, not an invented alternate model.
-- [ ] B003: tested paid-term calculations, minor-unit credit rounding and upgrade-eligibility policy; ambiguous taxes/fees/refund-credit valuation routes to support, not an unverified charge.
+- [x] B003: tested paid-term calculations, minor-unit credit rounding and upgrade-eligibility policy; ambiguous taxes/fees/refund-credit valuation routes to support, not an unverified charge.
 - [ ] Pin compatible Node/TypeScript/Stripe versions and install isolated lockfile-backed packages; development is local, non-provisioning and uses generated test credentials.
 - [ ] Enforce quoted catalog/source revisions, stable effect identity, exact ownership/expiry/replay guards and no duplicate payment/key/credit effects in meaningful failing/passing tests.
 - [ ] Validate both task dependency graphs and actual implemented prerequisite artifacts before proceeding to consumers; mocks do not finalize a missing contract or satisfy live checks.
 
-Start with B001 plus access boundary/schema fixtures. Billing storage/policy adapters precede dependent access onboarding, while isolated authorizer tests can use the finalized token contract. B012 waits for actual access handlers; full integration must not become a prerequisite for the billing contracts it consumes. Only the cited contract utilities are implemented; full handlers and infrastructure remain pending.
+Start with B001 plus access boundary/schema fixtures. Billing storage/policy adapters precede dependent access onboarding, while isolated authorizer tests can use the finalized token contract. B012 waits for actual access handlers; full integration must not become a prerequisite for the billing contracts it consumes. Billing handler/adapters and prepared storage/runtime templates now exist; access handlers, publication and live acceptance remain pending. See the setup guide for current evidence.
 
 ## Production/operator inputs — not blockers to schema development
 
@@ -51,7 +51,9 @@ Typecheck/build/emitted tests, packaged handlers, IaC/redaction checks and meani
 ## Monitoring foundation
 
 - [x] Local Node telemetry and prepared log/policy/sampling/dashboard/alarm templates, with fake-handler redaction/context tests.
-- [ ] Attach wrappers to real auth/billing/authorizer handlers and dependency clients, emit transitions/metrics only at verified commit points, and merge component role/environment/stage settings.
+- [ ] Finish attaching wrappers to real auth/authorizer handlers (billing is wired) and dependency clients, emit transitions/metrics only at verified commit points, and merge component role/environment/stage settings.
 - [ ] Supply monthly budget/alert destinations, exact resource identities and alarm thresholds, then separately validate actual CloudWatch/X-Ray/ARM64 delivery.
 
 See [implementation scope](../../../observability/README.md); no monitoring deployment or notification has run.
+
+Billing runtime evidence: [implementation and guide](../../../docs/billing-setup.md). B004–B009 have local adapter/handler tests; this does not check off operator inputs, host journeys or live telemetry.

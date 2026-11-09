@@ -13,6 +13,7 @@ export const quote: Record<string, unknown> = { ...base, SK: 'UPGRADEQUOTE#quote
 };
 quote.quote_digest = quoteDigest(quote);
 export const billingRecords: Record<string, Record<string, unknown>> = {
+  replay_checkpoint: { PK: `ENV#${environment}#REPLAY#0`, SK: 'CHECKPOINT', entity_type: 'replay_checkpoint', schema_version: 1, revision: 1, environment, replay_shard: 0 },
   customer: { ...base, SK: 'CUSTOMER', entity_type: 'customer', stripe_account: 'acct_fixture', stripe_customer_id: 'cus_fixture' },
   subscription: { ...base, SK: 'SUB#sub_fixture', entity_type: 'subscription', subscription_id: 'sub_fixture',
     customer_id: 'cus_fixture', order_id: 'order_fixture', term_id: 'term_fixture', snapshot,

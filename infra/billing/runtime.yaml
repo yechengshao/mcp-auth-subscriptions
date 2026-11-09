@@ -1,0 +1,714 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Billing-only ARM64 runtime and durable reconciliation; no access worker or activation queue. Delivery disabled until validated.",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "development",
+        "test",
+        "production"
+      ],
+      "Default": "test"
+    },
+    "FunctionName": {
+      "Type": "String",
+      "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,47}"
+    },
+    "ImageUri": {
+      "Type": "String",
+      "AllowedPattern": "[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9_./-]+@sha256:[a-f0-9]{64}"
+    },
+    "StateTableName": {
+      "Type": "String"
+    },
+    "EntitlementTableName": {
+      "Type": "String"
+    },
+    "StateStreamArn": {
+      "Type": "String"
+    },
+    "StoragePolicyArn": {
+      "Type": "String"
+    },
+    "StreamReadPolicyArn": {
+      "Type": "String"
+    },
+    "TelemetryPolicyArn": {
+      "Type": "String"
+    },
+    "CatalogParameterArn": {
+      "Type": "String"
+    },
+    "StripeKeyParameterArn": {
+      "Type": "String"
+    },
+    "WebhookSecretParameterArn": {
+      "Type": "String"
+    },
+    "CatalogParameterName": {
+      "Type": "String"
+    },
+    "StripeKeyParameterName": {
+      "Type": "String"
+    },
+    "WebhookSecretParameterName": {
+      "Type": "String"
+    },
+    "StripeAccountId": {
+      "Type": "String"
+    },
+    "SupportEmail": {
+      "Type": "String"
+    },
+    "SuccessUrl": {
+      "Type": "String"
+    },
+    "CancelUrl": {
+      "Type": "String"
+    },
+    "AccessRoleArn": {
+      "Type": "String",
+      "AllowedPattern": "arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9_+=,.@/-]+"
+    },
+    "StripeLive": {
+      "Type": "String",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Default": "false"
+    },
+    "TracingMode": {
+      "Type": "String",
+      "AllowedValues": [
+        "Active",
+        "PassThrough"
+      ],
+      "Default": "PassThrough"
+    },
+    "SecretKmsKeyArn": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Customer-managed key ARN only if SecureStrings use one; otherwise leave empty."
+    },
+    "EnableDelivery": {
+      "Type": "String",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Default": "false",
+      "Description": "Enable only after test-mode acceptance; creates disabled mapping/Pipe/schedule by default."
+    },
+    "BudgetsJson": {
+      "Type": "String",
+      "Description": "Validated v1 JSON; must match fixed runtime/delivery settings documented in setup guide."
+    },
+    "ReleaseId": {
+      "Type": "String",
+      "AllowedPattern": "[A-Za-z0-9_.-]{1,96}"
+    }
+  },
+  "Conditions": {
+    "DeliveryEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnableDelivery"
+        },
+        "true"
+      ]
+    },
+    "CustomSecretKey": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "SecretKmsKeyArn"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Role": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Ref": "StoragePolicyArn"
+          },
+          {
+            "Ref": "TelemetryPolicyArn"
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyName": "BillingDependencies",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": [
+                    {
+                      "Ref": "CatalogParameterArn"
+                    },
+                    {
+                      "Ref": "StripeKeyParameterArn"
+                    },
+                    {
+                      "Ref": "WebhookSecretParameterArn"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:SendMessage",
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:GetQueueAttributes"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Queue",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Fn::If": [
+                    "CustomSecretKey",
+                    {
+                      "Effect": "Allow",
+                      "Action": "kms:Decrypt",
+                      "Resource": {
+                        "Ref": "SecretKmsKeyArn"
+                      },
+                      "Condition": {
+                        "StringEquals": {
+                          "kms:ViaService": {
+                            "Fn::Sub": "ssm.${AWS::Region}.amazonaws.com"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "Ref": "AWS::NoValue"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DeadLetterQueue": {
+      "Type": "AWS::SQS::Queue",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true,
+        "RedriveAllowPolicy": {
+          "redrivePermission": "byQueue",
+          "sourceQueueArns": [
+            {
+              "Fn::Sub": "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${FunctionName}-reconcile"
+            }
+          ]
+        },
+        "QueueName": {
+          "Fn::Sub": "${FunctionName}-reconcile-dlq"
+        }
+      }
+    },
+    "Queue": {
+      "Type": "AWS::SQS::Queue",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "QueueName": {
+          "Fn::Sub": "${FunctionName}-reconcile"
+        },
+        "SqsManagedSseEnabled": true,
+        "VisibilityTimeout": 185,
+        "MessageRetentionPeriod": 345600,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "DeadLetterQueue",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 5
+        }
+      }
+    },
+    "Function": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "FunctionName"
+        },
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": {
+            "Ref": "ImageUri"
+          }
+        },
+        "Architectures": [
+          "arm64"
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "Role",
+            "Arn"
+          ]
+        },
+        "Timeout": 30,
+        "MemorySize": 512,
+        "ReservedConcurrentExecutions": 5,
+        "TracingConfig": {
+          "Mode": {
+            "Ref": "TracingMode"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "MCP_SERVICE": "billing",
+            "MCP_ENVIRONMENT": {
+              "Ref": "Environment"
+            },
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId"
+            },
+            "BILLING_STATE_TABLE": {
+              "Ref": "StateTableName"
+            },
+            "BILLING_ENTITLEMENTS_TABLE": {
+              "Ref": "EntitlementTableName"
+            },
+            "BILLING_CATALOG_PARAMETER": {
+              "Ref": "CatalogParameterName"
+            },
+            "STRIPE_KEY_PARAMETER": {
+              "Ref": "StripeKeyParameterName"
+            },
+            "STRIPE_WEBHOOK_SECRET_PARAMETER": {
+              "Ref": "WebhookSecretParameterName"
+            },
+            "STRIPE_ACCOUNT_ID": {
+              "Ref": "StripeAccountId"
+            },
+            "STRIPE_LIVE": {
+              "Ref": "StripeLive"
+            },
+            "BILLING_SUPPORT_EMAIL": {
+              "Ref": "SupportEmail"
+            },
+            "BILLING_SUCCESS_URL": {
+              "Ref": "SuccessUrl"
+            },
+            "BILLING_CANCEL_URL": {
+              "Ref": "CancelUrl"
+            },
+            "BILLING_QUEUE_URL": {
+              "Ref": "Queue"
+            },
+            "BILLING_QUEUE_ARN": {
+              "Fn::GetAtt": [
+                "Queue",
+                "Arn"
+              ]
+            },
+            "BILLING_REPLAY_RULE_ARN": {
+              "Fn::Sub": "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/${FunctionName}-replay"
+            },
+            "BILLING_BUDGETS": {
+              "Ref": "BudgetsJson"
+            },
+            "BILLING_FUNCTION_TIMEOUT": "30",
+            "BILLING_RESERVED_CONCURRENCY": "5",
+            "BILLING_QUEUE_VISIBILITY": "185",
+            "BILLING_SQS_CONCURRENCY": "2",
+            "BILLING_BATCH_WINDOW": "5",
+            "BILLING_REPLAY_INTERVAL": "60",
+            "MCP_RELEASE": {
+              "Ref": "ReleaseId"
+            }
+          }
+        }
+      }
+    },
+    "Alias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "Name": "live",
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "Version",
+            "Version"
+          ]
+        }
+      }
+    },
+    "Version": {
+      "Type": "AWS::Lambda::Version",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "Description": {
+          "Ref": "ImageUri"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "AccessInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "Alias"
+        },
+        "Principal": {
+          "Ref": "AccessRoleArn"
+        }
+      }
+    },
+    "Mapping": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Alias"
+        },
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "Queue",
+            "Arn"
+          ]
+        },
+        "BatchSize": 10,
+        "MaximumBatchingWindowInSeconds": 5,
+        "FunctionResponseTypes": [
+          "ReportBatchItemFailures"
+        ],
+        "ScalingConfig": {
+          "MaximumConcurrency": 2
+        },
+        "Enabled": {
+          "Fn::If": [
+            "DeliveryEnabled",
+            true,
+            false
+          ]
+        }
+      }
+    },
+    "PipeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "sts:AssumeRole",
+              "Principal": {
+                "Service": "pipes.amazonaws.com"
+              }
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Ref": "StreamReadPolicyArn"
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyName": "SendBillingHints",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "sqs:SendMessage",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Queue",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "DeadLetterQueue",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Pipe": {
+      "Type": "AWS::Pipes::Pipe",
+      "Properties": {
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "PipeRole",
+            "Arn"
+          ]
+        },
+        "Source": {
+          "Ref": "StateStreamArn"
+        },
+        "Target": {
+          "Fn::GetAtt": [
+            "Queue",
+            "Arn"
+          ]
+        },
+        "DesiredState": {
+          "Fn::If": [
+            "DeliveryEnabled",
+            "RUNNING",
+            "STOPPED"
+          ]
+        },
+        "SourceParameters": {
+          "DynamoDBStreamParameters": {
+            "StartingPosition": "TRIM_HORIZON",
+            "BatchSize": 1,
+            "MaximumRetryAttempts": 3,
+            "MaximumRecordAgeInSeconds": 3600,
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "DeadLetterQueue",
+                  "Arn"
+                ]
+              }
+            }
+          },
+          "FilterCriteria": {
+            "Filters": [
+              {
+                "Pattern": "{\"eventName\":[\"INSERT\"],\"dynamodb\":{\"Keys\":{\"SK\":{\"S\":[{\"prefix\":\"WORK#\"}]}},\"NewImage\":{\"entity_type\":{\"S\":[\"reconciliation_work\"]},\"kind\":{\"S\":[\"reconcile_payment\"]},\"schema_version\":{\"N\":[\"1\"]},\"generation\":{\"N\":[\"1\"]}}}}"
+              }
+            ]
+          }
+        },
+        "TargetParameters": {
+          "InputTemplate": "{\"schema_version\":1,\"kind\":\"reconcile_payment\",\"message_type\":\"dispatch_hint\",\"generation\":1,\"environment\":<$.dynamodb.NewImage.environment.S>,\"operation_id\":<$.dynamodb.NewImage.operation_id.S>,\"correlation_id\":<$.dynamodb.NewImage.correlation_id.S>,\"durable_record_key\":{\"PK\":<$.dynamodb.Keys.PK.S>,\"SK\":<$.dynamodb.Keys.SK.S>}}"
+        },
+        "Name": {
+          "Fn::Sub": "${FunctionName}-reconcile"
+        }
+      }
+    },
+    "ReplayRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${FunctionName}-replay"
+        },
+        "ScheduleExpression": "rate(1 minute)",
+        "State": {
+          "Fn::If": [
+            "DeliveryEnabled",
+            "ENABLED",
+            "DISABLED"
+          ]
+        },
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "Alias"
+            },
+            "Id": "billing-replay",
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 2,
+              "MaximumEventAgeInSeconds": 3600
+            }
+          }
+        ]
+      }
+    },
+    "ReplayPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "Alias"
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "ReplayRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "QueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [
+          {
+            "Ref": "Queue"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": [
+                  {
+                    "Fn::GetAtt": [
+                      "Role",
+                      "Arn"
+                    ]
+                  },
+                  {
+                    "Fn::GetAtt": [
+                      "PipeRole",
+                      "Arn"
+                    ]
+                  }
+                ]
+              },
+              "Action": "sqs:SendMessage",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "Queue",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "sqs:*",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "Queue",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "BillingFunctionArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Function",
+          "Arn"
+        ]
+      }
+    },
+    "BillingAliasArn": {
+      "Value": {
+        "Ref": "Alias"
+      }
+    },
+    "BillingRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Role",
+          "Arn"
+        ]
+      }
+    },
+    "BillingQueueArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Queue",
+          "Arn"
+        ]
+      }
+    },
+    "BillingQueueUrl": {
+      "Value": {
+        "Ref": "Queue"
+      }
+    },
+    "BillingDeadLetterQueueArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DeadLetterQueue",
+          "Arn"
+        ]
+      }
+    },
+    "BillingReplayRuleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ReplayRule",
+          "Arn"
+        ]
+      }
+    },
+    "BillingQueueName": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Queue",
+          "QueueName"
+        ]
+      }
+    },
+    "BillingDlqName": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DeadLetterQueue",
+          "QueueName"
+        ]
+      }
+    },
+    "BillingPipeName": {
+      "Value": {
+        "Fn::Sub": "${FunctionName}-reconcile"
+      }
+    }
+  }
+}

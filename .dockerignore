@@ -1,0 +1,11 @@
+.git
+node_modules
+dist
+.venv
+.aws
+.codex
+.env
+.env.*
+**/*.pem
+**/*.key
+*.log

@@ -1,10 +1,10 @@
 # Plan 003: Billing and Subscriptions
 
-**Updated**: 2026-11-08 · **Status**: Planned; implementation and live acceptance pending. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-09 · **Status**: Billing runtime/adapters locally implemented; packaging and live acceptance pending. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 
-Use a separate TypeScript/Node.js ARM64 Lambda package, Express REST-v1 adapter and direct native/SQS/schedule dispatcher. Match spec 002's pinned Node.js LTS, strict NodeNext, npm lockfile, typecheck/build and emitted Node test suites. Stripe SDK and billing state stay outside access/MCP. Export app, adapter and native dispatcher separately; only HTTP events enter Express. Mount Stripe raw-body verification before JSON parsing and preserve base64 bytes through the adapter.
+Use a separate TypeScript/Node.js ARM64 Lambda package, Express REST-v1 adapter and direct native/SQS/schedule dispatcher. Match spec 002's pinned Node.js LTS, strict NodeNext, npm lockfile, typecheck/build and emitted Node test suites. Stripe SDK and billing state stay outside access/MCP; the shared root lockfile pins runtime dependencies, while the final image copies only billing/shared modules. Export app, adapter and native dispatcher separately; only HTTP events enter Express. Mount Stripe raw-body verification before JSON parsing and preserve base64 bytes through the adapter.
 
 Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing owns approved catalog, own-account orders, Stripe integration, durable events, subscriptions and entitlement/outbox commits. The [physical interface](contracts/storage-operations.md) owns keys, operation envelopes, leases and recovery. The [checkout contract](contracts/checkout-onboarding.md) owns behavioral rules; spec 002's endpoint contract owns HTTP paths.
 
@@ -14,8 +14,8 @@ Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing
 |---|---|
 | `billing/` | Isolated package, provider adapter, eligibility reducer, transaction repository, order operations, webhook and bounded reconciliation dispatcher |
 | `infra/billing/storage.yaml` | Retained BillingState (including history), BillingEntitlements and work indexes/stream; no Cognito/gateway/function dependency |
-| `infra/billing/runtime.yaml` | Billing function/version/alias/logs, scoped storage/Stripe-secret access and configuration; no gateway attachments |
-| `infra/billing/background.yaml` | Reconciliation SQS/DLQ, work-stream Pipe, SQS mapping and replay schedule on billing alias |
+| `infra/billing/runtime.yaml` | Billing function/version/alias, scoped roles, reconciliation SQS/DLQ/Pipe/mapping/replay and telemetry-policy attachment; no gateway attachments |
+| `infra/billing/release.ts` | Render distinct retained version resources for digest-pinned images |
 | `infra/billing/publication.yaml` | Independent ECR/protected OIDC publication bootstrap without access/MCP publishing rights |
 | `scripts/verify_billing.ts` | Redacted local/live evidence, selected tests, schemas and artifact identity; no provisioning or charge side effects |
 
@@ -27,7 +27,7 @@ Technical lifecycle cases are mapped in the [subscription lifecycle contract](co
 
 Apply spec FR-007: active paid/no grace, no unpaid trial or past-due eligibility; no automatic renewal/charge, manual expired-user repurchase and support-assisted current-term cancellation under the [renewal contract](contracts/manual-renewal.md); revocation follows access token bounds. Final approved price/catalog mapping and account/region are operator inputs, not fabricated defaults. Persist paid-through from verified paid provider state, never merely a Checkout browser return or an unverified future paid term.
 
-Use test mode for fixtures/future authorized acceptance; reject mixed environment/account/customer/price mappings. Pin Stripe SDK and explicit API/webhook version together at implementation after compatibility tests, not an unverified version guess. Store Stripe API/webhook secrets in scoped Parameter Store SecureStrings, cache in billing memory with bounded refresh, and fail closed on unavailable/invalid configuration; no secret values in templates, images, logs or evidence. No service JWT private-key access.
+Use test mode for fixtures/future authorized acceptance; reject mixed environment/account/customer/price mappings. SDK 23.1.0 uses explicit API/webhook version 2025-02-24.acacia with validated JSON boundaries; local compatibility tests pass, live compatibility remains unverified. Store Stripe API/webhook secrets in scoped Parameter Store SecureStrings, cache in billing memory with bounded refresh, and fail closed on unavailable/invalid configuration; no secret values in templates, images, logs or evidence. No service JWT private-key access.
 
 Hosted portal stays disabled. Self-service management permits only positive-payment upgrades; downgrade/cancel/refund/ambiguous-credit requests display support email without application financial adjustment. Refund/dispute automation, pricing/tax design and strict usage-credit billing remain outside this feature.
 

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { termExpiry } from './service-term.js';
 import { canonicalJson } from './canonical.js';
 import { object, row, constant, choice, id, text, epoch, integer, positive, boolean, digest,
   identity, currency, correlation, snapshotSchema, entitlementSchema, orderSchema, compile, type Schema } from './schemas.js';
@@ -24,8 +25,10 @@ export const workSchema = object({
   dispatch_epoch: integer, processing_lease: leaseSchema, dispatch_lease: leaseSchema,
   expected_message_due_at: epoch, terminal_outcome: choice('paid', 'terminal_unpaid', 'exhausted'),
   due_partition: text, due_sort: text,
-}, ['processing_lease', 'dispatch_lease', 'expected_message_due_at', 'terminal_outcome']);
+}, ['processing_lease', 'dispatch_lease', 'expected_message_due_at', 'terminal_outcome', 'due_partition', 'due_sort']);
 export const billingRecordSchemas: Record<string, Schema> = {
+  replay_checkpoint: object({ ...row, entity_type: constant('replay_checkpoint'), environment: id, replay_shard: constant(0),
+    cursor: object({ PK: text, SK: text, due_partition: text, due_sort: text }), lease: leaseSchema }, ['cursor', 'lease']),
   customer: object({ ...base, entity_type: constant('customer'), SK: constant('CUSTOMER'),
     stripe_account: providerId('acct'), stripe_customer_id: providerId('cus') }),
   subscription: object({ ...base, entity_type: constant('subscription'), subscription_id: id,
@@ -73,6 +76,14 @@ export function validateBillingRecord(input: unknown, environment: string): void
   validate(value);
   if (value.environment !== environment) invalid();
   const kind = field(value, 'entity_type');
+  if (kind === 'replay_checkpoint') {
+    if (value.PK !== `ENV#${environment}#REPLAY#0` || value.SK !== 'CHECKPOINT') invalid();
+    const cursor = value.cursor as Record<string, string> | undefined;
+    if (cursor && (!new RegExp(`^ENV#${environment}#IDENTITY#[a-f0-9]{64}$`).test(cursor.PK!) ||
+        !/^WORK#[A-Za-z0-9_-]+$/.test(cursor.SK!) || cursor.due_partition !== `ENV#${environment}#DUE#0` ||
+        !new RegExp(`^[0-9]{12}#${cursor.SK!.slice(5)}$`).test(cursor.due_sort!))) invalid();
+    return;
+  }
   if (kind === 'entitlement') {
     if (value.PK !== identityPartition(environment, field(value, 'identity_issuer'), field(value, 'identity_subject'))) invalid();
     return;
@@ -104,7 +115,7 @@ export function validateBillingRecord(input: unknown, environment: string): void
     } else if (financial.some(key => value[key] !== undefined)) invalid();
   }
   if (kind === 'subscription' && (number(value, 'term_start') >= number(value, 'paid_through') ||
-      (value.state === 'revoked') !== value.revoked)) invalid();
+      (value.state === 'revoked') !== value.revoked || number(value, 'paid_through') !== termExpiry(number(value, 'term_start'), snapshot!.service_term))) invalid();
   if (kind === 'consumed_credit' && value.source_term_id === value.new_term_id) invalid();
   if (kind === 'provider_lookup') {
     const prefix = { customer: 'cus_', checkout_session: 'cs_', payment_intent: 'pi_' }[field(value, 'object_type')];
@@ -119,8 +130,9 @@ export function validateBillingRecord(input: unknown, environment: string): void
   if (kind === 'upgrade_quote') validateQuote(value);
   if (kind === 'reconciliation_work') {
     if (value.due_at !== value.next_attempt_at || number(value, 'deadline') <= number(value, 'due_at') ||
-        value.due_sort !== `${number(value, 'due_at').toString().padStart(12, '0')}#${field(value, 'operation_id')}` ||
-        !new RegExp(`^ENV#${environment}#DUE#[0-9]+$`).test(field(value, 'due_partition')) ||
+        (value.state === 'pending' && (value.due_sort === undefined || value.due_partition === undefined)) ||
+        (value.due_sort !== undefined && value.due_sort !== `${number(value, 'due_at').toString().padStart(12, '0')}#${field(value, 'operation_id')}`) ||
+        (value.due_partition !== undefined && !new RegExp(`^ENV#${environment}#DUE#[0-9]+$`).test(field(value, 'due_partition'))) ||
         (value.dispatch_status === 'sent' && value.expected_message_due_at === undefined) ||
         (value.dispatch_status === 'claimed' && value.dispatch_lease === undefined) ||
         (value.state === 'complete' && value.terminal_outcome === undefined)) invalid();
