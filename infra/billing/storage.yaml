@@ -1,0 +1,257 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Retained billing storage only. AWS-owned encryption; native DynamoDB metrics. No runtime or background delivery resources.",
+  "Resources": {
+    "BillingState": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "DeletionProtectionEnabled": true,
+        "KeySchema": [
+          {
+            "AttributeName": "PK",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "SK",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "PK",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "SK",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "due_partition",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "due_sort",
+            "AttributeType": "S"
+          }
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "TableName": {
+          "Fn::Sub": "${AWS::StackName}-state"
+        },
+        "StreamSpecification": {
+          "StreamViewType": "NEW_IMAGE"
+        },
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "DueWork",
+            "KeySchema": [
+              {
+                "AttributeName": "due_partition",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "due_sort",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "KEYS_ONLY"
+            }
+          }
+        ]
+      }
+    },
+    "BillingEntitlements": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "DeletionProtectionEnabled": true,
+        "KeySchema": [
+          {
+            "AttributeName": "PK",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "SK",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "PK",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "SK",
+            "AttributeType": "S"
+          }
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "TableName": {
+          "Fn::Sub": "${AWS::StackName}-entitlements"
+        }
+      }
+    },
+    "BillingStoragePolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:ConditionCheckItem"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BillingState",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "BillingEntitlements",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:Query"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BillingState",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${BillingState.Arn}/index/DueWork"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "AccessEntitlementPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:ConditionCheckItem"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "BillingEntitlements",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "BillingStreamReadPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:DescribeStream",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "BillingState",
+                  "StreamArn"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "BillingStateName": {
+      "Value": {
+        "Ref": "BillingState"
+      }
+    },
+    "BillingStateArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "BillingState",
+          "Arn"
+        ]
+      }
+    },
+    "BillingEntitlementsName": {
+      "Value": {
+        "Ref": "BillingEntitlements"
+      }
+    },
+    "BillingEntitlementsArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "BillingEntitlements",
+          "Arn"
+        ]
+      }
+    },
+    "BillingStoragePolicyArn": {
+      "Value": {
+        "Ref": "BillingStoragePolicy"
+      }
+    },
+    "AccessEntitlementPolicyArn": {
+      "Value": {
+        "Ref": "AccessEntitlementPolicy"
+      }
+    },
+    "BillingStreamReadPolicyArn": {
+      "Value": {
+        "Ref": "BillingStreamReadPolicy"
+      }
+    },
+    "BillingStreamArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "BillingState",
+          "StreamArn"
+        ]
+      }
+    },
+    "ReconciliationInsertFilter": {
+      "Description": "Required filter for the future billing Pipe; the table stream itself is unfiltered.",
+      "Value": "{\"eventName\":[\"INSERT\"],\"dynamodb\":{\"Keys\":{\"SK\":{\"S\":[{\"prefix\":\"WORK#\"}]}},\"NewImage\":{\"entity_type\":{\"S\":[\"reconciliation_work\"]},\"kind\":{\"S\":[\"reconcile_payment\"]},\"schema_version\":{\"N\":[\"1\"]}}}}"
+    }
+  }
+}
