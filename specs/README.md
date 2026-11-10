@@ -1,10 +1,12 @@
 # Authentication and Subscription Specs
 
+Counts below are as of 2026-11-10; the linked task files are authoritative.
+
 | Feature | Owns | Status |
 |---|---|---|
-| [001 — MCP service](../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) | Existing tools, finite Lambda transport/health, provider environment, ECR/publication/IAM | Legacy HTTP delivered locally; 42/55 tasks checked; REST/live follow-up pending |
-| [002 — Access](002-authentication-api-access/spec.md) | Cognito, Node.js onboarding with durable state, OAuth tokens, REST API/authorizer and subscriber usage plans | Planned; 0/25 tasks checked |
-| [003 — Billing](003-billing-subscriptions/spec.md) | Separate billing Lambda/DynamoDB, plan/order/Stripe, entitlements and durable decision history | Planned; 0/14 tasks checked |
+| [001 — MCP service](../../tradingview-mcp/specs/001-add-lambda-deployment/spec.md) | Existing tools, finite Lambda transport/health, provider environment, ECR/publication/IAM | Legacy HTTP delivered locally; 44/58 tasks checked ([task list](../../tradingview-mcp/specs/001-add-lambda-deployment/tasks.md)); REST/live follow-up pending |
+| [002 — Access](002-authentication-api-access/spec.md) | Cognito, Node.js onboarding with durable state, OAuth tokens, REST API/authorizer and subscriber usage plans | Local implementation in progress; 3/25 tasks checked ([task list](002-authentication-api-access/tasks.md)); live acceptance not run |
+| [003 — Billing](003-billing-subscriptions/spec.md) | Separate billing Lambda/DynamoDB, plan/order/Stripe, entitlements and durable decision history | Local implementation B001–B009 checked, 9/14 ([task list](003-billing-subscriptions/tasks.md)); packaging, publication and live gates pending |
 
 ```mermaid
 flowchart LR

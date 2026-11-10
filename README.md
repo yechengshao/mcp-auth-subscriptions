@@ -14,7 +14,7 @@ Use **TypeScript, Node.js, Express, and AWS Lambda** for authentication and subs
 
 ## Current status
 
-Authentication has 25 unchecked tasks; billing has completed B001 and has 13 unchecked tasks. Local implementation covers catalog/record validation, purchase snapshots, UTC terms, session boundaries and [monitoring wrappers/templates](observability/README.md). See [implementation scope and checks](billing/contracts/README.md). The contract/schema/fixture scope of B001 is complete; B003/T014/T022 and deployed authentication/payment flows remain unfinished.
+As of 2026-11-10 (the [access](specs/002-authentication-api-access/tasks.md) and [billing](specs/003-billing-subscriptions/tasks.md) task files are authoritative): access has 3 of 25 tasks checked (T002–T004, the authorizer); billing has 9 of 14 checked (B001–B009), with B010–B014 (packaging, publication, shared integration, CI, live validation) open. Several access tasks (T014–T020) have substantial local code but stay unchecked until their acceptance criteria close. Local implementation covers catalog/record validation, purchase snapshots, UTC terms, session boundaries and [monitoring wrappers/templates](observability/README.md). See [implementation scope and checks](billing/contracts/README.md). Deployed authentication/payment flows and all live acceptance remain unrun.
 
 Start with the [specification index](specs/README.md), [authentication plan](specs/002-authentication-api-access/plan.md), [authentication tasks](specs/002-authentication-api-access/tasks.md), and [billing specification](specs/003-billing-subscriptions/spec.md). The active feature selector points to spec 003; this minimal project does not copy the service repository's workflow/skill scaffold.
 
