@@ -17,5 +17,7 @@ test('billing image keeps the new service-token signing dependency outside its r
   assert.equal(lock.packages['node_modules/jose'], undefined);
   const source = readFileSync('Dockerfile.billing', 'utf8');
   assert.ok(source.includes('COPY --from=dependencies /app/node_modules'));
-  assert.equal(source.split('FROM ${LAMBDA_IMAGE}')[1]!.includes('dist/security'), false);
+  const runtime = source.split('FROM ${LAMBDA_IMAGE}')[1]!;
+  assert.equal(runtime.includes('dist/security'), false);
+  assert.ok(runtime.includes('dist/contracts'), 'billing runtime must include its shared contract modules');
 });

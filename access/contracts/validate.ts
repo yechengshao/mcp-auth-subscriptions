@@ -1,5 +1,6 @@
 import { assertSessionShape, assertTransactionShape, assertProfileShape, assertRefreshShape } from './schemas.js';
-import { identityPartition, validateEntitlement } from '../../billing/contracts/validate.js';
+import { identityPartition } from '../../contracts/identity.js';
+import { validateEntitlement } from '../../contracts/entitlement.js';
 
 interface Session {
   PK: string; environment: string; purpose: 'onboarding' | 'management'; tx_id: string;

@@ -1,10 +1,7 @@
-import { createHash } from 'node:crypto';
-import { catalogSchema, compile, entitlementSchema, operationSchema, orderSchema, queueSchema, snapshotSchema, failureSchema } from './schemas.js';
-
-export const identityKey = (issuer: string, subject: string): string =>
-  createHash('sha256').update(JSON.stringify([issuer, subject]), 'utf8').digest('hex');
-export const identityPartition = (environment: string, issuer: string, subject: string): string =>
-  `ENV#${environment}#IDENTITY#${identityKey(issuer, subject)}`;
+import { catalogSchema, compile, operationSchema, orderSchema, queueSchema, snapshotSchema, failureSchema } from './schemas.js';
+import { identityPartition } from '../../contracts/identity.js';
+export { validateEntitlement } from '../../contracts/entitlement.js';
+export { identityKey, identityPartition } from '../../contracts/identity.js';
 export interface Scope { environment: string; aws_account_id: string; region: string; stripe_account: string }
 export interface Mapping { usage_plan_id: string; rest_api_id: string; stage: string }
 export interface Term { unit: 'day' | 'month' | 'year'; count: number; time_semantics: 'utc_fixed_days' | 'utc_calendar_clamp' }
@@ -56,18 +53,6 @@ export function publicPlans(catalog: Catalog) {
         .map(([duration_option_id, option]) => ({ duration_option_id, label: option.label,
           service_term: structuredClone(option.service_term), amount_minor: option.amount_minor, currency: option.currency })),
     })) };
-}
-const entitlementShape = compile(entitlementSchema);
-interface Entitlement {
-  PK: string; environment: string; identity_issuer: string; identity_subject: string; allowed: boolean; valid_until: number;
-}
-export function validateEntitlement(input: unknown, environment: string, issuer: string, subject: string, now: number): void {
-  entitlementShape(input);
-  const value = input as Entitlement;
-  if (!Number.isSafeInteger(now) || now < 0) throw new Error('invalid_clock');
-  if (value.environment !== environment || value.identity_issuer !== issuer || value.identity_subject !== subject ||
-      value.PK !== identityPartition(environment, issuer, subject)) throw new Error('entitlement_owner_mismatch');
-  if (!value.allowed || value.valid_until <= now) throw new Error('not_eligible');
 }
 const queueShape = compile(queueSchema);
 interface QueueMessage { environment: string; operation_id: string; durable_record_key: { PK: string; SK: string } }

@@ -65,7 +65,7 @@ export function validateAccessConfiguration(input: unknown): AccessConfiguration
     seen.add(raw.client_id);
   }
   const cognito = validateCognitoConfiguration(input.cognito);
-  if (cognito.callbackUri !== endpoint(input, '/oauth/cognito/callback')) throw new Error('invalid_access_configuration');
+  if (cognito.callbackUri !== endpoint({ issuer: input.issuer }, '/oauth/cognito/callback')) throw new Error('invalid_access_configuration');
   return structuredClone({ ...input, cognito }) as unknown as AccessConfiguration;
 }
 

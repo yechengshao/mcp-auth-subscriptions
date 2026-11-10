@@ -1,4 +1,4 @@
-import { object, row, constant, choice, id, text, epoch, integer, digest, identity, boolean, correlation, compile, type Schema } from '../../billing/contracts/schemas.js';
+import { object, row, constant, choice, id, text, epoch, integer, digest, identity, boolean, correlation, compile, type Schema } from '../../contracts/schema.js';
 
 const purpose = choice('onboarding', 'management');
 const verified = { identity, subscriber_id: id };

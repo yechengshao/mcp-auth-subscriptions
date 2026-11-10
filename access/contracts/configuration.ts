@@ -1,4 +1,4 @@
-import { object, constant, positive, compile } from '../../billing/contracts/schemas.js';
+import { object, constant, positive, compile } from '../../contracts/schema.js';
 const shape = compile(object({
   schema_version: constant(1), provisioning_budget_ms: positive, sdk_timeout_ms: positive,
   lease_seconds: positive, max_attempts: positive, backoff_min_ms: positive, backoff_max_ms: positive,

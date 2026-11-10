@@ -61,7 +61,7 @@ T001/T014 have retained access-storage and exact dependency/role boundary tests 
 
 T016 partial: `access/signing.ts` implements exact-version SSM RS256 loading, public/private matching and a bounded memory cache; actual token/code/refresh/revoke handlers remain unimplemented. `access/store.ts` supplies strong reads, read-only projection checks and access-only revision-fenced transactions/profile races for dependent coordination tasks. Existing OAuth/session drafts are incomplete T015 work; provisioning and paid token issuance are not claimed.
 
-T015 partial: the Cognito/browser coordinator now has feature-specific HTTP routers, shared cookie/error helpers, and storage/identity ports around the session workflow, plus stricter configuration validation and bounded Cognito response parsing. Dedicated acceptance tests, complete discovery/OAuth composition, packaging and live Cognito/client checks remain open; this refactor has not been typechecked or tested and is not task completion.
+T015 partial: the Cognito/browser coordinator now has feature-specific HTTP routers, shared cookie/error helpers, and storage/identity ports around the session workflow, plus stricter configuration validation and bounded Cognito response parsing. Dedicated acceptance tests, complete discovery/OAuth composition, packaging and live Cognito/client checks remain open; current typecheck and the existing 146-test suite pass, but this is not task completion.
 
 See [implementation guide](../../docs/access-implementation.md). Native X-Ray/CloudWatch wrappers and prepared telemetry-only authorizer policy wiring are present; actual delivery remains not_run. No AWS provisioning, provider calls, image publication or notification ran.
 

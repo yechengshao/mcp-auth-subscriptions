@@ -8,6 +8,7 @@ COPY package.json package-lock.json tsconfig.json ./
 COPY Dockerfile.billing ./
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci; else npm ci; fi
+COPY contracts ./contracts
 COPY billing ./billing
 COPY access ./access
 COPY authorizer ./authorizer
@@ -26,6 +27,7 @@ FROM ${LAMBDA_IMAGE}
 COPY --from=dependencies /app/package.json ${LAMBDA_TASK_ROOT}/package.json
 COPY --from=dependencies /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 COPY --from=build /build/dist/billing ${LAMBDA_TASK_ROOT}/dist/billing
+COPY --from=build /build/dist/contracts ${LAMBDA_TASK_ROOT}/dist/contracts
 COPY --from=build /build/dist/observability ${LAMBDA_TASK_ROOT}/dist/observability
 COPY --from=build /build/dist/specs/003-billing-subscriptions/contracts/service-term.schema.json ${LAMBDA_TASK_ROOT}/dist/specs/003-billing-subscriptions/contracts/service-term.schema.json
 CMD ["dist/billing/handler.handler"]

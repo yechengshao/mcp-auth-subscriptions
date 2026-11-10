@@ -11,7 +11,13 @@
   account validation, authoritative payment reads and raw-byte webhook signatures.
 - `service.ts`: durable purchase intent, idempotent Checkout recovery, atomic paid
   projection/history, upgrade quote/reservation/once-only credit, and fenced work.
+- `ports.ts`: repository, queue and payment-provider boundaries used by the billing
+  workflows; AWS and Stripe SDKs stay in `adapters/` and are assembled in `handler.ts`.
 - `lifecycle.ts`: pure paid-term reducer and original-payment-time term boundaries.
+
+Shared schema primitives, canonicalization, identity partitioning and the billing-owned
+entitlement projection live in the repository-level `contracts/` package. Access consumes
+that projection contract without importing billing implementation modules.
 
 No additional monitoring SDK or worker is introduced. Callers supply validated
 configuration; Lambda uses IAM credentials and secret parameters, not fixture
