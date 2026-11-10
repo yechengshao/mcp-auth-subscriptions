@@ -3,6 +3,12 @@
 This increment implements the token-verification/signing/storage foundation of
 spec 002. It does **not** finish the browser OAuth/onboarding access Lambda.
 
+**Packaging decision (2026-11-10):** the target authorizer deployment is a managed
+Node.js 24.x ARM64 Lambda ZIP from a versioned S3 artifact. The authorizer template,
+release renderer and Docker smoke test documented below still describe the current
+image-based implementation; they have not yet been converted. Tasks T004/T005/T008/T021
+track that conversion. The access HTTP runtime remains image-based.
+
 | Implemented code | Responsibility |
 |---|---|
 | authorizer/handler.ts | Direct REST REQUEST Lambda; exact ARN, JWT signature/claims/scope and usage-key response |

@@ -4,16 +4,17 @@
 
 | Planned resource/artifact | Owner and interface |
 |---|---|
-| `infra/access/auth.yaml` | Cognito create/compatible reuse; one AccessState table (transient, grants and binding record groups), selective TTL and exact-key access; Parameter Store signing-key configuration/JWKS; access/authorizer aliases, roles and scoped logs |
+| `infra/access/auth.yaml` | Cognito create/compatible reuse; one AccessState table (transient, grants and binding record groups), selective TTL and exact-key access; access coordinator and signing/JWKS configuration |
+| `infra/access/authorizer.yaml` | Direct REQUEST Lambda on managed Node.js 24.x, ARM64 ZIP package from an immutable versioned S3 artifact; retained version/alias, scoped role/logs and X-Ray configuration; no image/ECR dependency |
 | `infra/access/gateway.yaml` | Dedicated REST API, resources/methods/proxy integrations, REQUEST authorizer and all exact alias permissions, deployments/named stage/logs/GatewayResponses, tier usage plans |
-| `access/`, `authorizer/` | Independent npm-locked TypeScript/Node.js components/images; Express access with request-driven provisioning and direct authorizer, no MCP production dependency changes |
+| `access/`, `authorizer/` | Independent npm-locked TypeScript/Node.js components; Express access remains an image, while the direct authorizer is a managed-runtime ZIP, with no MCP production dependency changes |
 | `scripts/prepare_gateway_cutover.ts` | Read-only before/target manifest, no import/update/delete/client reconfiguration |
-| Access publication workflows | Protected main/environment OIDC; selected component repositories; test/build once/push same digest; no deployment or billing permission |
+| Access publication workflows | Protected main/environment OIDC; publish the authorizer ZIP once to a versioned S3 release prefix and the access image to its selected ECR repository; no deployment or billing permission |
 | `scripts/verify_access.ts` | Separate access evidence, local/live distinction, no secret/raw identity/key output |
 
 ## Nonsecret handoff
 
-Gateway publishes REST API ID, explicit stage, REST type, exact MCP resource/health/discovery URLs, issuer and authorizer ID, deployment/method/resource identifiers and sanitized log correlation location. Access publishes access/authorizer alias/release identities, state schema/config version, binding schema and public JWKS URL/key IDs; it never outputs private keys, bearer/refresh credentials or native key values. Spec 001 supplies exact function/live-alias/log/version/image outputs from planned service-only runtime-rest.yaml; spec 003 supplies exact billing alias, consistent entitlement read interface and internal onboarding/reconciliation operations; billing history/stream reads are not granted to access. API/stage/resource/method identifiers replace HTTP route IDs/payload2.0/$default in new REST provenance.
+Gateway publishes REST API ID, explicit stage, REST type, exact MCP resource/health/discovery URLs, issuer and authorizer ID, deployment/method/resource identifiers and sanitized log correlation location. Access publishes access/authorizer alias/release identities, state schema/config version, binding schema and public JWKS URL/key IDs; it never outputs private keys, bearer/refresh credentials or native key values. Spec 001 supplies exact function/live-alias/log/version/image outputs from planned service-only runtime-rest.yaml; spec 003 supplies exact billing alias, consistent entitlement read interface and internal onboarding/reconciliation operations; billing history/stream reads are not granted to access. API/stage/resource/method identifiers replace HTTP route IDs/payload2.0/$default in new REST provenance. The authorizer release handoff records the immutable S3 object version and package SHA-256; it does not need an ECR repository.
 
 Cognito reuse inputs form one compatible issuer/pool/client/domain set. Register coordinator's exact upstream callback, not each AI-host callback in Cognito. Host clients register downstream with the coordinator. Retain created Cognito and access state/signing resources; reused resources stay outside deletion ownership. Do not reset identities or duplicate shared account publishing providers.
 

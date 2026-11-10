@@ -9,12 +9,12 @@ Cognito human PKCE → billing plan/order/Stripe → committed entitlement → n
 | Planned component | Responsibility |
 |---|---|
 | `access/` | Node.js/ARM64 Express OAuth/session/code/refresh endpoints with REST-v1 proxy adapter; bounded request-driven binding provisioning; own transaction/grant/binding state |
-| `authorizer/` | Independently packaged Node.js/ARM64 direct REST REQUEST handler using `methodArn`; signature/claim validation without datastore reads; exact-method policy and usageIdentifierKey; TTL 0 |
-| `infra/access/auth.yaml` | Retained Cognito create/compatible reuse, access stores/Parameter Store signing-key configuration/JWKS, access/authorizer functions/versions/roles/logs |
+| `authorizer/` | Independently packaged managed Node.js 24.x/ARM64 Lambda ZIP; direct REST REQUEST handler using `methodArn`; signature/claim validation without datastore reads; exact-method policy and usageIdentifierKey; TTL 0 |
+| `infra/access/auth.yaml`, `infra/access/authorizer.yaml` | Cognito, AccessState and access/signing configuration; separate access and authorizer functions, versions, roles and log groups |
 | `infra/access/gateway.yaml` | Base REST API, then all methods/integrations/permissions, deployment/named stage, discovery/GatewayResponses and native tier plans |
-| Publication/verifiers | Independent protected OIDC/ECR component workflows; read-only cutover manifest and separate local/live access evidence |
+| Publication/verifiers | Protected OIDC publishing: authorizer ZIP to a versioned S3 artifact prefix, access image to ECR; read-only cutover manifest and separate local/live access evidence |
 
-Use strict TypeScript/NodeNext, maintained OAuth/JWT libraries, AWS SDK v3 and pinned supported Node.js LTS/ARM64 runtimes. Each component owns its npm lock and TypeScript config; CI runs `npm ci`, typecheck, build and emitted Node tests, packaging only runtime dependencies. Access, authorizer and billing packages/roles stay isolated; authorizer validates JWTs and reads public JWKS only.
+Use strict TypeScript/NodeNext and pinned Node.js LTS/ARM64 runtimes. Each component owns a lock/config; CI installs, typechecks, builds, tests emitted JS and packages production dependencies only. Keep access/authorizer/billing packages and roles isolated. Authorizer: managed Node.js 24.x ZIP, compiled modules plus production dependencies; JWT validation and public JWKS only, no Docker deployment.
 
 Apply Hexagonal Architecture. `access/handler.ts` is the composition root; HTTP routes and native invocations are inbound adapters that validate transport, call use cases and map outcomes. Workflow services own transition and eligibility decisions and depend on ports in `access/ports.ts`; `AccessStore`, `CognitoIdentity`, and AWS clients implement outbound adapters. Keep Express/AWS SDK imports at boundaries and business transitions out of handlers.
 
