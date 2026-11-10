@@ -18,6 +18,8 @@
     "access/**/*.ts",
     "tests/**/*.ts",
     "observability/**/*.ts",
-    "infra/**/*.ts"
+    "infra/**/*.ts",
+    "authorizer/**/*.ts",
+    "security/**/*.ts"
   ]
 }

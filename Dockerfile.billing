@@ -5,18 +5,26 @@ ARG LAMBDA_IMAGE=public.ecr.aws/lambda/nodejs:24
 FROM ${BUILD_IMAGE} AS build
 WORKDIR /build
 COPY package.json package-lock.json tsconfig.json ./
+COPY Dockerfile.billing ./
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci; else npm ci; fi
 COPY billing ./billing
 COPY access ./access
+COPY authorizer ./authorizer
+COPY security ./security
 COPY observability ./observability
 COPY infra ./infra
 COPY tests ./tests
 COPY specs ./specs
-RUN npm run check && npm prune --omit=dev --offline
+RUN npm run check
+FROM ${BUILD_IMAGE} AS dependencies
+WORKDIR /app
+COPY billing/package.json billing/package-lock.json ./
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci --omit=dev; else npm ci --omit=dev; fi
 FROM ${LAMBDA_IMAGE}
-COPY --from=build /build/package.json ${LAMBDA_TASK_ROOT}/package.json
-COPY --from=build /build/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+COPY --from=dependencies /app/package.json ${LAMBDA_TASK_ROOT}/package.json
+COPY --from=dependencies /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 COPY --from=build /build/dist/billing ${LAMBDA_TASK_ROOT}/dist/billing
 COPY --from=build /build/dist/observability ${LAMBDA_TASK_ROOT}/dist/observability
 COPY --from=build /build/dist/specs/003-billing-subscriptions/contracts/service-term.schema.json ${LAMBDA_TASK_ROOT}/dist/specs/003-billing-subscriptions/contracts/service-term.schema.json

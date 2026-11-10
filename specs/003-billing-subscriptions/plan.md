@@ -4,7 +4,7 @@
 
 ## Architecture
 
-Use a separate TypeScript/Node.js ARM64 Lambda package, Express REST-v1 adapter and direct native/SQS/schedule dispatcher. Match spec 002's pinned Node.js LTS, strict NodeNext, npm lockfile, typecheck/build and emitted Node test suites. Stripe SDK and billing state stay outside access/MCP; the shared root lockfile pins runtime dependencies, while the final image copies only billing/shared modules. Export app, adapter and native dispatcher separately; only HTTP events enter Express. Mount Stripe raw-body verification before JSON parsing and preserve base64 bytes through the adapter.
+Use a separate TypeScript/Node.js ARM64 Lambda package, Express REST-v1 adapter and direct native/SQS/schedule dispatcher. Match spec 002's pinned Node.js LTS, strict NodeNext, npm lockfile, typecheck/build and emitted Node test suites. Stripe SDK and billing state stay outside access/MCP; independent runtime manifests/locks pin component dependencies, while the final image copies only billing/shared modules. Export app, adapter and native dispatcher separately; only HTTP events enter Express. Mount Stripe raw-body verification before JSON parsing and preserve base64 bytes through the adapter.
 
 Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing owns approved catalog, own-account orders, Stripe integration, durable events, subscriptions and entitlement/outbox commits. The [physical interface](contracts/storage-operations.md) owns keys, operation envelopes, leases and recovery. The [checkout contract](contracts/checkout-onboarding.md) owns behavioral rules; spec 002's endpoint contract owns HTTP paths.
 

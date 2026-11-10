@@ -1,0 +1,171 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "JWT-only REST REQUEST authorizer. No datastore/signing grants, public invoke grant, API ownership or Function URL. Gateway owns exact alias invocation permission.",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "development",
+        "test",
+        "production"
+      ],
+      "Default": "test"
+    },
+    "FunctionName": {
+      "Type": "String",
+      "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,63}"
+    },
+    "ImageUri": {
+      "Type": "String",
+      "AllowedPattern": "[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9_./-]+@sha256:[a-f0-9]{64}"
+    },
+    "ReleaseId": {
+      "Type": "String",
+      "AllowedPattern": "[A-Za-z0-9_.-]{1,96}"
+    },
+    "TelemetryPolicyArn": {
+      "Type": "String",
+      "Description": "Exact authorizer telemetry-policy output; grants own finite logs and configured native X-Ray export only."
+    },
+    "AuthorizerConfig": {
+      "Type": "String",
+      "MaxLength": 2500
+    },
+    "JwksUri": {
+      "Type": "String",
+      "AllowedPattern": "https://[^\\s]+",
+      "MaxLength": 512
+    },
+    "TracingMode": {
+      "Type": "String",
+      "AllowedValues": [
+        "Active",
+        "PassThrough"
+      ],
+      "Default": "PassThrough"
+    }
+  },
+  "Resources": {
+    "Role": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Ref": "TelemetryPolicyArn"
+          }
+        ]
+      }
+    },
+    "Function": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "FunctionName"
+        },
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": {
+            "Ref": "ImageUri"
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "Role",
+            "Arn"
+          ]
+        },
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 256,
+        "Timeout": 5,
+        "ReservedConcurrentExecutions": 3,
+        "TracingConfig": {
+          "Mode": {
+            "Ref": "TracingMode"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "MCP_SERVICE": "authorizer",
+            "MCP_ENVIRONMENT": {
+              "Ref": "Environment"
+            },
+            "MCP_RELEASE": {
+              "Ref": "ReleaseId"
+            },
+            "AUTHORIZER_CONFIG": {
+              "Ref": "AuthorizerConfig"
+            },
+            "SERVICE_JWKS_URI": {
+              "Ref": "JwksUri"
+            }
+          }
+        }
+      }
+    },
+    "Version": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "Description": {
+          "Ref": "ReleaseId"
+        }
+      }
+    },
+    "Alias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "Name": "live",
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "Version",
+            "Version"
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "AuthorizerAliasArn": {
+      "Value": {
+        "Ref": "Alias"
+      }
+    },
+    "AuthorizerRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Role",
+          "Arn"
+        ]
+      }
+    },
+    "AuthorizerFunctionArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Function",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

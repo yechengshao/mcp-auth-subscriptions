@@ -1,19 +1,19 @@
-import { object, row, constant, choice, id, text, epoch, integer, digest, identity, compile, type Schema } from '../../billing/contracts/schemas.js';
+import { object, row, constant, choice, id, text, epoch, integer, digest, identity, boolean, correlation, compile, type Schema } from '../../billing/contracts/schemas.js';
 
 const purpose = choice('onboarding', 'management');
 const verified = { identity, subscriber_id: id };
 const sessionCommon = {
   ...row, entity_type: constant('session'), SK: constant('SESSION'), environment: id,
-  purpose, tx_id: id, csrf_digest: digest, created_at: epoch, expires_at: epoch, delete_after: epoch,
+  purpose, tx_id: id, revoked: boolean, csrf_digest: digest, created_at: epoch, expires_at: epoch, delete_after: epoch,
 };
 export const sessionSchema: Schema = { oneOf: [
-  object({ ...sessionCommon, authentication_stage: constant('pending_identity') }),
-  object({ ...sessionCommon, authentication_stage: constant('identity_verified'), ...verified, grant_id: id }, ['grant_id']),
+  object({ ...sessionCommon, authentication_stage: constant('pending_identity') }, ['revoked']),
+  object({ ...sessionCommon, authentication_stage: constant('identity_verified'), ...verified, grant_id: id }, ['grant_id', 'revoked']),
 ] };
 const txCommon = {
   ...row, entity_type: constant('transaction'), SK: constant('STATE'), environment: id,
   created_at: epoch, expires_at: epoch, delete_after: epoch,
-  order_id: id, attempts: integer, next_attempt_at: epoch,
+  correlation_id: correlation, order_id: id, attempts: integer, next_attempt_at: epoch,
   error_category: choice('dependency_unavailable', 'session_expired', 'configuration_error'),
 };
 const downstream = object({
@@ -22,7 +22,7 @@ const downstream = object({
   code_challenge: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' },
   code_challenge_method: constant('S256'), state: text, issuer: { ...text, pattern: '^https://' }, client_config_version: id,
 });
-const txOptional = ['order_id', 'grant_id', 'attempts', 'next_attempt_at', 'error_category'];
+const txOptional = ['correlation_id', 'order_id', 'grant_id', 'attempts', 'next_attempt_at', 'error_category'];
 export const transactionSchema: Schema = { oneOf: [
   ...(['onboarding', 'management'] as const).flatMap(purpose => {
     const route: Record<string, Schema> = purpose === 'onboarding' ? { downstream, grant_id: id } : { local_destination: constant('/billing') };

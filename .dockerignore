@@ -9,3 +9,5 @@ dist
 **/*.pem
 **/*.key
 *.log
+
+**/node_modules

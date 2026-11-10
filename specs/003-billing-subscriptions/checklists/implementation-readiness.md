@@ -51,7 +51,7 @@ Typecheck/build/emitted tests, packaged handlers, IaC/redaction checks and meani
 ## Monitoring foundation
 
 - [x] Local Node telemetry and prepared log/policy/sampling/dashboard/alarm templates, with fake-handler redaction/context tests.
-- [ ] Finish attaching wrappers to real auth/authorizer handlers (billing is wired) and dependency clients, emit transitions/metrics only at verified commit points, and merge component role/environment/stage settings.
+- [ ] Finish access HTTP wrappers (billing and authorizer are wired) and dependency clients, emit transitions/metrics only at verified commit points, and merge component role/environment/stage settings.
 - [ ] Supply monthly budget/alert destinations, exact resource identities and alarm thresholds, then separately validate actual CloudWatch/X-Ray/ARM64 delivery.
 
 See [implementation scope](../../../observability/README.md); no monitoring deployment or notification has run.

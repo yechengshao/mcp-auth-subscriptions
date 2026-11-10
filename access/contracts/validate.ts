@@ -3,7 +3,7 @@ import { identityPartition, validateEntitlement } from '../../billing/contracts/
 
 interface Session {
   PK: string; environment: string; purpose: 'onboarding' | 'management'; tx_id: string;
-  authentication_stage: 'pending_identity' | 'identity_verified'; identity?: { issuer: string; subject: string };
+  authentication_stage: 'pending_identity' | 'identity_verified'; revoked?: boolean; identity?: { issuer: string; subject: string };
   subscriber_id?: string; created_at: number; expires_at: number; delete_after: number;
 }
 interface Transaction {
@@ -22,7 +22,7 @@ export function validateSessionContext(input: unknown, txInput: unknown, environ
   const session = input as Session; const tx = txInput as Transaction;
   deadline(session, now); deadline(tx, now);
   const prefix = `ENV#${environment}#SESSION#`;
-  if (session.environment !== environment || tx.environment !== environment ||
+  if (session.revoked === true || session.environment !== environment || tx.environment !== environment ||
       !session.PK.startsWith(prefix) || !/^[a-f0-9]{64}$/.test(session.PK.slice(prefix.length)) ||
       tx.PK !== `ENV#${environment}#TX#${session.tx_id}` || session.purpose !== tx.purpose ||
       session.expires_at !== tx.expires_at ||

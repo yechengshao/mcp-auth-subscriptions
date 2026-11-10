@@ -2,7 +2,7 @@
 
 Use CloudWatch Logs/metrics and AWS-managed Lambda/API Gateway X-Ray tracing. Application monitoring uses Node standard libraries only: no OpenTelemetry, third-party tracing SDK, collector, exporter, custom segments or monitoring worker.
 
-The reusable logging helpers and prepared infrastructure are implemented locally. Business OAuth, authorizer, Stripe and queue handlers are still pending; they must attach these helpers and component-owned role/stage settings. No deployed auth/billing monitoring is claimed.
+The reusable logging helpers and prepared infrastructure are implemented locally. The real billing HTTP/native/SQS/replay and REQUEST-authorizer handlers now attach these helpers, including safe SDK/JWKS dependency timing and critical paid commits. The access OAuth/session/token handlers and gateway stage wiring remain pending. No deployed auth/billing monitoring is claimed.
 
 ## Application logs and tracking
 

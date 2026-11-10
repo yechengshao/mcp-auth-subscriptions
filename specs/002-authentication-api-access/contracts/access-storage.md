@@ -1,6 +1,6 @@
 # Contract: Access DynamoDB Model and Atomic Operations
 
-**Status**: Planned schemas/algorithms, not created or deployed. Three application tables total: AccessState, BillingState and BillingEntitlements; table names/ARNs are deployment outputs. This contract owns physical access keys, fields and transaction boundaries, implementing existing token/onboarding rules. No access streams, queues or recovery schedule are required.
+**Status**: Schemas/read/transaction adapter and retained-table template implemented locally; protocol transitions and deployment pending. Three application tables total: AccessState, BillingState and BillingEntitlements; table names/ARNs are deployment outputs. This contract owns physical access keys, fields and transaction boundaries, implementing existing token/onboarding rules. No access streams, queues or recovery schedule are required.
 
 ## Common conventions and ownership
 

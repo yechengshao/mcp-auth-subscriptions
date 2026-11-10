@@ -40,4 +40,4 @@ B010 partial evidence: `Dockerfile.billing`, `infra/billing/runtime.yaml` and `r
 
 Operator setup and outstanding release gates: [billing setup guide](../../docs/billing-setup.md). No AWS/Stripe deployment, publication, payment or notification was run. Actual access/OAuth/session/authorizer handlers, publication bootstrap, shared journeys and live delivery/monitoring acceptance remain in their unchecked tasks.
 
-Current local verification (2026-11-09): 117 emitted tests pass with typecheck/build; CloudFormation lint covers observability/storage/runtime and a rendered release. The Docker build stage is verified separately from the blocked final Lambda image build.
+Billing baseline verification (2026-11-09): 117 emitted tests pass with typecheck/build; CloudFormation lint covers observability/storage/runtime and a rendered release. The Docker build stage is verified separately from the blocked final Lambda image build.

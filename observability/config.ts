@@ -5,7 +5,7 @@ export const operations = [
   'authorizer.validate', 'billing.webhook', 'billing.listPlans', 'billing.createCheckout', 'billing.getOrder',
   'billing.reconcileOrder', 'billing.quoteUpgrade', 'billing.confirmUpgrade', 'billing.manageSubscription', 'billing.openPortal',
   'billing.reconcile', 'billing.replay', 'lambda.invoke_billing', 'dynamodb.read', 'dynamodb.transact',
-  'ssm.catalog', 'ssm.secret', 'ssm.signing_key', 'gateway.provision', 'stripe.request', 'sqs.publish',
+  'cognito.request', 'jwks.request', 'ssm.catalog', 'ssm.secret', 'ssm.signing_key', 'gateway.provision', 'stripe.request', 'sqs.publish',
 ] as const;
 export type Operation = typeof operations[number];
 export interface TelemetryConfig { service: Service; environment: Environment; release: string; metrics?: boolean }

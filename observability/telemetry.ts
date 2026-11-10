@@ -5,9 +5,9 @@ import { validatedConfig, operations, type Operation, type TelemetryConfig } fro
 import { correlationId, xrayHeader, type TraceContext } from './context.js';
 
 export type Outcome = 'unexpected_error' | 'server_error' | 'initialized' | 'completed' |
-  'payment_confirmed' | 'entitlement_committed' | 'subscription_revoked' | 'binding_configured' | 'grant_revoked';
+  'payment_confirmed' | 'entitlement_committed' | 'subscription_revoked' | 'binding_configured' | 'grant_revoked' | 'identity_verified' | 'browser_session_revoked';
 const outcomes: readonly Outcome[] = ['unexpected_error','server_error','initialized','completed',
-  'payment_confirmed','entitlement_committed','subscription_revoked','binding_configured','grant_revoked'];
+  'payment_confirmed','entitlement_committed','subscription_revoked','binding_configured','grant_revoked','identity_verified','browser_session_revoked'];
 export interface Carrier { correlationId?: unknown; parent?: TraceContext; requestId?: unknown; gatewayRequestId?: unknown }
 interface Active { correlationId: string; parent?: TraceContext; startedAt: number; requestId?: string; gatewayRequestId?: string }
 const opaque = /^[A-Za-z0-9_-]{1,64}$/;

@@ -12,7 +12,8 @@
     "test": "npm run build && node --test --test-isolation=none dist/tests/access/*.test.js dist/tests/billing/*.test.js dist/tests/observability/*.test.js",
     "check": "npm run typecheck && npm test",
     "render:observability": "npm run build && node dist/infra/observability/render.js",
-    "render:billing-runtime": "npm run build && node dist/infra/billing/release.js"
+    "render:billing-runtime": "npm run build && node dist/infra/billing/release.js",
+    "render:authorizer": "npm run build && node dist/infra/access/release-authorizer.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.1164.0",
@@ -22,6 +23,7 @@
     "@codegenie/serverless-express": "5.0.0",
     "ajv": "8.17.1",
     "express": "5.3.0",
+    "jose": "6.2.17",
     "stripe": "23.1.0"
   },
   "devDependencies": {
