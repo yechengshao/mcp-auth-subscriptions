@@ -13,7 +13,8 @@
     "check": "npm run typecheck && npm test",
     "render:observability": "npm run build && node dist/infra/observability/render.js",
     "render:billing-runtime": "npm run build && node dist/infra/billing/release.js",
-    "render:authorizer": "npm run build && node dist/infra/access/release-authorizer.js"
+    "render:authorizer": "npm run build && node dist/infra/access/release-authorizer.js",
+    "package:authorizer": "npm run build && node scripts/package_authorizer.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.1164.0",

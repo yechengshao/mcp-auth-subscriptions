@@ -3,6 +3,7 @@ import { performance } from 'node:perf_hooks';
 import { basename } from 'node:path';
 import { validatedConfig, operations, type Operation, type TelemetryConfig } from './config.js';
 import { correlationId, xrayHeader, type TraceContext } from './context.js';
+import { correlationIdPattern } from '../contracts/patterns.js';
 
 export type Outcome = 'unexpected_error' | 'server_error' | 'initialized' | 'completed' |
   'payment_confirmed' | 'entitlement_committed' | 'subscription_revoked' | 'binding_configured' | 'grant_revoked' | 'identity_verified' | 'browser_session_revoked';
@@ -10,8 +11,7 @@ const outcomes: readonly Outcome[] = ['unexpected_error','server_error','initial
   'payment_confirmed','entitlement_committed','subscription_revoked','binding_configured','grant_revoked','identity_verified','browser_session_revoked'];
 export interface Carrier { correlationId?: unknown; parent?: TraceContext; requestId?: unknown; gatewayRequestId?: unknown }
 interface Active { correlationId: string; parent?: TraceContext; startedAt: number; requestId?: string; gatewayRequestId?: string }
-const opaque = /^[A-Za-z0-9_-]{1,64}$/;
-function identifier(value: unknown): string | undefined { return typeof value === 'string' && opaque.test(value) ? value : undefined; }
+function identifier(value: unknown): string | undefined { return typeof value === 'string' && correlationIdPattern.test(value) ? value : undefined; }
 function safeFrames(error: unknown) {
   try {
     if (!(error instanceof Error) || typeof error.stack !== 'string') return [];

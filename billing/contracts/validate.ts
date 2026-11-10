@@ -1,5 +1,6 @@
 import { catalogSchema, compile, operationSchema, orderSchema, queueSchema, snapshotSchema, failureSchema } from './schemas.js';
 import { identityPartition } from '../../contracts/identity.js';
+import { sha256HexPattern } from '../../contracts/patterns.js';
 export { validateEntitlement } from '../../contracts/entitlement.js';
 export { identityKey, identityPartition } from '../../contracts/identity.js';
 export interface Scope { environment: string; aws_account_id: string; region: string; stripe_account: string }
@@ -61,7 +62,7 @@ export function validateQueue(input: unknown, environment: string): void {
   const value = input as QueueMessage;
   const prefix = `ENV#${environment}#IDENTITY#`;
   if (value.environment !== environment || !value.durable_record_key.PK.startsWith(prefix) ||
-      !/^[a-f0-9]{64}$/.test(value.durable_record_key.PK.slice(prefix.length)) ||
+      !sha256HexPattern.test(value.durable_record_key.PK.slice(prefix.length)) ||
       value.durable_record_key.SK !== `WORK#${value.operation_id}`) throw new Error('queue_reference_mismatch');
 }
 const orderShape = compile(orderSchema);

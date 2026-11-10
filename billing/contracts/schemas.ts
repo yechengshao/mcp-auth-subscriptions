@@ -5,6 +5,7 @@ export { text, id, epoch, integer, positive, digest, boolean, constant, choice, 
   traceContext, identity, mapping, term, row, compile } from '../../contracts/schema.js';
 export type { Schema } from '../../contracts/schema.js';
 import { entitlementSchema } from '../../contracts/entitlement.js';
+import { awsAccountIdPattern } from '../../contracts/patterns.js';
 export { entitlementSchema } from '../../contracts/entitlement.js';
 const map = (value: Schema): Schema => ({
   type: 'object', minProperties: 1, maxProperties: 100,
@@ -18,7 +19,7 @@ const duration = object({
 });
 export const catalogSchema = object({
   schema_version: constant(1), catalog_version: id, environment: id,
-  aws_account_id: { type: 'string', pattern: '^[0-9]{12}$' }, region: id,
+  aws_account_id: { type: 'string', pattern: awsAccountIdPattern.source }, region: id,
   stripe_account: { ...text, pattern: '^acct_' },
   plans: map(object({
     tier_order: integer, display: object({ name: text, description: text }),

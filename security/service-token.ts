@@ -1,11 +1,12 @@
 import type { JWTPayload } from 'jose';
+import { identifierPattern, registeredClientIdPattern, usageIdentifierKeyPattern } from '../contracts/patterns.js';
 export interface TokenTrust { issuer: string; resource: string; clientIds: string[]; clockSkewSeconds: number }
 export interface ServiceClaims extends JWTPayload {
   iss: string; sub: string; aud: string; client_id: string; grant_id: string; scope: string;
   iat: number; nbf: number; exp: number; jti: string; token_use: 'access'; plan_id: string;
   subscription_valid_until: number; entitlement_revision: number; usageIdentifierKey: string;
 }
-export const opaqueId = /^[A-Za-z0-9_-]{1,128}$/;
+export const opaqueId = identifierPattern;
 export function validateHttps(value: unknown): asserts value is string {
   if (typeof value !== 'string' || value.length > 2048) throw new Error('invalid_trust_configuration');
   const url = new URL(value);
@@ -14,7 +15,7 @@ export function validateHttps(value: unknown): asserts value is string {
 export function validateTrust(input: TokenTrust): TokenTrust {
   validateHttps(input.issuer); validateHttps(input.resource);
   if (!Array.isArray(input.clientIds) || !input.clientIds.length || input.clientIds.length > 100 ||
-      input.clientIds.some(id => typeof id !== 'string' || !/^[\x21-\x7e]{1,256}$/.test(id)) || new Set(input.clientIds).size !== input.clientIds.length ||
+      input.clientIds.some(id => typeof id !== 'string' || !registeredClientIdPattern.test(id)) || new Set(input.clientIds).size !== input.clientIds.length ||
       !Number.isInteger(input.clockSkewSeconds) || input.clockSkewSeconds < 0 || input.clockSkewSeconds > 30) throw new Error('invalid_trust_configuration');
   return structuredClone(input);
 }
@@ -32,7 +33,7 @@ export function validateServiceClaims(input: JWTPayload, trust: TokenTrust, now:
   const p = input as ServiceClaims;
   if (p.iss !== trust.issuer || p.aud !== trust.resource || !trust.clientIds.includes(p.client_id) || p.token_use !== 'access' ||
       ![p.sub, p.grant_id, p.jti, p.plan_id].every(value => typeof value === 'string' && opaqueId.test(value)) ||
-      typeof p.usageIdentifierKey !== 'string' || !/^[A-Za-z0-9]{20,128}$/.test(p.usageIdentifierKey)) reject();
+      typeof p.usageIdentifierKey !== 'string' || !usageIdentifierKeyPattern.test(p.usageIdentifierKey)) reject();
   for (const value of [p.iat,p.nbf,p.exp,p.subscription_valid_until]) if (!Number.isSafeInteger(value) || value < 0 || value > 253402300799) reject();
   if (!Number.isSafeInteger(p.entitlement_revision) || p.entitlement_revision < 0 || p.nbf > p.iat || p.exp <= p.iat ||
       p.exp > p.iat + 3600 || p.exp > p.subscription_valid_until || p.iat > now + trust.clockSkewSeconds ||

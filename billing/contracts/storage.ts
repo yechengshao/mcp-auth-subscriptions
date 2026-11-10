@@ -4,6 +4,7 @@ import { canonicalJson } from './canonical.js';
 import { object, row, constant, choice, id, text, epoch, integer, positive, boolean, digest,
   identity, currency, correlation, snapshotSchema, entitlementSchema, orderSchema, compile, type Schema } from './schemas.js';
 import { identityPartition, type Snapshot } from './validate.js';
+import { sha256HexPattern } from '../../contracts/patterns.js';
 
 const base = { ...row, environment: id, identity };
 export const leaseSchema = object({ owner: id, fence: positive, expires_at: epoch });
@@ -79,7 +80,8 @@ export function validateBillingRecord(input: unknown, environment: string): void
   if (kind === 'replay_checkpoint') {
     if (value.PK !== `ENV#${environment}#REPLAY#0` || value.SK !== 'CHECKPOINT') invalid();
     const cursor = value.cursor as Record<string, string> | undefined;
-    if (cursor && (!new RegExp(`^ENV#${environment}#IDENTITY#[a-f0-9]{64}$`).test(cursor.PK!) ||
+    const identityPrefix = `ENV#${environment}#IDENTITY#`;
+    if (cursor && (!cursor.PK!.startsWith(identityPrefix) || !sha256HexPattern.test(cursor.PK!.slice(identityPrefix.length)) ||
         !/^WORK#[A-Za-z0-9_-]+$/.test(cursor.SK!) || cursor.due_partition !== `ENV#${environment}#DUE#0` ||
         !new RegExp(`^[0-9]{12}#${cursor.SK!.slice(5)}$`).test(cursor.due_sort!))) invalid();
     return;

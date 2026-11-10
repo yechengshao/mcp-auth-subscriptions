@@ -3,11 +3,8 @@
 This increment implements the token-verification/signing/storage foundation of
 spec 002. It does **not** finish the browser OAuth/onboarding access Lambda.
 
-**Packaging decision (2026-11-10):** the target authorizer deployment is a managed
-Node.js 24.x ARM64 Lambda ZIP from a versioned S3 artifact. The authorizer template,
-release renderer and Docker smoke test documented below still describe the current
-image-based implementation; they have not yet been converted. Tasks T004/T005/T008/T021
-track that conversion. The access HTTP runtime remains image-based.
+The authorizer now targets the managed Node.js 24.x ARM64 runtime. Its release is a
+ZIP uploaded as a versioned S3 object; the access HTTP runtime remains image-based.
 
 | Implemented code | Responsibility |
 |---|---|
@@ -17,50 +14,52 @@ track that conversion. The access HTTP runtime remains image-based.
 | access/signing.ts | Exact-version Parameter Store loader, parsed private-key cache and local RS256 signing |
 | access/store.ts | Strong access/entitlement reads, access-only conditional transactions and profile race recovery |
 | infra/access/storage.yaml | Retained on-demand AccessState, selective TTL and exact item-action policy |
-| infra/access/authorizer.yaml | Prepared ARM64 authorizer/version/alias and telemetry-only role; no gateway or public invoke grant |
+| infra/access/authorizer.yaml | Managed-runtime ARM64 ZIP authorizer/version/alias and telemetry-only role; no gateway or public invoke grant |
 
 ## Local verification
 
-Run `npm ci` and `npm run check` at the repository root. The JWT library is pinned
-in the root development lock and in the independent authorizer runtime lock.
-Billing now has its own runtime manifest/lock excluding the signing dependency;
-its image still copies only billing/shared observability code.
-
-The isolated packaged check runs without source mounts or AWS credentials:
+Run `npm ci` and `npm run check` at the repository root. The authorizer package test
+builds an isolated ZIP, checks its contents and checksums, extracts it, then invokes
+the actual Lambda handler against a simulated JWKS response. It needs no AWS
+credentials or source mount. The packager verifies that the installed `jose`
+version matches the authorizer's own manifest and lock, and includes no access,
+billing or test modules.
 
 ```sh
-docker build --target validation -f authorizer/Dockerfile \
-  -t authorizer-local-validation .
+npm run package:authorizer
 ```
 
-For this managed environment, add
-`--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` for build-time npm CA trust.
-The validation image installs only the authorizer's production dependency, generates
-ephemeral test keys in memory, and exercises the actual exported Lambda handler
-with a simulated fixed JWKS HTTP response. It verifies Allow, tamper rejection,
-exact policy scope and absence of datastore dependencies. Its test script is not
-copied into the final Lambda image.
-
-This is a host-architecture Node container check. Final Lambda image/ARM64 and live
-Gateway/X-Ray behavior remain not_run; public.ecr.aws was blocked in this workspace.
-No image publication, cloud deployment or live AWS/provider request was performed.
+The ZIP and `.metadata.json` sidecar are written under `.artifacts/`. The sidecar
+records source, lockfile, build-config and package SHA-256 values; use its
+`packageSha256Base64` value when rendering the immutable Lambda version. This is
+local packaging evidence only. No artifact publication, cloud deployment or live
+AWS/provider request has run.
 
 ## Authorizer configuration for later deployment
 
-Use a digest-pinned image built for ARM64 from `authorizer/Dockerfile`; supply
-approved immutable BUILD_IMAGE/LAMBDA_IMAGE digests when publishing. Render a
-separate retained Lambda version for each final ECR artifact:
+Upload the ZIP once to the approved versioned S3 release prefix. Use its exact
+bucket, key and S3 object version plus the package hash from the sidecar to render
+a retained Lambda version:
 
 ```sh
 npm run render:authorizer -- \
-  '000000000000.dkr.ecr.us-east-1.amazonaws.com/authorizer@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  'mcp-release-artifacts' \
+  'authorizer/test/REPLACE_WITH_PACKAGE_SHA256.zip' \
+  'REPLACE_WITH_S3_OBJECT_VERSION' \
+  'REPLACE_WITH_BASE64_PACKAGE_SHA256' \
   /tmp/authorizer-release.yaml
 cfn-lint /tmp/authorizer-release.yaml
 ```
 
-Supply the prepared template's FunctionName, Environment, ImageUri/ReleaseId,
-JwksUri, AuthorizerConfig and the **authorizer** TelemetryPolicyArn from the shared
-observability stack. The function/log-group names and TracingMode must match that
+The renderer pins the function code to the supplied S3 object version and
+`CodeSha256`, and derives a release ID from those immutable artifact inputs. Supply
+a new `ReleaseId` whenever runtime configuration changes so CloudFormation
+publishes a version with the new settings. Provide the template's FunctionName,
+Environment, ArtifactBucket/ArtifactKey/ArtifactVersion, PackageSha256/ReleaseId,
+JwksUri, AuthorizerConfig and the **authorizer**
+TelemetryPolicyArn from the shared observability stack. The CloudFormation
+deployment identity needs read access to that artifact; the Lambda execution role
+does not. The function/log-group names and TracingMode must match the telemetry
 stack. Do not substitute a storage/signing/billing policy. No Function URL exists.
 Gateway-owned invoke permission, REQUEST identity source, TTL 0, AUTHORIZER key
 source and paid REST methods are still T007 work, not deployed by this template.

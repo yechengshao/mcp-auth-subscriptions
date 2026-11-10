@@ -2,11 +2,12 @@ import { object, row, constant, choice, id, text, epoch, integer, positive, bool
 import { sessionSchema, transactionSchema, profileSchema, refreshSchema } from './schemas.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { canonicalJson } from '../../contracts/canonical.js';
+import { identifierPattern, sha256HexPattern, s256ChallengePattern, usageIdentifierKeyPattern } from '../../contracts/patterns.js';
 
 const base = { ...row, environment: id };
 const scopes = { type: 'array', uniqueItems: true, items: text };
-const challenge = { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' };
-const keyValue = { type: 'string', pattern: '^[A-Za-z0-9]{20,128}$' };
+const challenge = { type: 'string', pattern: s256ChallengePattern.source };
+const keyValue = { type: 'string', pattern: usageIdentifierKeyPattern.source };
 const mutation = object({
   generation: integer, desired_entitlement_revision: integer,
   status: choice('idle', 'reserved', 'dispatching', 'acknowledged', 'uncertain', 'repair_required'),
@@ -53,7 +54,7 @@ export function validateAccessRecord(input: unknown, environment: string): void 
   switch (kind) {
     case 'transaction':
       if (!(value.PK as string).startsWith(`ENV#${environment}#TX#`) ||
-          !/^[A-Za-z0-9_-]{1,128}$/.test((value.PK as string).slice(`ENV#${environment}#TX#`.length))) invalid();
+          !identifierPattern.test((value.PK as string).slice(`ENV#${environment}#TX#`.length))) invalid();
       pk = value.PK as string; break;
     case 'identity_profile': {
       const owner = value.identity as { issuer: string; subject: string };
@@ -79,7 +80,7 @@ export function validateAccessRecord(input: unknown, environment: string): void 
       if (!namespace) invalid();
       const prefix = `ENV#${environment}#${namespace}#`;
       pk = value.PK as string;
-      if (!pk.startsWith(prefix) || !/^[a-f0-9]{64}$/.test(pk.slice(prefix.length))) invalid();
+      if (!pk.startsWith(prefix) || !sha256HexPattern.test(pk.slice(prefix.length))) invalid();
     }
   }
   if (value.PK !== pk) invalid();

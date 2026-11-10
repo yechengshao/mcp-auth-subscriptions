@@ -15,9 +15,24 @@
       "Type": "String",
       "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,63}"
     },
-    "ImageUri": {
+    "ArtifactBucket": {
       "Type": "String",
-      "AllowedPattern": "[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9_./-]+@sha256:[a-f0-9]{64}"
+      "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+    },
+    "ArtifactKey": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "ArtifactVersion": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "PackageSha256": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9+/]{43}=$",
+      "Description": "Base64 SHA-256 of the ZIP package, used to pin the published Lambda version."
     },
     "ReleaseId": {
       "Type": "String",
@@ -74,10 +89,17 @@
         "FunctionName": {
           "Ref": "FunctionName"
         },
-        "PackageType": "Image",
+        "Runtime": "nodejs24.x",
+        "Handler": "authorizer/handler.handler",
         "Code": {
-          "ImageUri": {
-            "Ref": "ImageUri"
+          "S3Bucket": {
+            "Ref": "ArtifactBucket"
+          },
+          "S3Key": {
+            "Ref": "ArtifactKey"
+          },
+          "S3ObjectVersion": {
+            "Ref": "ArtifactVersion"
           }
         },
         "Role": {
@@ -126,6 +148,9 @@
         },
         "Description": {
           "Ref": "ReleaseId"
+        },
+        "CodeSha256": {
+          "Ref": "PackageSha256"
         }
       }
     },

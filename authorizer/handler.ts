@@ -5,6 +5,7 @@ import { header } from '../observability/context.js';
 import { withAuthorizerTelemetry, type HttpEvent } from '../observability/adapters.js';
 import { Telemetry } from '../observability/telemetry.js';
 import { configFromEnvironment } from '../observability/config.js';
+import { awsAccountIdPattern, identifierPattern } from '../contracts/patterns.js';
 export interface AuthorizerConfig extends TokenTrust {
   region: string; accountId: string; apiId: string; stage: string;
   routes: Array<{ method: string; path: string; scope: string }>;
@@ -14,8 +15,8 @@ export function validateAuthorizerConfig(input: AuthorizerConfig) {
   const fields = ['issuer','resource','clientIds','clockSkewSeconds','region','accountId','apiId','stage','routes'];
   if (!input || typeof input !== 'object' || Object.keys(input).some(key => !fields.includes(key))) throw new Error('invalid_authorizer_configuration');
   validateTrust(input);
-  if (!/^[a-z]{2}(?:-[a-z0-9]+)+-\d$/.test(input.region) || !/^\d{12}$/.test(input.accountId) ||
-      !/^[a-z0-9]{1,32}$/.test(input.apiId) || !/^[A-Za-z0-9_-]{1,128}$/.test(input.stage) || !Array.isArray(input.routes) || !input.routes.length || input.routes.length > 32) throw new Error('invalid_authorizer_configuration');
+  if (!/^[a-z]{2}(?:-[a-z0-9]+)+-\d$/.test(input.region) || !awsAccountIdPattern.test(input.accountId) ||
+      !/^[a-z0-9]{1,32}$/.test(input.apiId) || !identifierPattern.test(input.stage) || !Array.isArray(input.routes) || !input.routes.length || input.routes.length > 32) throw new Error('invalid_authorizer_configuration');
   const seen = new Set<string>();
   for (const route of input.routes) {
     if (!route || typeof route !== 'object' || Object.keys(route).some(key => !['method','path','scope'].includes(key))) throw new Error('invalid_authorizer_configuration');

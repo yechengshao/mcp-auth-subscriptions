@@ -1,6 +1,6 @@
 # Quickstart: Planned Access Feature
 
-**Status**: Partial local implementation; full access workflow, managed-runtime authorizer ZIP, infrastructure and publication workflows remain pending. Current instruction is local-only: do not provision AWS, publish artifacts, register webhooks or charge Stripe.
+**Status**: Partial local implementation; authorizer ZIP packaging and its Lambda template are verified locally. OAuth/access infrastructure, artifact publication, gateway integration and live AWS acceptance remain pending. Current instruction is local-only: do not provision AWS, publish artifacts, register webhooks or charge Stripe.
 
 Read the [endpoint inventory](contracts/endpoints.md), [client onboarding](contracts/client-onboarding.md), [authorization](contracts/authorization.md), [REST gateway](contracts/rest-gateway.md) and [billing onboarding](../003-billing-subscriptions/contracts/checkout-onboarding.md). Implement/validate spec 003's existing storage/catalog/eligibility/internal-operation contracts before dependent access adapters. [Tasks](tasks.md) contain the pending implementation graph.
 

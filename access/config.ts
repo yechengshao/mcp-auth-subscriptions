@@ -1,4 +1,5 @@
 import { validateHttps, opaqueId, parseScopes } from '../security/service-token.js';
+import { registeredClientIdPattern, s256ChallengePattern } from '../contracts/patterns.js';
 
 export interface RegisteredClient { client_id: string; redirect_uris: string[]; scopes: string[] }
 export interface CognitoConfiguration { issuer: string; domain: string; clientId: string; callbackUri: string; scopes: string[] }
@@ -50,7 +51,7 @@ export function validateAccessConfiguration(input: unknown): AccessConfiguration
   const seen = new Set<string>();
   for (const raw of input.clients) {
     fields(raw, ['client_id','redirect_uris','scopes']);
-    if (typeof raw.client_id !== 'string' || !/^[\x21-\x7e]{1,256}$/.test(raw.client_id) || seen.has(raw.client_id) ||
+    if (typeof raw.client_id !== 'string' || !registeredClientIdPattern.test(raw.client_id) || seen.has(raw.client_id) ||
         !Array.isArray(raw.redirect_uris) || !raw.redirect_uris.length || raw.redirect_uris.length > 10 ||
         raw.redirect_uris.some(uri => typeof uri !== 'string') || new Set(raw.redirect_uris).size !== raw.redirect_uris.length ||
         !validScopes(raw.scopes)) throw new Error('invalid_access_configuration');
@@ -83,7 +84,7 @@ export function authorizeParameters(config: AccessConfiguration, input: unknown)
   const value = stringParameters(input, ['response_type','client_id','redirect_uri','resource','scope','state','code_challenge','code_challenge_method']);
   const client = config.clients.find(client => client.client_id === value.client_id);
   if (!client || value.response_type !== 'code' || !client.redirect_uris.includes(value.redirect_uri!) || value.resource !== config.resource ||
-      !value.state || value.state.length > 2048 || value.code_challenge_method !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(value.code_challenge ?? '') ||
+      !value.state || value.state.length > 2048 || value.code_challenge_method !== 'S256' || !s256ChallengePattern.test(value.code_challenge ?? '') ||
       Buffer.from(value.code_challenge!, 'base64url').toString('base64url') !== value.code_challenge) throw new Error('invalid_request');
   let scopes: string[];
   try { scopes = parseScopes(value.scope); } catch { throw new Error('invalid_request'); }

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { correlationIdPattern } from '../contracts/patterns.js';
 
 export interface TraceContext { traceId: string; parentId: string; sampled: boolean }
-export const correlationPattern = /^[A-Za-z0-9_-]{1,64}$/;
+export const correlationPattern = correlationIdPattern;
 export function correlationId(input: unknown): string {
   return typeof input === 'string' && correlationPattern.test(input) ? input : randomUUID();
 }

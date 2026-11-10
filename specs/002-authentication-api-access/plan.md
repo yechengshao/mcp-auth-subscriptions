@@ -1,6 +1,6 @@
 # Plan 002: Authentication and API Access
 
-**Updated**: 2026-11-10 · **Status**: Planned; 23 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-10 · **Status**: Planned; 22 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 

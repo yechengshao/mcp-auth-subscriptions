@@ -1,4 +1,5 @@
 import { object, row, constant, choice, id, text, epoch, integer, digest, identity, boolean, correlation, compile, type Schema } from '../../contracts/schema.js';
+import { s256ChallengePattern } from '../../contracts/patterns.js';
 
 const purpose = choice('onboarding', 'management');
 const verified = { identity, subscriber_id: id };
@@ -19,7 +20,7 @@ const txCommon = {
 const downstream = object({
   client_id: text, redirect_uri: { ...text, pattern: '^https://' }, resource: { ...text, pattern: '^https://' },
   scopes: { type: 'array', uniqueItems: true, items: text },
-  code_challenge: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' },
+  code_challenge: { type: 'string', pattern: s256ChallengePattern.source },
   code_challenge_method: constant('S256'), state: text, issuer: { ...text, pattern: '^https://' }, client_config_version: id,
 });
 const txOptional = ['correlation_id', 'order_id', 'grant_id', 'attempts', 'next_attempt_at', 'error_category'];

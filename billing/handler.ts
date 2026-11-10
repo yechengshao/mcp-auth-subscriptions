@@ -9,6 +9,7 @@ import { validateBudgets } from './contracts/configuration.js';
 import { Telemetry, withBillingHttpTelemetry, withSqsRecordTelemetry, withReplayTelemetry } from './observability.js';
 import { configFromEnvironment } from '../observability/config.js';
 import { header } from '../observability/context.js';
+import { awsAccountIdPattern } from '../contracts/patterns.js';
 import type { InvocationContext, HttpEvent } from '../observability/adapters.js';
 export interface HandlerConfig {
   environment: string; scope: { environment: string; aws_account_id: string; region: string; stripe_account: string };
@@ -28,7 +29,7 @@ export function runtimeConfig(source: NodeJS.ProcessEnv): HandlerConfig {
   if (!['true','false'].includes(required(source, 'STRIPE_LIVE'))) throw new Error('invalid_stripe_mode');
   const account = required(source, 'AWS_ACCOUNT_ID'), region = required(source, 'AWS_REGION');
   const queueArn = required(source, 'BILLING_QUEUE_ARN'), replayRuleArn = required(source, 'BILLING_REPLAY_RULE_ARN');
-  if (!/^\d{12}$/.test(account) || !new RegExp(`^arn:aws:sqs:${region}:${account}:[A-Za-z0-9_-]+$`).test(queueArn) ||
+  if (!awsAccountIdPattern.test(account) || !new RegExp(`^arn:aws:sqs:${region}:${account}:[A-Za-z0-9_-]+$`).test(queueArn) ||
       !new RegExp(`^arn:aws:events:${region}:${account}:rule/[A-Za-z0-9_.-]+$`).test(replayRuleArn)) throw new Error('billing_resource_scope_mismatch');
   const queueUrl = required(source, 'BILLING_QUEUE_URL');
   const expectedQueueUrl = `https://sqs.${region}.amazonaws.com/${account}/${queueArn.split(':')[5]}`;

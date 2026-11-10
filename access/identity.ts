@@ -4,6 +4,7 @@ import { validateCognitoConfiguration, type CognitoConfiguration } from './confi
 import { IdentityProviderFailure, type IdentityProvider } from './ports.js';
 import type { Telemetry } from '../observability/telemetry.js';
 import { parseScopes } from '../security/service-token.js';
+import { sha256HexPattern } from '../contracts/patterns.js';
 export class CognitoFailure extends IdentityProviderFailure {}
 export interface VerifiedIdentity { issuer: string; subject: string }
 async function readBoundedJson(response: Response, limit: number): Promise<Record<string, unknown>> {
@@ -59,7 +60,7 @@ export class CognitoIdentity implements IdentityProvider {
     return url.toString();
   }
   async exchange(code: string, verifier: string, nonceDigest: string): Promise<VerifiedIdentity> {
-    if (typeof code !== 'string' || !code.length || code.length > 4096 || !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier) || !/^[a-f0-9]{64}$/.test(nonceDigest)) throw new CognitoFailure(400);
+    if (typeof code !== 'string' || !code.length || code.length > 4096 || !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier) || !sha256HexPattern.test(nonceDigest)) throw new CognitoFailure(400);
     let tokens: Record<string, unknown>;
     try {
       tokens = await this.telemetry.dependency('cognito.request', async () => {

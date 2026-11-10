@@ -5,6 +5,7 @@ import { validateAccessRecord } from './contracts/storage.js';
 import { compile } from '../contracts/schema.js';
 import { entitlementSchema } from '../contracts/entitlement.js';
 import { identityPartition } from '../contracts/identity.js';
+import { identifierPattern, sha256HexPattern } from '../contracts/patterns.js';
 import type { Telemetry } from '../observability/telemetry.js';
 import type { AccessRow, StateCheck, StateKey, StateWrite } from './model.js';
 import type { BrowserSessionStore, PendingLogin, VerifiedLogin } from './ports.js';
@@ -16,7 +17,7 @@ export class AccessStore implements BrowserSessionStore {
     readonly telemetry: Telemetry, private readonly db = DynamoDBDocumentClient.from(new DynamoDBClient({
       maxAttempts: 1, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 },
     }))) {
-    if (!/^[A-Za-z0-9_-]{1,128}$/.test(environment) || table === entitlementTable) throw new Error('invalid_access_storage_configuration');
+    if (!identifierPattern.test(environment) || table === entitlementTable) throw new Error('invalid_access_storage_configuration');
   }
   private key(key: StateKey) {
     if (typeof key.PK !== 'string' || !key.PK.startsWith(`ENV#${this.environment}#`) || typeof key.SK !== 'string' || !key.SK) throw new Error('invalid_access_key');
@@ -99,7 +100,9 @@ export class AccessStore implements BrowserSessionStore {
     });
     for (const check of checks) {
       this.key(check.key);
-      if (check.projection && (check.key.SK !== 'ENTITLEMENT' || !new RegExp(`^ENV#${this.environment}#IDENTITY#[a-f0-9]{64}$`).test(check.key.PK))) throw new Error('invalid_entitlement_check');
+      const identityPrefix = `ENV#${this.environment}#IDENTITY#`;
+      if (check.projection && (check.key.SK !== 'ENTITLEMENT' || !check.key.PK.startsWith(identityPrefix) ||
+          !sha256HexPattern.test(check.key.PK.slice(identityPrefix.length)))) throw new Error('invalid_entitlement_check');
       items.push({ ConditionCheck: { TableName: check.projection ? this.entitlementTable : this.table, Key: check.key,
         ConditionExpression: check.expectedRevision === undefined ? 'attribute_not_exists(PK)' : '#revision = :revision',
         ...(check.expectedRevision === undefined ? {} : { ExpressionAttributeNames: { '#revision': 'revision' }, ExpressionAttributeValues: { ':revision': check.expectedRevision } }) } });

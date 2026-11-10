@@ -1,6 +1,7 @@
 import { assertSessionShape, assertTransactionShape, assertProfileShape, assertRefreshShape } from './schemas.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { validateEntitlement } from '../../contracts/entitlement.js';
+import { sha256HexPattern } from '../../contracts/patterns.js';
 
 interface Session {
   PK: string; environment: string; purpose: 'onboarding' | 'management'; tx_id: string;
@@ -24,7 +25,7 @@ export function validateSessionContext(input: unknown, txInput: unknown, environ
   deadline(session, now); deadline(tx, now);
   const prefix = `ENV#${environment}#SESSION#`;
   if (session.revoked === true || session.environment !== environment || tx.environment !== environment ||
-      !session.PK.startsWith(prefix) || !/^[a-f0-9]{64}$/.test(session.PK.slice(prefix.length)) ||
+      !session.PK.startsWith(prefix) || !sha256HexPattern.test(session.PK.slice(prefix.length)) ||
       tx.PK !== `ENV#${environment}#TX#${session.tx_id}` || session.purpose !== tx.purpose ||
       session.expires_at !== tx.expires_at ||
       (session.authentication_stage === 'pending_identity') !== (tx.phase === 'pending_identity') ||
@@ -47,7 +48,7 @@ export function validateRefreshRecord(input: unknown, environment: string, now: 
   const value = input as { PK: string; environment: string; issued_at: number; expires_at: number; family_expires_at: number; latest_access_expires_at: number; delete_after: number; status: string };
   const prefix = `ENV#${environment}#REFRESH#`;
   if (!Number.isSafeInteger(now) || value.environment !== environment || !value.PK.startsWith(prefix) ||
-      !/^[a-f0-9]{64}$/.test(value.PK.slice(prefix.length)) || value.issued_at > now || value.expires_at <= now ||
+      !sha256HexPattern.test(value.PK.slice(prefix.length)) || value.issued_at > now || value.expires_at <= now ||
       value.expires_at !== value.family_expires_at || value.status !== 'active' ||
       value.delete_after < Math.max(value.family_expires_at, value.latest_access_expires_at) + 86400) throw new Error('invalid_refresh_record');
 }

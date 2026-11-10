@@ -1,4 +1,5 @@
 /** Prepared monitoring stack; function/stage owners must attach the exported settings. No deployment. */
+import { identifierPattern } from '../../contracts/patterns.js';
 type Json = Record<string, unknown>;
 const ref = (name: string) => ({ Ref: name });
 const sub = (value: string) => ({ 'Fn::Sub': value });
@@ -19,7 +20,7 @@ export function observabilityTemplate(): Json {
     NotificationTopicArn: { Type: 'String', AllowedPattern: '^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+$' },
     RestApiId: { Type: 'String', AllowedPattern: '^[a-z0-9]+$' },
     RestApiName: { Type: 'String', AllowedPattern: '^[A-Za-z0-9_. -]{1,128}$' },
-    StageName: { Type: 'String', AllowedPattern: '^[A-Za-z0-9_-]{1,128}$' },
+    StageName: { Type: 'String', AllowedPattern: identifierPattern.source },
   };
   for (const name of ['AccessFunctionName','AuthorizerFunctionName','BillingFunctionName','BillingQueueName','BillingDlqName','BillingPipeName',
     'AccessTableName','BillingTableName','EntitlementTableName']) parameters[name] = { Type: 'String', AllowedPattern: '^[A-Za-z0-9_.-]{1,128}$' };
