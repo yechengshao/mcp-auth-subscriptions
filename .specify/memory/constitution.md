@@ -11,6 +11,7 @@
   to it instead of repeating it.
 - Each task MUST use one actionable sentence, adding paths and dependencies only
   when necessary.
+- `tasks.md` MUST hold only task lines and their checkbox state; progress evidence and verification logs belong in `docs/` or a feature status file, and specs state requirements only.
 - Documents MUST describe current decisions and omit generic advice,
   conversational history, and redundant summaries; retain history only when needed
   for compatibility or migration.
@@ -81,5 +82,6 @@ patch version for clarifications. Reviews MUST check compliance with this consti
   holding requests open, losing confirmed payment or repeating side effects; keep
   autonomous payment recovery distinct from request-driven access activation.
 - **1.2.0 — 2026-11-10**: Added Hexagonal Architecture. Rationale: separate Lambda/HTTP transport, workflow decisions and AWS/provider integrations so each boundary remains replaceable and reviewable without multiplying functions.
+- **1.2.1 — 2026-11-10**: Clarified that `tasks.md` holds only task lines and checkbox state, with progress evidence in `docs/` or a status file. Rationale: task files had accumulated dated evidence logs, which made counts and status drift out of sync.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-10
+**Version**: 1.2.1 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-10
