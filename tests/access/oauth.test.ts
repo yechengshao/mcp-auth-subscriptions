@@ -85,27 +85,27 @@ class MemorySessions implements BrowserSessionStore {
   }
 }
 
-async function fixture(extension?: OAuthExtension) {
+async function fixture(extension?: OAuthExtension, accessConfig = config) {
   const publicIdentity = await identityFixture();
   const store = new MemorySessions();
   const exchanges: Array<{ code: string; verifier: string; nonceDigest: string }> = [];
   const telemetryLines: string[] = [];
   const cognito: IdentityProvider = {
     authorize(state, nonce, challenge) {
-      const url = new URL('/oauth2/authorize', config.cognito.domain);
+      const url = new URL('/oauth2/authorize', accessConfig.cognito.domain);
       url.search = new URLSearchParams({ state, nonce, code_challenge: challenge, code_challenge_method: 'S256' }).toString();
       return url.toString();
     },
     async exchange(code, verifier, nonceDigest) {
       exchanges.push({ code, verifier, nonceDigest });
-      return { issuer: config.cognito.issuer, subject: 'cognito_subject_fixture' };
+      return { issuer: accessConfig.cognito.issuer, subject: 'cognito_subject_fixture' };
     },
   };
   const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'oauth-fixture' }, {
     sink: line => telemetryLines.push(line), now: () => now * 1000,
   });
-  const sessions = new BrowserSessions(config, store, cognito, telemetry, () => now);
-  const handler = await composeAccessHandler(config, sessions, publicIdentity.jwks, telemetry, extension);
+  const sessions = new BrowserSessions(accessConfig, store, cognito, telemetry, () => now);
+  const handler = await composeAccessHandler(accessConfig, sessions, publicIdentity.jwks, telemetry, extension);
   return { handler, store, exchanges, publicIdentity, telemetryLines };
 }
 
@@ -229,6 +229,37 @@ test('OAuth callback cannot use another browser session state and discovery stay
     assert.equal(jwks.statusCode, 200);
     assert.deepEqual(JSON.parse(jwks.body!), value.publicIdentity.jwks);
   }
+});
+
+test('well-known aliases resolve only for the configured stage issuer and exact MCP resource path', async () => {
+  const stageConfig = {
+    ...config,
+    issuer: 'https://access.example.invalid/test',
+    resource: 'https://api.example.invalid/test/mcp',
+    cognito: { ...config.cognito, callbackUri: 'https://access.example.invalid/test/oauth/cognito/callback' },
+  };
+  const noop: import('express').RequestHandler = (_request, response) => { response.status(204).end(); };
+  const extension: OAuthExtension = {
+    token: noop, revoke: noop, resume: noop, checkout: noop, status: noop, orderStatus: noop, billingReturn: noop,
+    plans: noop, managementPage: noop, manageSubscription: noop, managementStatus: noop, billingPortal: noop,
+    onboarding: async (_context, _request, response) => { response.status(204).end(); },
+  };
+  const value = await fixture(extension, stageConfig);
+  const authorizationMetadata = await invoke(value.handler, 'GET', '/.well-known/oauth-authorization-server/test');
+  const oidcMetadata = await invoke(value.handler, 'GET', '/.well-known/openid-configuration/test');
+  const resourceMetadata = await invoke(value.handler, 'GET', '/.well-known/oauth-protected-resource/test/mcp');
+  const wrongIssuer = await invoke(value.handler, 'GET', '/.well-known/openid-configuration/other');
+  const wrongResource = await invoke(value.handler, 'GET', '/.well-known/oauth-protected-resource/test/other');
+  assert.equal(authorizationMetadata.statusCode, 200);
+  assert.deepEqual(JSON.parse(authorizationMetadata.body!), JSON.parse(oidcMetadata.body!));
+  assert.equal(JSON.parse(authorizationMetadata.body!).issuer, stageConfig.issuer);
+  assert.equal(JSON.parse(authorizationMetadata.body!).authorization_endpoint, `${stageConfig.issuer}/authorize`);
+  assert.equal(resourceMetadata.statusCode, 200);
+  assert.deepEqual(JSON.parse(resourceMetadata.body!), {
+    resource: stageConfig.resource, authorization_servers: [stageConfig.issuer], scopes_supported: ['openid', 'mcp:invoke'],
+  });
+  assert.equal(wrongIssuer.statusCode, 404);
+  assert.equal(wrongResource.statusCode, 404);
 });
 
 test('composed access app wires onboarding status, Checkout, browser return and resume adapters', async () => {
