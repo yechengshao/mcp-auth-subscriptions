@@ -72,7 +72,7 @@ function browser(tx: AccessRow): BrowserContext {
 }
 function seed(store: MemoryOnboardingStore, row: AccessRow) { store.rows.set(keyOf(row as StateKey), structuredClone(row)); }
 
-test('payment recovery, activation, OAuth code exchange and refresh form one idempotent client journey', async () => {
+test('payment recovery, activation, OAuth, authorization and bounded subscription revocation form one journey', async () => {
   const store = new MemoryOnboardingStore(), billing = new BillingFake();
   const tx = transaction('payment_pending');
   seed(store, tx);
@@ -110,6 +110,11 @@ test('payment recovery, activation, OAuth code exchange and refresh form one ide
     issuer: 'https://access.example.invalid', resource: 'https://api.example.invalid/test/mcp',
     clientIds: ['chatgpt_fixture'], clockSkewSeconds: 5, accessTtlSeconds: 3600, restApiId: usage_mapping.rest_api_id, stage: usage_mapping.stage,
   }, telemetry, () => now);
+  await assert.rejects(tokens.exchangeCode({ code, clientId: 'chatgpt_fixture',
+    redirectUri: 'https://chatgpt.example.invalid/callback', codeVerifier: `${verifier}wrong`,
+    resource: 'https://api.example.invalid/test/mcp' }), /invalid_grant/);
+  assert.equal((await store.get(transactionKey(environment, 'tx_journey_fixture')))?.phase, 'code_issued',
+    'a failed PKCE check must leave the valid code available for a safe retry');
   const first = await tokens.exchangeCode({ code, clientId: 'chatgpt_fixture',
     redirectUri: 'https://chatgpt.example.invalid/callback', codeVerifier: verifier,
     resource: 'https://api.example.invalid/test/mcp' });
@@ -142,4 +147,13 @@ test('payment recovery, activation, OAuth code exchange and refresh form one ide
   assert.equal(refreshed.expires_in, 3600);
   assert.equal((await store.get(bindingKey))?.api_key_id, 'key_fixture', 'refresh reuses the established subscriber key');
   assert.equal(provisionCount, 2, 'each bounded status/resume action may idempotently verify provisioning');
+
+  store.paid = { ...structuredClone(entitlement), allowed: false, revision: entitlement.revision + 1 };
+  await assert.rejects(tokens.refresh({ refreshToken: refreshed.refresh_token, clientId: 'chatgpt_fixture',
+    resource: 'https://api.example.invalid/test/mcp' }), /invalid_grant/);
+  const family = await store.get({ PK: `ENV#${environment}#GRANT#grant_journey_fixture`, SK: 'FAMILY' });
+  assert.equal(family?.status, 'revoked', 'new refresh is denied and the refresh family is revoked');
+  assert.equal(await callProtectedMcp(refreshed.access_token), 'K'.repeat(40),
+    'the stateless authorizer accepts the already-issued access token only until its signed expiry');
+  assert.equal(mcpCalls, 2);
 });
