@@ -7,12 +7,10 @@ import { validateBillingRecord } from '../contracts/storage.js';
 import { identityPartition, validateQueue, type Scope } from '../contracts/validate.js';
 import { propagateSqs } from '../observability.js';
 import type { Telemetry } from '../../observability/telemetry.js';
-export type Row = Record<string, any>;
-export interface Key { PK: string; SK: string }
-export interface DueCursor extends Key { due_partition: string; due_sort: string }
-export interface Write { row: Row; expectedRevision?: number }
+import { BillingConflict, type BillingRepository, type BillingQueuePort, type DueCursor, type Key, type Row, type Write } from '../ports.js';
+export type { DueCursor, Key, Row, Write } from '../ports.js';
 export const conditionalConflict = (error: unknown) => error instanceof Error && ['ConditionalCheckFailedException','TransactionCanceledException'].includes(error.name);
-export class BillingStore {
+export class BillingStore implements BillingRepository {
   constructor(readonly environment: string, readonly stateTable: string, readonly entitlementTable: string,
     readonly telemetry: Telemetry,
     private readonly db = DynamoDBDocumentClient.from(new DynamoDBClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), { marshallOptions: { removeUndefinedValues: false } })) {}
@@ -37,9 +35,14 @@ export class BillingStore {
     for (const guard of guards) items.push({ ConditionCheck: { TableName: guard.projection ? this.entitlementTable : this.stateTable, Key: guard.key,
       ConditionExpression: guard.revision === undefined ? 'attribute_not_exists(PK)' : '#revision = :revision',
       ...(guard.revision === undefined ? {} : { ExpressionAttributeNames: { '#revision': 'revision' }, ExpressionAttributeValues: { ':revision': guard.revision } }) } });
-    await this.telemetry.dependency('dynamodb.transact', () => this.db.send(new TransactWriteCommand({
-      TransactItems: items, ...(token ? { ClientRequestToken: token } : {}),
-    })));
+    try {
+      await this.telemetry.dependency('dynamodb.transact', () => this.db.send(new TransactWriteCommand({
+        TransactItems: items, ...(token ? { ClientRequestToken: token } : {}),
+      })));
+    } catch (error) {
+      if (conditionalConflict(error)) throw new BillingConflict();
+      throw error;
+    }
   }
   async due(shard: number, now: number, limit: number, start?: DueCursor) {
     if (!Number.isInteger(shard) || shard < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('invalid_query_budget');
@@ -68,7 +71,7 @@ export function parameterSecret(name: string, telemetry: Telemetry, ssm = new SS
     cached = response.Parameter.Value; until = now() + 60000; return cached;
   };
 }
-export class BillingQueue {
+export class BillingQueue implements BillingQueuePort {
   constructor(private readonly url: string, private readonly environment: string, private readonly telemetry: Telemetry,
     private readonly sqs = new SQSClient({ maxAttempts: 1, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } })) {}
   async send(message: unknown, delay: number) {

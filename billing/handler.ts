@@ -64,26 +64,8 @@ export function composeBillingHandler(config: HandlerConfig, service: BillingSer
       trusted = verifyWebhook(raw, header(event.headers, 'stripe-signature', event.multiValueHeaders) ?? '', secret,
         config.live, config.scope.stripe_account, Math.floor(Date.now() / 1000));
     } catch { return { statusCode: 400, body: '{"error":"invalid_webhook"}' }; }
-    if (['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.expired'].includes(trusted.type)) {
-      const id = trusted.data?.object?.id;
-      if (typeof id !== 'string' || !/^cs_[A-Za-z0-9_]+$/.test(id)) return { statusCode: 400 };
-      const owner = await service.store.get({ PK: `ENV#${config.environment}#STRIPE#${config.scope.stripe_account}#checkout_session#${id}`, SK: 'OWNER' });
-      if (!owner) throw new Error('checkout_owner_pending');
-      const eventKey = { PK: `ENV#${config.environment}#EVENT#${config.scope.stripe_account}#${trusted.id}`, SK: 'EVENT' };
-      const existing = await service.store.get(eventKey);
-      if (existing && existing.payload_digest !== digest) throw new Error('event_payload_conflict');
-      if (existing?.state === 'committed') return { statusCode: 200, body: '{"received":true}' };
-      const eventRow = { ...eventKey, schema_version: 1, entity_type: 'event', revision: (existing?.revision ?? 0) + 1,
-        environment: config.environment, identity: owner.identity, stripe_account: config.scope.stripe_account, event_id: trusted.id,
-        payload_digest: digest, state: 'pending', observed_at: Math.floor(Date.now() / 1000) };
-      try {
-        await service.reconcileKey(service.store.key(owner.identity, `ORDER#${owner.order_id}`), undefined,
-          { row: eventRow, ...(existing ? { expectedRevision: existing.revision } : {}) });
-      } catch (error) { telemetry.metric('BillingWebhookCommitFailureCount', 1); throw error; }
-    }
-    if (typeof trusted.type === 'string' && (trusted.type.startsWith('invoice.') || trusted.type.startsWith('customer.subscription.'))) {
-      telemetry.log('error', 'billing.webhook', 'unexpected_error'); // Wrong recurring configuration: never extend a manual term.
-    }
+    const outcome = await service.processStripeEvent(trusted, digest);
+    if (outcome === 'invalid') return { statusCode: 400 };
     return { statusCode: 200, body: '{"received":true}' };
   });
   const http = createBillingHttpAdapter(webhook);
@@ -125,7 +107,8 @@ export async function handler(event: unknown, context: InvocationContext) {
       const stripe = new StripeAdapter(parameterSecret(config.stripeKeyParameter, telemetry), {
         account: config.scope.stripe_account, live: config.live, successUrl: config.successUrl, cancelUrl: config.cancelUrl, maxPages: config.budgets.max_pages,
       }, telemetry);
-      const service = new BillingService(store, stripe, new BillingQueue(config.queueUrl, config.environment, telemetry), () => catalog.read(), config.scope.stripe_account, config.supportEmail, config.budgets);
+      const service = new BillingService(store, stripe, new BillingQueue(config.queueUrl, config.environment, telemetry), () => catalog.read(),
+        config.scope.stripe_account, config.supportEmail, config.budgets, telemetry);
       initialized = composeBillingHandler(config, service, telemetry, () => catalog.read(), parameterSecret(config.webhookSecretParameter, telemetry));
     }
     return await initialized(event, context);

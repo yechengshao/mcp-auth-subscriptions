@@ -78,7 +78,7 @@ function harness() {
   const queue = new BillingQueue('https://sqs.us-east-1.amazonaws.com/000000000000/test', 'test', telemetry, sqs as any);
   const readCatalog = async () => ({ ssm_version: 1, catalog: validateCatalog(offers, scope) });
   const limits = { ...budgets };
-  const service = new BillingService(store, stripe, queue, readCatalog, scope.stripe_account, 'support@example.invalid', limits, () => clock);
+  const service = new BillingService(store, stripe, queue, readCatalog, scope.stripe_account, 'support@example.invalid', limits, telemetry, () => clock);
   const request: BillingRequest = { ...operation, schema_version: 1, operation: 'createCheckout', continuation_ref: 'tx_fixture',
     input: { plan_id: 'basic', duration_option_id: 'short', catalog_version: 'fixture_v1', intent: 'purchase' } };
   return { service, store, rows, commands, logs, stripe, telemetry, readCatalog, request, offers, limits, sessions: () => sessionOrders.size,

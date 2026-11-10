@@ -44,6 +44,14 @@
   payment reconciliation, but their necessity and recovery guarantees MUST be explicit.
   Retryability MUST NOT bypass current eligibility, ownership, CSRF or expiry checks.
 
+### Hexagonal Architecture
+
+- Lambda entrypoints MUST compose dependencies and adapt invocation data; they MUST NOT contain workflow decisions.
+- HTTP routes and native-event handlers MUST validate their transport, call application use cases and map results to protocol responses.
+- Application and domain logic MUST depend on local ports, not Express or cloud-provider SDKs; outbound adapters implement those ports, with dependency direction pointing inward.
+- Keep AWS integrations, provider calls and telemetry at explicit boundaries. This pattern MUST NOT create a separate Lambda for each layer or require a class for every function.
+- Validate use cases independently of live cloud services, and validate adapters at their integration boundaries.
+
 ## Documentation Scope
 
 Apply these rules to future generated or revised specifications, plans, tasks, and
@@ -72,5 +80,6 @@ patch version for clarifications. Reviews MUST check compliance with this consti
   compliance review. Rationale: users must be able to retry or reconnect without
   holding requests open, losing confirmed payment or repeating side effects; keep
   autonomous payment recovery distinct from request-driven access activation.
+- **1.2.0 — 2026-11-10**: Added Hexagonal Architecture. Rationale: separate Lambda/HTTP transport, workflow decisions and AWS/provider integrations so each boundary remains replaceable and reviewable without multiplying functions.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-06
+**Version**: 1.2.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-10

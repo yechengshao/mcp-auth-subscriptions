@@ -1,10 +1,12 @@
 # Plan 003: Billing and Subscriptions
 
-**Updated**: 2026-11-09 · **Status**: Billing runtime/adapters locally implemented; packaging and live acceptance pending. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-10 · **Status**: Billing runtime/adapters locally implemented; packaging and live acceptance pending. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 
 Use a separate TypeScript/Node.js ARM64 Lambda package, Express REST-v1 adapter and direct native/SQS/schedule dispatcher. Match spec 002's pinned Node.js LTS, strict NodeNext, npm lockfile, typecheck/build and emitted Node test suites. Stripe SDK and billing state stay outside access/MCP; independent runtime manifests/locks pin component dependencies, while the final image copies only billing/shared modules. Export app, adapter and native dispatcher separately; only HTTP events enter Express. Mount Stripe raw-body verification before JSON parsing and preserve base64 bytes through the adapter.
+
+Use the shared Hexagonal Architecture: `billing/handler.ts` composes dependencies; HTTP, native and queue handlers are inbound adapters; `billing/service.ts` owns use cases; and `billing/adapters/aws.ts` plus `stripe.ts` implement outbound ports. Keep payment decisions independent of Express and provider SDKs. Access reaches billing only through its scoped IAM boundary.
 
 Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing owns approved catalog, own-account orders, Stripe integration, durable events, subscriptions and entitlement/outbox commits. The [physical interface](contracts/storage-operations.md) owns keys, operation envelopes, leases and recovery. The [checkout contract](contracts/checkout-onboarding.md) owns behavioral rules; spec 002's endpoint contract owns HTTP paths.
 

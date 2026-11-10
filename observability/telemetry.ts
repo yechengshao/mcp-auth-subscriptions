@@ -83,9 +83,9 @@ export class Telemetry {
       }
     });
   }
-  async dependency<T>(operation: Operation, work: () => Promise<T>): Promise<T> {
+  async dependency<T>(operation: Operation, work: () => Promise<T>, options: { expectedError?: (error: unknown) => boolean } = {}): Promise<T> {
     // Measure/log failures only; native AWS tracing owns invocation-level segments.
-    return this.observe(operation, {}, work);
+    return this.observe(operation, {}, work, options);
   }
   markServerError(operation: Operation, status: number, error?: unknown): void {
     const active = this.#storage.getStore();

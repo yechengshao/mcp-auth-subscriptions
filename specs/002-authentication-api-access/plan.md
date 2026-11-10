@@ -1,6 +1,6 @@
 # Plan 002: Authentication and API Access
 
-**Updated**: 2026-11-08 · **Status**: Planned; 25 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-10 · **Status**: Planned; 23 unchecked tasks. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 
@@ -14,9 +14,11 @@ Cognito human PKCE → billing plan/order/Stripe → committed entitlement → n
 | `infra/access/gateway.yaml` | Base REST API, then all methods/integrations/permissions, deployment/named stage, discovery/GatewayResponses and native tier plans |
 | Publication/verifiers | Independent protected OIDC/ECR component workflows; read-only cutover manifest and separate local/live access evidence |
 
-Use strict TypeScript/NodeNext, maintained OAuth/JWT libraries and AWS SDK v3. Each component owns `package.json`/`package-lock.json` and `tsconfig.json`; use `npm ci`, `npm run typecheck` (`tsc --noEmit`) and `npm run build` (`tsc`). Compile `.ts` sources/tests/scripts to JavaScript; run emitted tests with Node's test runner and package compiled handlers/runtime dependencies only. Pin TypeScript, Node/Express/Lambda types, adapter and supported Node.js LTS ARM64 Lambda image/digest; match local/CI runtimes. Lambda entrypoints target emitted `.js`. Access/authorizer/billing roles remain separate; authorizer cannot sign, provision keys or write billing. Access holds no Stripe secrets or billing-write grant.
+Use strict TypeScript/NodeNext, maintained OAuth/JWT libraries, AWS SDK v3 and pinned supported Node.js LTS/ARM64 runtimes. Each component owns its npm lock and TypeScript config; CI runs `npm ci`, typecheck, build and emitted Node tests, packaging only runtime dependencies. Access, authorizer and billing packages/roles stay isolated; authorizer validates JWTs and reads public JWKS only.
 
-Export the Express app separately from its Lambda adapter and local listener. Use form parsing for OAuth token requests; test REST-v1 stage/path handling, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and billing SQS/scheduled handlers bypass Express. Test the app over HTTP and exported handlers with Lambda events. Billing uses the same stack in its own package/function; its interfaces follow spec 003 contracts. One [access table](contracts/access-storage.md) holds progress; no required work runs in detached promises or process-local timers.
+Apply Hexagonal Architecture. `access/handler.ts` is the composition root; HTTP routes and native invocations are inbound adapters that validate transport, call use cases and map outcomes. Workflow services own transition and eligibility decisions and depend on ports in `access/ports.ts`; `AccessStore`, `CognitoIdentity`, and AWS clients implement outbound adapters. Keep Express/AWS SDK imports at boundaries and business transitions out of handlers.
+
+Export the Express app separately from the REST-v1 Lambda adapter and local listener. Exercise stage/path, forms, cookies, multivalue headers and base64 bodies through the packaged adapter. Direct authorizer and billing SQS/scheduled handlers bypass Express. One [access table](contracts/access-storage.md) holds progress; required work never runs in detached promises or process-local timers.
 
 ## Authoritative contracts
 

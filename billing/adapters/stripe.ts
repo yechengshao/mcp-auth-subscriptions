@@ -1,10 +1,11 @@
 import Stripe from 'stripe';
 import type { Snapshot } from '../contracts/validate.js';
 import type { Telemetry } from '../../observability/telemetry.js';
+import type { BillingPayments } from '../ports.js';
 export const STRIPE_API_VERSION = '2025-02-24.acacia';
 type Json = Record<string, any>;
 export interface StripeSettings { account: string; live: boolean; successUrl: string; cancelUrl: string; maxPages: number }
-export class StripeAdapter {
+export class StripeAdapter implements BillingPayments {
   private accountKey: string | undefined;
   private clientKey: string | undefined;
   private client: Stripe | undefined;

@@ -5,14 +5,12 @@ import { validateAccessRecord } from './contracts/storage.js';
 import { compile, entitlementSchema } from '../billing/contracts/schemas.js';
 import { identityPartition } from '../billing/contracts/validate.js';
 import type { Telemetry } from '../observability/telemetry.js';
-export type AccessRow = Record<string, any>;
-export interface StateKey { PK: string; SK: string }
-interface StateWrite { row: AccessRow; expectedRevision?: number }
-interface StateCheck { key: StateKey; expectedRevision?: number; projection?: boolean }
+import type { AccessRow, StateCheck, StateKey, StateWrite } from './model.js';
+import type { BrowserSessionStore, PendingLogin, VerifiedLogin } from './ports.js';
 const entitlementShape = compile(entitlementSchema);
 const conflict = (error: unknown) => error instanceof Error && ['TransactionCanceledException','ConditionalCheckFailedException'].includes(error.name);
 /** Access owns state writes; the separate billing projection is read/condition-check only. */
-export class AccessStore {
+export class AccessStore implements BrowserSessionStore {
   constructor(readonly environment: string, private readonly table: string, private readonly entitlementTable: string,
     readonly telemetry: Telemetry, private readonly db = DynamoDBDocumentClient.from(new DynamoDBClient({
       maxAttempts: 1, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 },
@@ -22,6 +20,9 @@ export class AccessStore {
   private key(key: StateKey) {
     if (typeof key.PK !== 'string' || !key.PK.startsWith(`ENV#${this.environment}#`) || typeof key.SK !== 'string' || !key.SK) throw new Error('invalid_access_key');
   }
+  private base(PK: string, SK: string, entity_type: string) {
+    return { PK, SK, entity_type, schema_version: 1, revision: 1, environment: this.environment };
+  }
   async get(key: StateKey): Promise<AccessRow | undefined> {
     this.key(key);
     const result = await this.telemetry.dependency('dynamodb.read', () => this.db.send(new GetCommand({ TableName: this.table, Key: key, ConsistentRead: true })));
@@ -30,6 +31,52 @@ export class AccessStore {
       if (result.Item.PK !== key.PK || result.Item.SK !== key.SK) throw new Error('access_record_mismatch');
     }
     return result.Item;
+  }
+  async createLogin(input: PendingLogin): Promise<void> {
+    const session = { ...this.base(`ENV#${this.environment}#SESSION#${input.sessionDigest}`, 'SESSION', 'session'),
+      purpose: input.purpose, tx_id: input.transactionId, authentication_stage: 'pending_identity',
+      csrf_digest: input.csrfDigest, created_at: input.createdAt, expires_at: input.expiresAt, delete_after: input.deleteAfter };
+    const transaction = { ...this.base(`ENV#${this.environment}#TX#${input.transactionId}`, 'STATE', 'transaction'),
+      purpose: input.purpose, phase: 'pending_identity', correlation_id: input.correlationId,
+      created_at: input.createdAt, expires_at: input.expiresAt, delete_after: input.deleteAfter,
+      ...(input.downstream ? { downstream: input.downstream } : { local_destination: '/billing' }) };
+    const attempt = { ...this.base(`ENV#${this.environment}#UPSTREAM#${input.stateDigest}`, 'ATTEMPT', 'upstream_attempt'),
+      tx_id: input.transactionId, session_digest: input.sessionDigest, nonce_digest: input.nonceDigest,
+      pkce_verifier: input.pkceVerifier, cognito_client_id: input.cognitoClientId, cognito_issuer: input.cognitoIssuer,
+      callback_uri: input.callbackUri, created_at: input.createdAt, expires_at: input.expiresAt,
+      delete_after: input.deleteAfter, consumed: false };
+    await this.commit([{ row: session }, { row: transaction }, { row: attempt }]);
+  }
+  async loadContext(sessionDigest: string): Promise<{ session: AccessRow; transaction: AccessRow } | undefined> {
+    const session = await this.get({ PK: `ENV#${this.environment}#SESSION#${sessionDigest}`, SK: 'SESSION' });
+    if (!session) return undefined;
+    const transaction = await this.get({ PK: `ENV#${this.environment}#TX#${session.tx_id}`, SK: 'STATE' });
+    return transaction ? { session, transaction } : undefined;
+  }
+  loadUpstreamAttempt(stateDigest: string) {
+    return this.get({ PK: `ENV#${this.environment}#UPSTREAM#${stateDigest}`, SK: 'ATTEMPT' });
+  }
+  async cancelLogin(input: { attempt: AccessRow; session: AccessRow; transaction: AccessRow }): Promise<void> {
+    const { pkce_verifier: _verifier, ...attempt } = input.attempt;
+    await this.commit([
+      { row: { ...attempt, consumed: true, revision: input.attempt.revision + 1 }, expectedRevision: input.attempt.revision },
+      { row: { ...input.session, revoked: true, revision: input.session.revision + 1 }, expectedRevision: input.session.revision },
+      { row: { ...input.transaction, phase: 'failed', revision: input.transaction.revision + 1 }, expectedRevision: input.transaction.revision },
+    ]);
+  }
+  async completeLogin(input: { attempt: AccessRow; session: AccessRow; transaction: AccessRow; verified: VerifiedLogin }): Promise<void> {
+    const { pkce_verifier: _verifier, ...attempt } = input.attempt;
+    const verifiedSession = { ...this.base(`ENV#${this.environment}#SESSION#${input.verified.newSessionDigest}`, 'SESSION', 'session'),
+      purpose: input.session.purpose, tx_id: input.session.tx_id, authentication_stage: 'identity_verified',
+      identity: input.verified.identity, subscriber_id: input.verified.subscriberId, csrf_digest: input.verified.csrfDigest,
+      created_at: input.session.created_at, expires_at: input.session.expires_at, delete_after: input.session.delete_after };
+    await this.commit([
+      { row: { ...attempt, consumed: true, revision: input.attempt.revision + 1 }, expectedRevision: input.attempt.revision },
+      { row: { ...input.session, revoked: true, revision: input.session.revision + 1 }, expectedRevision: input.session.revision },
+      { row: verifiedSession },
+      { row: { ...input.transaction, phase: 'identity_verified', identity: input.verified.identity,
+        subscriber_id: input.verified.subscriberId, revision: input.transaction.revision + 1 }, expectedRevision: input.transaction.revision },
+    ]);
   }
   async entitlement(identity: { issuer: string; subject: string }): Promise<AccessRow | undefined> {
     const key = { PK: identityPartition(this.environment, identity.issuer, identity.subject), SK: 'ENTITLEMENT' };
@@ -69,5 +116,17 @@ export class AccessStore {
       const winner = await this.get(key); if (!winner) throw error;
       return winner;
     }
+  }
+  async ensureSubscriber(identity: { issuer: string; subject: string }): Promise<string> {
+    return (await this.ensureProfile(identity)).subscriber_id;
+  }
+  grantFamily(grantId: string) {
+    return this.get({ PK: `ENV#${this.environment}#GRANT#${grantId}`, SK: 'FAMILY' });
+  }
+  async logout(session: AccessRow, family: AccessRow | undefined, revokedAt: number): Promise<void> {
+    const writes: StateWrite[] = [{ row: { ...session, revoked: true, revision: session.revision + 1 }, expectedRevision: session.revision }];
+    if (family?.status === 'active') writes.push({ row: { ...family, status: 'revoked', revoked_at: revokedAt,
+      revocation_reason: 'logout', revision: family.revision + 1 }, expectedRevision: family.revision });
+    await this.commit(writes);
   }
 }

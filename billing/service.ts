@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { BillingRequest } from './dispatcher.js';
-import { BillingStore, BillingQueue, conditionalConflict, type Row, type Write, type DueCursor } from './adapters/aws.js';
-import { StripeAdapter } from './adapters/stripe.js';
+import { BillingConflict, type BillingPayments, type BillingQueuePort, type BillingRepository,
+  type Row, type Write, type DueCursor } from './ports.js';
+import type { Telemetry } from '../observability/telemetry.js';
 import { purchaseSnapshot, type Snapshot } from './contracts/validate.js';
 import type { CatalogValue } from './contracts/catalog-cache.js';
 import { canonicalJson } from './contracts/canonical.js';
@@ -14,8 +15,9 @@ export interface RuntimeBudgets {
   page_size: number; max_pages: number; quote_lifetime_seconds: number; catalog_cache_seconds: number; catalog_fetch_timeout_ms: number;
 }
 export class BillingService {
-  constructor(readonly store: BillingStore, private readonly stripe: StripeAdapter, private readonly queue: BillingQueue,
-    private readonly catalog: () => Promise<CatalogValue>, private readonly stripeAccount: string, private readonly supportEmail: string, private readonly budgets: RuntimeBudgets, private readonly now = () => Math.floor(Date.now() / 1000)) {}
+  constructor(readonly store: BillingRepository, private readonly stripe: BillingPayments, private readonly queue: BillingQueuePort,
+    private readonly catalog: () => Promise<CatalogValue>, private readonly stripeAccount: string, private readonly supportEmail: string,
+    private readonly budgets: RuntimeBudgets, readonly telemetry: Telemetry, private readonly now = () => Math.floor(Date.now() / 1000)) {}
   private base(identity: BillingRequest['identity'], SK: string, entity_type: string): Row {
     return { ...this.store.key(identity, SK), entity_type, schema_version: 1, revision: 1, environment: this.store.environment, identity };
   }
@@ -30,6 +32,35 @@ export class BillingService {
   private conflict(request: BillingRequest) {
     return { schema_version: 1, correlation_id: request.correlation_id, outcome: 'conflict', error_code: 'revision_conflict',
       retryable: false, message: 'Subscription or quote changed; refresh and try again.', payload: {} };
+  }
+  /** Apply an already signature-verified Stripe event; HTTP parsing and signature checks stay at the adapter. */
+  async processStripeEvent(event: Row, payloadDigest: string): Promise<'accepted' | 'invalid'> {
+    if (['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.expired'].includes(event.type)) {
+      const sessionId = event.data?.object?.id;
+      if (typeof sessionId !== 'string' || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return 'invalid';
+      const ownerKey = { PK: `ENV#${this.store.environment}#STRIPE#${this.stripeAccount}#checkout_session#${sessionId}`, SK: 'OWNER' };
+      const owner = await this.store.get(ownerKey);
+      if (!owner) throw new Error('checkout_owner_pending');
+      const eventKey = { PK: `ENV#${this.store.environment}#EVENT#${this.stripeAccount}#${event.id}`, SK: 'EVENT' };
+      const existing = await this.store.get(eventKey);
+      if (existing && existing.payload_digest !== payloadDigest) throw new Error('event_payload_conflict');
+      if (existing?.state === 'committed') return 'accepted';
+      const observedAt = this.now();
+      const eventRow = { ...eventKey, schema_version: 1, entity_type: 'event', revision: (existing?.revision ?? 0) + 1,
+        environment: this.store.environment, identity: owner.identity, stripe_account: this.stripeAccount,
+        event_id: event.id, payload_digest: payloadDigest, state: 'pending', observed_at: observedAt };
+      try {
+        await this.reconcileKey(this.store.key(owner.identity, `ORDER#${owner.order_id}`), undefined,
+          { row: eventRow, ...(existing ? { expectedRevision: existing.revision } : {}) });
+      } catch (error) {
+        this.telemetry.metric('BillingWebhookCommitFailureCount', 1);
+        throw error;
+      }
+    }
+    if (typeof event.type === 'string' && (event.type.startsWith('invoice.') || event.type.startsWith('customer.subscription.'))) {
+      this.telemetry.log('error', 'billing.webhook', 'unexpected_error'); // Recurring Stripe configuration must never extend a manual term.
+    }
+    return 'accepted';
   }
   async owns(request: BillingRequest) {
     const { order_id, subscription_id, quote_id } = request.input;
@@ -108,7 +139,7 @@ export class BillingService {
         PK: `ENV#${this.store.environment}#STRIPE#${this.stripeAccount}#checkout_session#${session.id}`,
         stripe_account: this.stripeAccount, object_type: 'checkout_session', object_id: session.id, order_id: order.order_id };
       try { await this.store.commit([{ row: next, expectedRevision: order.revision }, { row: lookup }]); order = next; }
-      catch (error) { if (!conditionalConflict(error)) throw error;
+      catch (error) { if (!(error instanceof BillingConflict)) throw error;
         const current = await this.store.get(this.store.key(request.identity, order.SK));
         if (!current || current.checkout_session_id !== session.id) throw error;
         order = current;
@@ -141,7 +172,7 @@ export class BillingService {
     const order = await this.store.get(key);
     if (!order) throw new Error('missing_order');
     const work = await this.store.get(this.store.key(order.identity, `WORK#${order.operation_id}`));
-    return this.store.telemetry.observe('billing.reconcile', { correlationId: work?.correlation_id }, () => this.reduceOrder(key, fence, event));
+    return this.telemetry.observe('billing.reconcile', { correlationId: work?.correlation_id }, () => this.reduceOrder(key, fence, event));
   }
   private async reduceOrder(key: { PK: string; SK: string }, fence?: { key: { PK: string; SK: string }; revision: number }, event?: Write) {
     const order = await this.store.get(key);
@@ -212,7 +243,7 @@ export class BillingService {
     if (!customer) writes.push({ row: { ...this.base(order.identity, 'CUSTOMER', 'customer'),
       stripe_account: this.stripeAccount, stripe_customer_id: payment.customerId } });
     await this.store.commit(writes, undefined, fence ? [fence] : []);
-    this.store.telemetry.log('summary', 'billing.reconcile', 'entitlement_committed');
+    this.telemetry.log('summary', 'billing.reconcile', 'entitlement_committed');
   }
   private async exhaust(work: Row) {
     const { due_partition: _partition, due_sort: _sort, processing_lease: _processing, dispatch_lease: _dispatch, ...rest } = work;
@@ -364,7 +395,7 @@ export class BillingService {
             const row = await this.store.get(item);
             if (row?.state === 'pending') {
               age = Math.max(age, this.now() - row.due_at);
-              await this.store.telemetry.observe('billing.reconcile', { correlationId: row.correlation_id }, () => this.publish(row));
+              await this.telemetry.observe('billing.reconcile', { correlationId: row.correlation_id }, () => this.publish(row));
             }
           } catch { failures = true; } // Preserve cursor progress past one repairable item; dependency errors are logged.
         }
@@ -376,7 +407,7 @@ export class BillingService {
       const checkpoint: Row = { ...key, schema_version: 1, entity_type: 'replay_checkpoint', environment: this.store.environment,
         replay_shard: 0, revision: claimed.revision + 1, ...(next ? { cursor: next } : {}) };
       await this.store.commit([{ row: checkpoint, expectedRevision: claimed.revision }]);
-      this.store.telemetry.metric('BillingReconcileDueAgeSeconds', Math.max(age, 0));
+      this.telemetry.metric('BillingReconcileDueAgeSeconds', Math.max(age, 0));
     }
   }
 }

@@ -37,7 +37,7 @@ export async function handler(event: unknown, context: InvocationContext) {
       if (config.environment !== process.env.MCP_ENVIRONMENT) throw new Error('invalid_access_configuration');
       const telemetry = new Telemetry(configFromEnvironment('access', process.env));
       const store = new AccessStore(config.environment, state, entitlements, telemetry);
-      return composeAccessHandler(config, new BrowserSessions(config, store, new CognitoIdentity(config.cognito, telemetry)), JSON.parse(readFileSync(publicKeysPath, 'utf8')), telemetry);
+      return composeAccessHandler(config, new BrowserSessions(config, store, new CognitoIdentity(config.cognito, telemetry), telemetry), JSON.parse(readFileSync(publicKeysPath, 'utf8')), telemetry);
     })().catch(() => { initialized = undefined; throw new Error('access_configuration_failed'); });
     return await (await initialized)(event, context);
   } catch { throw new Error('access_invocation_failed'); }
