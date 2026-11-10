@@ -18,7 +18,7 @@ Use Node.js 24 and run from the repository root:
 ```sh
 npm ci
 npm run check
-cfn-lint infra/observability/template.json infra/billing/storage.yaml infra/billing/runtime.yaml
+cfn-lint infra/observability/template.json infra/billing/*.yaml
 ```
 
 Tests inject simulated service responses into the actual SDK/HTTPS adapters.
@@ -101,20 +101,37 @@ logged. Use Stripe references through authorized support tools for payment detai
 
 ## 5. Build and publish an immutable ARM64 image
 
-These are commands for **your later release workflow**, not actions already run:
+For the AWS publication path, first deploy `infra/billing/publication.yaml`
+using the existing GitHub OIDC provider ARN and review the outputs. It creates a
+retained, scan-on-push, immutable-tag ECR repository and an OIDC role scoped to
+that repository. The role cannot deploy Lambda or access billing data. Do not
+create a duplicate account-level OIDC provider.
+
+Configure the GitHub `billing-publish` environment so only `main` can publish and
+set required reviewers if desired. Add the stack outputs as repository variables
+`BILLING_ECR_REPOSITORY_URI` and `AWS_REGION`; set digest-pinned
+`NODE_BUILD_IMAGE` and `LAMBDA_RUNTIME_IMAGE` variables; save the publisher role
+ARN in the `BILLING_PUBLISH_ROLE_ARN` secret. Then manually dispatch **Publish
+Billing Lambda image** from `main` with a new immutable release tag. The job
+runs the tests, builds and pushes once, and saves an artifact with the source
+commit, both lockfile hashes, runtime-template hash and ECR image digest. The
+workflow is defined but has not been run, and no ECR repository or role has been
+created.
+
+For a local ARM64 package build without publishing, run:
 
 ```sh
-docker buildx build --platform linux/arm64 --provenance=false \
-  --build-arg BUILD_IMAGE="node:24-bookworm-slim@sha256:YOUR_APPROVED_DIGEST" \
-  --build-arg LAMBDA_IMAGE="public.ecr.aws/lambda/nodejs:24@sha256:YOUR_APPROVED_DIGEST" \
-  -f Dockerfile.billing -t YOUR_ECR_IMAGE_TAG --load .
+npm run package:billing-image -- \
+  --build-image 'node:24-bookworm-slim@sha256:YOUR_APPROVED_DIGEST' \
+  --runtime-image 'public.ecr.aws/lambda/nodejs:24@sha256:YOUR_APPROVED_DIGEST' \
+  --tag 'billing-local:YOUR_RELEASE_TAG'
 ```
 
-Authenticate to your ECR repository and publish through your approved release
-process. Record the resulting ECR **digest URI**, not a mutable tag. If building
-inside this managed cloud environment after registry access is configured, add
-`--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` so npm trusts the session proxy.
-The CA is a build secret mount and is not copied into the image.
+The local image helper records source/lock/template evidence but cannot produce
+an ECR digest. If building inside this managed cloud environment after registry
+access is configured, add `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` so npm
+trusts the session proxy. The CA is a build secret mount and is not copied into
+the image.
 
 Render the deployment template for that immutable artifact:
 
@@ -212,7 +229,7 @@ Run these in your test environment and record evidence separately from local tes
 
 Remaining specification gates are tracked in `specs/003-billing-subscriptions/tasks.md`:
 live replay checkpoint/pagination behavior at scale, broader fault/redrive
-acceptance, independent OIDC publication, access/OAuth/session/usage-key integration
+acceptance, deploying and exercising the independent OIDC publication path, access/OAuth/session/usage-key integration
 and live ARM64/AWS/Stripe/host acceptance. The access Lambda and JWT authorizer
 are not implemented by these billing adapters. Do not treat this as completion of
 all specs or enable production charging solely because local fixtures pass. The locally tested dependency versions are pinned in package-lock.json; live compatibility with the selected older Stripe API/webhook version still needs the test-mode checks above.

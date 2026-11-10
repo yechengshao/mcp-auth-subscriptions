@@ -79,10 +79,12 @@ export class BrowserSessions {
   async start(purpose: 'onboarding' | 'management', parameters: unknown = {}) {
     const downstream = purpose === 'onboarding' ? authorizeParameters(this.config, parameters) : undefined;
     if (purpose === 'management' && (!parameters || typeof parameters !== 'object' || Object.keys(parameters).length)) throw new SessionFailure(400, 'invalid_request');
-    const now = this.now(), txId = randomUUID(), token = random(), csrf = random(), state = random(), nonce = random(), verifier = random();
+    const now = this.now(), txId = randomUUID(), grantId = purpose === 'onboarding' ? randomUUID() : undefined;
+    const token = random(), csrf = random(), state = random(), nonce = random(), verifier = random();
     const expires = now + 1800, cleanup = expires + 86400;
     await this.store.createLogin({
       purpose,
+      ...(grantId ? { grantId } : {}),
       sessionDigest: digest(token),
       csrfDigest: digest(csrf),
       transactionId: txId,
@@ -123,7 +125,8 @@ export class BrowserSessions {
         attempt,
         session: context.session,
         transaction: context.transaction,
-        verified: { newSessionDigest: digest(token), csrfDigest: digest(csrf), identity, subscriberId },
+        verified: { newSessionDigest: digest(token), csrfDigest: digest(csrf), identity, subscriberId,
+          ...(context.transaction.grant_id ? { grantId: context.transaction.grant_id } : {}) },
       });
       this.telemetry.log('summary', 'http.callback', 'identity_verified');
       return { token, csrf, expires_at: context.session.expires_at, destination: context.session.purpose === 'onboarding' ? '/onboarding' : '/billing' };

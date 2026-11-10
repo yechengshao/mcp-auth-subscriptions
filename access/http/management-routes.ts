@@ -6,9 +6,12 @@ import { browserContext, logoutForm, escapeHtml } from './cookies.js';
 
 export function managementRoutes(config: AccessConfiguration, sessions: BrowserSessions, extension?: OAuthExtension) {
   const router = express.Router();
+  const form = express.urlencoded({ extended: false, limit: '8kb', parameterLimit: 12 });
   router.get('/billing', async (request, response) => {
     const context = await browserContext(sessions, config, request.headers.cookie, response);
     if (!context) return;
+    if (context.session.purpose === 'onboarding') { response.redirect(303, endpoint(config, '/onboarding')); return; }
+    if (extension) { await extension.managementPage(request, response, error => { if (error) throw error; }); return; }
     const entitlement = await sessions.currentPaidEntitlement(context);
     if (!entitlement) {
       response.status(403).json({ error: 'subscription_required', message: 'Reconnect from your AI client to select a plan.' });
@@ -16,6 +19,14 @@ export function managementRoutes(config: AccessConfiguration, sessions: BrowserS
     }
     response.type('html').send(`<!doctype html><html><body><h1>Subscription</h1><p>Plan: ${escapeHtml(entitlement.plan_id)}</p><p>Paid through (UTC epoch): ${escapeHtml(entitlement.valid_until)}</p>${logoutForm(config, context)}</body></html>`);
   });
+  if (extension) {
+    router.get('/billing/plans', extension.plans);
+    router.get('/billing/orders/:orderId', extension.orderStatus);
+    router.get('/billing/return', extension.billingReturn);
+    router.post('/billing/status', form, extension.managementStatus);
+    router.post('/billing/subscriptions/:subscriptionRef/manage', form, extension.manageSubscription);
+    router.post('/billing/portal', form, extension.billingPortal);
+  }
   router.get('/onboarding', async (request, response) => {
     const context = await browserContext(sessions, config, request.headers.cookie, response);
     if (!context) return;

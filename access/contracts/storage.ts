@@ -26,13 +26,13 @@ export const accessRecordSchemas: Record<string, Schema> = {
   authorization_code: object({ ...base, entity_type: constant('authorization_code'), SK: constant('CODE'),
     tx_id: id, subscriber_id: id, client_id: text, resource: { ...text, pattern: '^https://' },
     redirect_uri: { ...text, pattern: '^https://' }, code_challenge: challenge, code_challenge_method: constant('S256'),
-    grant_id: id, issued_at: epoch, transaction_expires_at: epoch, expires_at: epoch, delete_after: epoch, consumed: boolean,
+    scopes, grant_id: id, issued_at: epoch, transaction_expires_at: epoch, expires_at: epoch, delete_after: epoch, consumed: boolean,
   }),
   grant_family: object({ ...base, entity_type: constant('grant_family'), SK: constant('FAMILY'), grant_id: id,
     identity, subscriber_id: id, client_id: text, resource: { ...text, pattern: '^https://' }, scopes,
     status: choice('active', 'revoked'), refresh_expires_at: epoch, rotation_counter: integer,
     latest_access_expires_at: epoch, created_at: epoch, delete_after: epoch,
-    revoked_at: epoch, revocation_reason: choice('logout', 'replay', 'subscription_revoked', 'support'),
+    revoked_at: epoch, revocation_reason: choice('logout', 'client_revoke', 'replay', 'subscription_revoked', 'support'),
   }, ['revoked_at', 'revocation_reason']),
   subscriber_binding: object({ ...base, entity_type: constant('subscriber_binding'), subscriber_id: id,
     plan_id: id, duration_option_id: id, catalog_version: id, entitlement_revision: integer, usage_mapping: mapping,
@@ -52,10 +52,17 @@ export function validateAccessRecord(input: unknown, environment: string): void 
   if (value.environment !== environment) invalid();
   let pk: string;
   switch (kind) {
-    case 'transaction':
+    case 'transaction': {
       if (!(value.PK as string).startsWith(`ENV#${environment}#TX#`) ||
           !identifierPattern.test((value.PK as string).slice(`ENV#${environment}#TX#`.length))) invalid();
+      if (value.purpose === 'onboarding') {
+        if (!identifierPattern.test(value.grant_id as string) || value.local_destination !== undefined ||
+            (value.phase === 'checkout_pending' && value.selected_offer === undefined) ||
+            (value.phase === 'payment_pending' && (value.selected_offer === undefined || value.order_id === undefined)) ||
+            (value.selected_offer !== undefined && !['checkout_pending', 'payment_pending', 'code_ready', 'code_issued', 'redeemed', 'failed'].includes(value.phase as string))) invalid();
+      } else if (value.grant_id !== undefined || value.downstream !== undefined || value.selected_offer !== undefined || value.phase !== 'identity_verified' && value.phase !== 'pending_identity' && value.phase !== 'cancelled' && value.phase !== 'failed') invalid();
       pk = value.PK as string; break;
+    }
     case 'identity_profile': {
       const owner = value.identity as { issuer: string; subject: string };
       pk = identityPartition(environment, owner.issuer, owner.subject); break;

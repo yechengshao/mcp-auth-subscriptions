@@ -18,7 +18,7 @@ Use `PK`/`SK` strings with server-owned entity_type/schema_version discriminator
 | BillingState provider lookup | `ENV#<env>#STRIPE#<account>#<object_type>#<object_id>` | `OWNER` | Verified owning identity/order, conditionally unique mapping |
 | BillingState event ledger | `ENV#<env>#EVENT#<account>#<event_id>` | `EVENT` | Minimal trusted event identifiers, processing state/lease/fence, committed revision, digest; no full provider payload |
 | BillingState replay checkpoint | `ENV#<env>#REPLAY#0` | `CHECKPOINT` | Billing-only shard-0 cursor (base/index keys), conditional revision and bounded replay lease; no customer identity, TTL or consumer/access grants |
-| BillingEntitlements | `ENV#<env>#IDENTITY#<identity_key>` | `ENTITLEMENT` | Logical entitlement fields from entitlements contract, schema_version=1 |
+| BillingEntitlements | `ENV#<env>#IDENTITY#<identity_key>` | `ENTITLEMENT` | Logical entitlement fields from entitlements contract, including stable `subscription_id` for owner-scoped upgrade management, schema_version=1 |
 | BillingState decision history | `ENV#<env>#IDENTITY#<identity_key>` | `HISTORY#<zero-padded-revision>` | notification_id, own order ref, verified tuple, decision revision/status, created_at, schema_version=1; no tokens/keys/payment secrets |
 
 Storage outputs expose table ARNs/names and exact entitlement key/schema; no key/token/customer values. Access receives scoped entitlement GetItem/transaction ConditionCheckItem and exact billing operation invocation, not billing event/outbox stream access. Billing alone writes billing tables and reads its durable decision/reconciliation history; MCP/authorizer receive no grants.

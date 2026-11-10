@@ -1,6 +1,6 @@
 # Contract: Cognito Identity, Service Tokens and REST Authorizer
 
-**Status**: JWT verification/signing primitives locally implemented; OAuth and live acceptance pending; supersedes the direct-Cognito-bearer/HTTP-authorizer contract. The [client flow](client-onboarding.md) is authoritative for OAuth completion.
+**Status**: Local JWT verification/signing and OAuth/token flows implemented with simulated adapters; package, deployment and live acceptance remain pending. This supersedes the direct-Cognito-bearer/HTTP-authorizer contract. The [client flow](client-onboarding.md) is authoritative for OAuth completion.
 
 ## Separate identity and service issuers
 

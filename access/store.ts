@@ -8,6 +8,7 @@ import { identityPartition } from '../contracts/identity.js';
 import { identifierPattern, sha256HexPattern } from '../contracts/patterns.js';
 import type { Telemetry } from '../observability/telemetry.js';
 import type { AccessRow, StateCheck, StateKey, StateWrite } from './model.js';
+import { transitionTransaction } from './transitions.js';
 import type { BrowserSessionStore, PendingLogin, VerifiedLogin } from './ports.js';
 const entitlementShape = compile(entitlementSchema);
 const conflict = (error: unknown) => error instanceof Error && ['TransactionCanceledException','ConditionalCheckFailedException'].includes(error.name);
@@ -41,6 +42,7 @@ export class AccessStore implements BrowserSessionStore {
     const transaction = { ...this.base(`ENV#${this.environment}#TX#${input.transactionId}`, 'STATE', 'transaction'),
       purpose: input.purpose, phase: 'pending_identity', correlation_id: input.correlationId,
       created_at: input.createdAt, expires_at: input.expiresAt, delete_after: input.deleteAfter,
+      ...(input.grantId ? { grant_id: input.grantId } : {}),
       ...(input.downstream ? { downstream: input.downstream } : { local_destination: '/billing' }) };
     const attempt = { ...this.base(`ENV#${this.environment}#UPSTREAM#${input.stateDigest}`, 'ATTEMPT', 'upstream_attempt'),
       tx_id: input.transactionId, session_digest: input.sessionDigest, nonce_digest: input.nonceDigest,
@@ -63,7 +65,7 @@ export class AccessStore implements BrowserSessionStore {
     await this.commit([
       { row: { ...attempt, consumed: true, revision: input.attempt.revision + 1 }, expectedRevision: input.attempt.revision },
       { row: { ...input.session, revoked: true, revision: input.session.revision + 1 }, expectedRevision: input.session.revision },
-      { row: { ...input.transaction, phase: 'failed', revision: input.transaction.revision + 1 }, expectedRevision: input.transaction.revision },
+      { row: transitionTransaction(input.transaction, 'cancelled'), expectedRevision: input.transaction.revision },
     ]);
   }
   async completeLogin(input: { attempt: AccessRow; session: AccessRow; transaction: AccessRow; verified: VerifiedLogin }): Promise<void> {
@@ -71,13 +73,14 @@ export class AccessStore implements BrowserSessionStore {
     const verifiedSession = { ...this.base(`ENV#${this.environment}#SESSION#${input.verified.newSessionDigest}`, 'SESSION', 'session'),
       purpose: input.session.purpose, tx_id: input.session.tx_id, authentication_stage: 'identity_verified',
       identity: input.verified.identity, subscriber_id: input.verified.subscriberId, csrf_digest: input.verified.csrfDigest,
+      ...(input.verified.grantId ? { grant_id: input.verified.grantId } : {}),
       created_at: input.session.created_at, expires_at: input.session.expires_at, delete_after: input.session.delete_after };
     await this.commit([
       { row: { ...attempt, consumed: true, revision: input.attempt.revision + 1 }, expectedRevision: input.attempt.revision },
       { row: { ...input.session, revoked: true, revision: input.session.revision + 1 }, expectedRevision: input.session.revision },
       { row: verifiedSession },
-      { row: { ...input.transaction, phase: 'identity_verified', identity: input.verified.identity,
-        subscriber_id: input.verified.subscriberId, revision: input.transaction.revision + 1 }, expectedRevision: input.transaction.revision },
+      { row: transitionTransaction(input.transaction, 'identity_verified', { identity: input.verified.identity,
+        subscriber_id: input.verified.subscriberId }), expectedRevision: input.transaction.revision },
     ]);
   }
   async entitlement(identity: { issuer: string; subject: string }): Promise<AccessRow | undefined> {

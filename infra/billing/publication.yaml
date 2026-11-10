@@ -1,0 +1,80 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "ECR repository and environment-scoped GitHub OIDC publisher for the Billing image only.",
+  "Parameters": {
+    "GithubOidcProviderArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$",
+      "Description": "Reuse the account provider; this template does not create or mutate it."
+    },
+    "GithubRepository": {
+      "Type": "String",
+      "Default": "yechengshao/mcp-auth-subscriptions",
+      "MinLength": 3,
+      "MaxLength": 100,
+      "AllowedPattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "GithubEnvironment": {
+      "Type": "String",
+      "Default": "billing-publish",
+      "AllowedPattern": "^[A-Za-z0-9_-]{1,40}$"
+    },
+    "RepositoryName": {
+      "Type": "String",
+      "Default": "mcp-billing",
+      "AllowedPattern": "^[a-z0-9]+([._/-][a-z0-9]+)*$"
+    }
+  },
+  "Resources": {
+    "BillingRepository": {
+      "Type": "AWS::ECR::Repository",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "RepositoryName": { "Ref": "RepositoryName" },
+        "ImageTagMutability": "IMMUTABLE",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "EncryptionConfiguration": { "EncryptionType": "AES256" }
+      }
+    },
+    "BillingPublisherRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Federated": { "Ref": "GithubOidcProviderArn" } },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": { "StringEquals": {
+              "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+              "token.actions.githubusercontent.com:sub": {
+                "Fn::Sub": "repo:${GithubRepository}:environment:${GithubEnvironment}"
+              }
+            } }
+          }]
+        },
+        "Policies": [{
+          "PolicyName": "PublishBillingImageOnly",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              { "Effect": "Allow", "Action": "ecr:GetAuthorizationToken", "Resource": "*" },
+              {
+                "Effect": "Allow",
+                "Action": ["ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart"],
+                "Resource": { "Fn::GetAtt": ["BillingRepository", "Arn"] }
+              }
+            ]
+          }
+        }]
+      }
+    }
+  },
+  "Outputs": {
+    "BillingRepositoryArn": { "Value": { "Fn::GetAtt": ["BillingRepository", "Arn"] } },
+    "BillingRepositoryUri": { "Value": { "Fn::GetAtt": ["BillingRepository", "RepositoryUri"] } },
+    "BillingPublisherRoleArn": { "Value": { "Fn::GetAtt": ["BillingPublisherRole", "Arn"] } }
+  }
+}

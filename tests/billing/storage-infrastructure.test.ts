@@ -27,6 +27,20 @@ test('projection read policy cannot read payment records or mutate eligibility',
   for (const denied of ['dynamodb:Scan', 'dynamodb:*', 'AWS::Lambda::Function', 'AWS::Pipes::Pipe', 'AWS::SQS::Queue', 'AWS::KMS::Key']) assert.equal(text.includes(denied), false);
   assert.equal(text.includes('cognito'), false);
 });
+test('billing storage grants the item actions used by atomic transactions only across billing-owned tables', () => {
+  const t = template();
+  const statements = t.Resources.BillingStoragePolicy.Properties.PolicyDocument.Statement;
+  const stateWrites = statements.find((statement: any) => Array.isArray(statement.Resource) && statement.Action.includes('dynamodb:PutItem'));
+  assert.deepEqual(stateWrites.Action, ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:ConditionCheckItem']);
+  const write = statements.find((statement: any) => statement.Action.includes('dynamodb:PutItem') && statement.Action.includes('dynamodb:ConditionCheckItem'));
+  assert.ok(write);
+  assert.deepEqual(write.Resource, [
+    { 'Fn::GetAtt': ['BillingState', 'Arn'] },
+    { 'Fn::GetAtt': ['BillingEntitlements', 'Arn'] },
+  ]);
+  assert.equal(JSON.stringify(t).includes('dynamodb:TransactWriteItems'), false);
+  assert.equal(JSON.stringify(t.Resources.AccessEntitlementPolicy).includes('TransactWriteItems'), false);
+});
 test('future Pipe filter admits only work INSERTs and exposes only reference outputs', () => {
   const t = template();
   const filter = JSON.parse(t.Outputs.ReconciliationInsertFilter.Value);

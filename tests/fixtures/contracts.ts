@@ -19,6 +19,7 @@ export const catalog = {
 export const entitlement = {
   PK, SK: 'ENTITLEMENT', entity_type: 'entitlement', schema_version: 1, revision: 1,
   environment, identity_issuer: identity.issuer, identity_subject: identity.subject,
+  subscription_id: 'subscription_fixture',
   allowed: true, plan_id: 'basic', duration_option_id: 'short', service_term,
   catalog_version: 'fixture_v1', ssm_version: 1, usage_mapping, valid_until: now + 5000, updated_at: now,
 };

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { releaseTemplate } from '../../infra/billing/release.js';
+import { billingImageBuild, billingImageBuildArgs } from '../../infra/billing/build-image.js';
 import { runtimeConfig } from '../../billing/handler.js';
 import { budgets } from '../fixtures/storage.js';
 const template = JSON.parse(readFileSync('infra/billing/runtime.yaml', 'utf8'));
@@ -41,6 +42,18 @@ test('release rendering requires an image digest and changes retained version pe
   assert.equal(first.Resources[version(first)].DeletionPolicy, 'Retain');
   assert.deepEqual(first.Resources.Alias.Properties.FunctionVersion['Fn::GetAtt'], [version(first), 'Version']);
   assert.throws(() => releaseTemplate('repository:latest'));
+});
+test('billing image build is ARM64-only and requires immutable Node 24 base images', () => {
+  const buildImage = `node:24-bookworm-slim@sha256:${'a'.repeat(64)}`;
+  const runtimeImage = `public.ecr.aws/lambda/nodejs:24@sha256:${'b'.repeat(64)}`;
+  const input = billingImageBuild(['--build-image', buildImage, '--runtime-image', runtimeImage, '--tag', 'billing-local:fixture']);
+  const args = billingImageBuildArgs(input);
+  assert.equal(args[args.indexOf('--platform') + 1], 'linux/arm64');
+  assert.ok(args.includes(`BUILD_IMAGE=${buildImage}`));
+  assert.ok(args.includes(`LAMBDA_IMAGE=${runtimeImage}`));
+  assert.ok(args.includes('Dockerfile.billing'));
+  assert.throws(() => billingImageBuild(['--build-image', 'node:24-bookworm-slim', '--runtime-image', runtimeImage, '--tag', 'billing-local:fixture']));
+  assert.throws(() => billingImageBuild(['--build-image', buildImage, '--runtime-image', 'public.ecr.aws/lambda/nodejs:24', '--tag', 'billing-local:fixture']));
 });
 test('runtime configuration rejects budget/IaC drift and cross-account sources', () => {
   const source = { MCP_ENVIRONMENT: 'test', AWS_ACCOUNT_ID: '000000000000', AWS_REGION: 'us-east-1', STRIPE_LIVE: 'false',

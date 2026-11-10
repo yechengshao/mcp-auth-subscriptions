@@ -1,5 +1,23 @@
 import type { AccessRow } from './model.js';
 
+export type BillingOperation = 'listPlans' | 'createCheckout' | 'getOrder' | 'reconcileOrder' |
+  'quoteUpgrade' | 'confirmUpgrade' | 'manageSubscription' | 'openPortal';
+export interface BillingCall {
+  operation: BillingOperation;
+  identity: { issuer: string; subject: string };
+  idempotencyKey: string;
+  continuationRef?: string;
+  input: Record<string, unknown>;
+}
+export interface BillingResult {
+  schema_version: 1; correlation_id: string;
+  outcome: 'ok' | 'pending' | 'denied' | 'retryable_unavailable' | 'conflict' | 'invalid_request' | 'support_required';
+  retryable: boolean; message: string; payload: Record<string, unknown>;
+  error_code?: string;
+}
+/** Outbound billing port used by application use cases; the AWS adapter lives in adapters/. */
+export interface BillingPort { invoke(call: BillingCall): Promise<BillingResult> }
+
 export class IdentityProviderFailure extends Error {
   constructor(readonly status: 400 | 503) {
     super(status === 400 ? 'identity_verification_failed' : 'identity_provider_unavailable');
@@ -8,6 +26,7 @@ export class IdentityProviderFailure extends Error {
 
 export interface PendingLogin {
   purpose: 'onboarding' | 'management';
+  grantId?: string;
   sessionDigest: string;
   csrfDigest: string;
   transactionId: string;
@@ -29,6 +48,7 @@ export interface VerifiedLogin {
   csrfDigest: string;
   identity: { issuer: string; subject: string };
   subscriberId: string;
+  grantId?: string;
 }
 
 /** Browser-session persistence port. Adapters own physical keys and atomic writes. */

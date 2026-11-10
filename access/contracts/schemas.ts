@@ -3,6 +3,7 @@ import { s256ChallengePattern } from '../../contracts/patterns.js';
 
 const purpose = choice('onboarding', 'management');
 const verified = { identity, subscriber_id: id };
+const selectedOffer = object({ plan_id: id, duration_option_id: id, catalog_version: id, intent: choice('purchase', 'renewal') });
 const sessionCommon = {
   ...row, entity_type: constant('session'), SK: constant('SESSION'), environment: id,
   purpose, tx_id: id, revoked: boolean, csrf_digest: digest, created_at: epoch, expires_at: epoch, delete_after: epoch,
@@ -15,7 +16,7 @@ const txCommon = {
   ...row, entity_type: constant('transaction'), SK: constant('STATE'), environment: id,
   created_at: epoch, expires_at: epoch, delete_after: epoch,
   correlation_id: correlation, order_id: id, attempts: integer, next_attempt_at: epoch,
-  error_category: choice('dependency_unavailable', 'session_expired', 'configuration_error'),
+  error_category: choice('dependency_unavailable', 'session_expired', 'configuration_error'), selected_offer: selectedOffer,
 };
 const downstream = object({
   client_id: text, redirect_uri: { ...text, pattern: '^https://' }, resource: { ...text, pattern: '^https://' },
@@ -23,15 +24,18 @@ const downstream = object({
   code_challenge: { type: 'string', pattern: s256ChallengePattern.source },
   code_challenge_method: constant('S256'), state: text, issuer: { ...text, pattern: '^https://' }, client_config_version: id,
 });
-const txOptional = ['correlation_id', 'order_id', 'grant_id', 'attempts', 'next_attempt_at', 'error_category'];
+const txOptional = ['correlation_id', 'order_id', 'attempts', 'next_attempt_at', 'error_category', 'selected_offer'];
 export const transactionSchema: Schema = { oneOf: [
   ...(['onboarding', 'management'] as const).flatMap(purpose => {
     const route: Record<string, Schema> = purpose === 'onboarding' ? { downstream, grant_id: id } : { local_destination: constant('/billing') };
+    const optional = purpose === 'onboarding' ? txOptional : [...txOptional, 'grant_id'];
     return [
-      object({ ...txCommon, purpose: constant(purpose), ...route, phase: constant('pending_identity') }, txOptional),
+      object({ ...txCommon, purpose: constant(purpose), ...route, phase: constant('pending_identity') }, optional),
       object({ ...txCommon, purpose: constant(purpose), ...route, ...verified,
-        phase: purpose === 'management' ? constant('identity_verified') : choice('identity_verified', 'payment_pending', 'code_ready', 'code_issued', 'redeemed') }, txOptional),
-      object({ ...txCommon, purpose: constant(purpose), ...route, phase: constant('failed'), ...verified }, [...txOptional, 'identity', 'subscriber_id']),
+        phase: purpose === 'management' ? constant('identity_verified') : choice('identity_verified', 'checkout_pending', 'payment_pending', 'code_ready', 'code_issued', 'redeemed') }, optional),
+      object({ ...txCommon, purpose: constant(purpose), ...route, phase: constant('failed'), ...verified }, [...optional, 'identity', 'subscriber_id']),
+      object({ ...txCommon, purpose: constant(purpose), ...route, phase: constant('cancelled'), ...verified },
+        [...optional, 'identity', 'subscriber_id']),
     ];
   }),
 ] };

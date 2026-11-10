@@ -14,10 +14,16 @@
     "render:observability": "npm run build && node dist/infra/observability/render.js",
     "render:billing-runtime": "npm run build && node dist/infra/billing/release.js",
     "render:authorizer": "npm run build && node dist/infra/access/release-authorizer.js",
-    "package:authorizer": "npm run build && node scripts/package_authorizer.mjs"
+    "package:authorizer": "npm run build && node scripts/package_authorizer.mjs",
+    "package:access-image": "npm run build && node dist/infra/access/build-image.js",
+    "package:billing-image": "npm run build && node dist/infra/billing/build-image.js",
+    "prepare:gateway-cutover": "npm run build && node dist/scripts/prepare_gateway_cutover.js",
+    "check:cognito-snapshot": "npm run build && node dist/scripts/check_cognito_compatibility.js"
   },
   "dependencies": {
+    "@aws-sdk/client-api-gateway": "3.1164.0",
     "@aws-sdk/client-dynamodb": "3.1164.0",
+    "@aws-sdk/client-lambda": "3.1164.0",
     "@aws-sdk/client-sqs": "3.1164.0",
     "@aws-sdk/client-ssm": "3.1164.0",
     "@aws-sdk/lib-dynamodb": "3.1164.0",

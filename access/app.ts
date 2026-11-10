@@ -16,7 +16,8 @@ export async function createAccessApp(input: AccessConfiguration, sessions: Brow
   const config = validateAccessConfiguration(input), published = structuredClone(publicJwks);
   if (!isDeepStrictEqual(config, sessions.config)) throw new Error('access_configuration_mismatch');
   await publicKeySet(published);
-  if (extension && ['token','revoke','resume','onboarding'].some(key => typeof extension[key as keyof OAuthExtension] !== 'function')) {
+  if (extension && ['token','revoke','resume','checkout','status','orderStatus','billingReturn','plans','onboarding',
+    'managementPage','manageSubscription','managementStatus','billingPortal'].some(key => typeof extension[key as keyof OAuthExtension] !== 'function')) {
     throw new Error('invalid_access_extensions');
   }
 

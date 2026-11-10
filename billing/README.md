@@ -28,3 +28,20 @@ browser sessions and CSRF before invoking billing. No refund/cancel/downgrade AP
 configuration, retained storage, native monitoring, immutable ARM64 packaging and
 live verification. Source/runtime work is local; deployments and real provider
 acceptance remain not_run. `npm run check` validates local code and simulations.
+
+To build the isolated Lambda image locally, use digest-pinned Node.js 24 build
+and Lambda base images. The helper targets ARM64, runs the complete root checks in
+the build stage, installs only the locked billing runtime dependencies in the
+image, and writes local source/lock/template hash evidence. It does not publish
+the image or claim an ECR manifest digest:
+
+```sh
+npm run package:billing-image -- \
+  --build-image 'node:24-bookworm-slim@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --runtime-image 'public.ecr.aws/lambda/nodejs:24@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --tag 'billing-local:REPLACE_WITH_RELEASE'
+```
+
+The result is saved under `.artifacts/`. A Docker daemon is required. An ECR
+manifest digest is available only after the separately authorized publication
+workflow pushes the image.

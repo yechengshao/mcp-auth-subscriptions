@@ -1,10 +1,10 @@
 # Contract: Node.js Onboarding and Recovery
 
-**Status**: Node.js/Express on AWS Lambda with DynamoDB persistence; implementation pending. No Step Functions resources or permissions. [Client flow](client-onboarding.md) · [Tokens/authorizer](authorization.md) · [Billing handoff](../../003-billing-subscriptions/contracts/checkout-onboarding.md)
+**Status**: Node.js/Express on AWS Lambda with DynamoDB persistence. Local domain, HTTP and adapter code exists; AWS packaging, deployment and live acceptance remain pending. No Step Functions resources or permissions. [Client flow](client-onboarding.md) · [Tokens/authorizer](authorization.md) · [Billing handoff](../../003-billing-subscriptions/contracts/checkout-onboarding.md)
 
 ## Flow and ownership
 
-`authorization_pending → identity_verified → checkout_pending → payment_pending → activation_pending → code_ready → code_issued → code_redeemed`
+Transaction phases are `pending_identity → identity_verified → checkout_pending → payment_pending → code_ready → code_issued → redeemed`, with `cancelled` and `failed` terminal. `cancelled` records a user-cancelled Cognito login before identity verification; `failed` records a verified transaction that reached a terminal operational/payment failure. The two states must not be conflated. `activation_pending` is a subscriber-binding state, not a transaction phase; a successful paid entitlement plus a configured binding is required before advancing to `code_ready`.
 
 Eligible subscribers skip checkout. Cognito verifies identity; billing verifies Stripe and owns entitlement writes. Access Express handles authorization, login callbacks, browser status/resume and code/token exchange. Bounded status/resume or fresh-login requests prepare native usage bindings using persisted idempotency/revision/lease guards. Billing ingress routes the Stripe webhook directly to billing. There is no access queue, stream consumer or scheduled worker; payment reconciliation continues in billing without a browser, while binding activation waits for the next access request.
 

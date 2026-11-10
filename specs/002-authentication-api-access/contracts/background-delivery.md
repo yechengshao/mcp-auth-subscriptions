@@ -1,6 +1,6 @@
 # Contract: Four Lambdas and Durable SQS Delivery
 
-**Status**: Planned, not implemented. This contract owns function boundaries and background transport; onboarding owns transition guards and billing owns provider authority. No infrastructure is provisioned by this revision.
+**Status**: Contract only; payment delivery remains billing-owned and no Access activation transport is implemented or planned. Onboarding owns Access transition guards and Billing owns provider authority. No infrastructure is provisioned by this document.
 
 ## Function inventory
 

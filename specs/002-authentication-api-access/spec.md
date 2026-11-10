@@ -1,6 +1,6 @@
 # Spec 002: Authentication and API Access
 
-**Created/updated**: 2026-11-07 · **Branch**: `main` · **Status**: Planned; implementation pending.
+**Created/updated**: 2026-11-07 · **Branch**: `main` · **Status**: Local implementation in progress; no AWS resources deployed.
 
 **Length exception**: Retain the existing security, migration and workflow acceptance requirements together to preserve their IDs and testable failure behavior.
 

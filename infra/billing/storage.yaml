@@ -112,8 +112,7 @@
               "Action": [
                 "dynamodb:GetItem",
                 "dynamodb:PutItem",
-                "dynamodb:UpdateItem",
-                "dynamodb:ConditionCheckItem"
+              "dynamodb:ConditionCheckItem"
               ],
               "Resource": [
                 {

@@ -1,0 +1,99 @@
+name: Publish Billing Lambda image
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable image tag (for example, billing-2026-11-10.1)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: billing-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm ci --prefix billing --omit=dev
+      - name: Validate immutable release inputs
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          REPOSITORY_URI: ${{ vars.BILLING_ECR_REPOSITORY_URI }}
+          NODE_BUILD_IMAGE: ${{ vars.NODE_BUILD_IMAGE }}
+          LAMBDA_RUNTIME_IMAGE: ${{ vars.LAMBDA_RUNTIME_IMAGE }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PUBLISH_ROLE_ARN: ${{ secrets.BILLING_PUBLISH_ROLE_ARN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const values = [process.env.RELEASE_TAG, process.env.REPOSITORY_URI, process.env.NODE_BUILD_IMAGE,
+            process.env.LAMBDA_RUNTIME_IMAGE, process.env.AWS_REGION, process.env.PUBLISH_ROLE_ARN];
+          if (values.some(value => !value)) throw new Error('missing_billing_publication_configuration');
+          if (!/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(process.env.RELEASE_TAG)) throw new Error('invalid_release_tag');
+          if (!/^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com\/[a-z0-9._/-]+$/.test(process.env.REPOSITORY_URI)) throw new Error('invalid_ecr_repository');
+          if (!/^node:24-bookworm-slim@sha256:[a-f0-9]{64}$/.test(process.env.NODE_BUILD_IMAGE) ||
+              !/^public\.ecr\.aws\/lambda\/nodejs:24@sha256:[a-f0-9]{64}$/.test(process.env.LAMBDA_RUNTIME_IMAGE)) throw new Error('mutable_build_image');
+          if (!/^[a-z0-9-]+$/.test(process.env.AWS_REGION) ||
+              !/^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9_+=,.@/-]+$/.test(process.env.PUBLISH_ROLE_ARN)) throw new Error('invalid_aws_publication_target');
+          NODE
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.BILLING_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          file: Dockerfile.billing
+          platforms: linux/arm64
+          push: true
+          tags: ${{ vars.BILLING_ECR_REPOSITORY_URI }}:${{ inputs.release_tag }}
+          build-args: |
+            BUILD_IMAGE=${{ vars.NODE_BUILD_IMAGE }}
+            LAMBDA_IMAGE=${{ vars.LAMBDA_RUNTIME_IMAGE }}
+      - name: Write immutable release evidence
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          REPOSITORY_URI: ${{ vars.BILLING_ECR_REPOSITORY_URI }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+          const digest = process.env.IMAGE_DIGEST;
+          if (!/^sha256:[a-f0-9]{64}$/.test(digest ?? '')) throw new Error('missing_published_image_digest');
+          const sha = path => createHash('sha256').update(readFileSync(path)).digest('hex');
+          const evidence = {
+            schema_version: 1,
+            component: 'billing',
+            platform: 'linux/arm64',
+            release_tag: process.env.RELEASE_TAG,
+            source_commit: process.env.SOURCE_COMMIT,
+            image_uri: `${process.env.REPOSITORY_URI}@${digest}`,
+            root_lock_sha256: sha('package-lock.json'),
+            billing_lock_sha256: sha('billing/package-lock.json'),
+            dockerfile_sha256: sha('Dockerfile.billing'),
+            runtime_template_sha256: sha('infra/billing/runtime.yaml')
+          };
+          mkdirSync('.artifacts', { recursive: true });
+          writeFileSync(`.artifacts/billing-release-${process.env.RELEASE_TAG}.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: billing-release-${{ inputs.release_tag }}
+          path: .artifacts/billing-release-*.json
+          if-no-files-found: error

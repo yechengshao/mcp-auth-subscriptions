@@ -1,6 +1,6 @@
 # Contract: AI Client Connection and Paid OAuth Completion
 
-**Status**: Planned, not implemented. Applies to the REST target profile; [Node.js onboarding](onboarding-workflow.md), [authorization](authorization.md), [gateway](rest-gateway.md) and [billing continuation](../../003-billing-subscriptions/contracts/checkout-onboarding.md) define the trust boundaries.
+**Status**: Behavioral contract; local client/OAuth/onboarding simulations are in progress, with live ChatGPT/Claude and AWS acceptance not run. Applies to the REST target profile; [Node.js onboarding](onboarding-workflow.md), [authorization](authorization.md), [gateway](rest-gateway.md) and [billing continuation](../../003-billing-subscriptions/contracts/checkout-onboarding.md) define the trust boundaries.
 
 HTTP methods, route names and browser/server handoffs are defined in the [endpoint contract](endpoints.md).
 
@@ -21,7 +21,7 @@ Browser management uses the [same session mechanism](browser-sessions.md) and Co
 
 The [Node.js onboarding contract](onboarding-workflow.md) implements these phases with conditional DynamoDB writes, durable provisioning state and request-driven retries, with billing-only background payment recovery; browser/session and code/grant storage remain authoritative across retries. No gateway request or Lambda worker remains open for the waiting phases.
 
-States: `authorization_pending → identity_verified → checkout_pending → payment_pending → activation_pending → code_ready → code_issued → code_redeemed`; existing subscribers may skip checkout. Cancelled/expired/denied states cannot mint codes. Payment may finish after the OAuth transaction expires: preserve the paid subscription, require fresh authorization and reuse that entitlement instead of charging again.
+Persisted transaction phases are `pending_identity → identity_verified → checkout_pending → payment_pending → code_ready → code_issued → redeemed`; a current paid subscriber may skip checkout, and `activation_pending` belongs to the subscriber binding rather than the transaction. A Cognito cancellation before identity verification persists terminal `cancelled`; terminal `failed`, expired, cancelled, or redeemed transactions cannot mint codes. Payment may finish after the OAuth transaction expires: preserve the paid subscription, require fresh authorization and reuse that entitlement instead of charging again.
 
 Technical defaults to implement and test: authorization continuation 30 minutes absolute, authorization code 60 seconds one-use, token lifetimes and refresh deadline/rotation as defined in [authorization](authorization.md#denial-and-revocation). Browser sessions are bounded to the onboarding transaction and use Secure/HttpOnly/SameSite cookies, login-session rotation and anti-CSRF for mutations. Expiry is checked on every use; DynamoDB TTL deletion is only housekeeping. Concurrent/replayed transitions use conditional/transactional writes. Store digests of codes/refresh credentials, not their raw values; exclude state, codes, cookies and verifiers from logs. Binding records store native keys under scoped encrypted access; signed access JWTs intentionally carry the usage key, never callback URLs or public infrastructure outputs.
 

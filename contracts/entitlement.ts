@@ -5,7 +5,7 @@ import { identityPartition } from './identity.js';
 export const entitlementSchema: Schema = object({
   ...row, entity_type: constant('entitlement'), SK: constant('ENTITLEMENT'),
   environment: id, identity_issuer: { ...text, pattern: '^https://' }, identity_subject: text,
-  allowed: boolean, plan_id: id, duration_option_id: id, service_term: { $ref: term.$id },
+  subscription_id: id, allowed: boolean, plan_id: id, duration_option_id: id, service_term: { $ref: term.$id },
   catalog_version: id, ssm_version: positive, usage_mapping: mapping, valid_until: epoch, updated_at: epoch,
 });
 

@@ -19,12 +19,12 @@ test('management transactions have a fixed local destination and cannot carry OA
     { phase: 'code_issued' }, { grant_id: 'fake' }]) assert.throws(() => validateSessionContext(session, { ...transaction, ...extra }, 'test', now));
 });
 test('onboarding uses the same mechanism but requires PKCE and registered-client context', () => {
-  const onboarding = { ...session, purpose: 'onboarding' };
+  const onboarding = { ...session, purpose: 'onboarding', grant_id: 'grant_fixture' };
   const { local_destination: _destination, ...tx } = transaction;
   const downstream = { client_id: 'client', redirect_uri: 'https://client.example.invalid/callback',
     resource: 'https://api.example.invalid/mcp', scopes: ['mcp'], code_challenge: 'c'.repeat(43),
     code_challenge_method: 'S256', state: 'original_state', issuer: 'https://auth.example.invalid', client_config_version: 'v1' };
-  const context = { ...tx, purpose: 'onboarding', downstream };
+  const context = { ...tx, purpose: 'onboarding', grant_id: 'grant_fixture', downstream };
   validateSessionContext(onboarding, context, 'test', now);
   assert.throws(() => validateSessionContext(onboarding, { ...context, downstream: { ...downstream, code_challenge_method: 'plain' } }, 'test', now));
   assert.throws(() => validateSessionContext(onboarding, tx, 'test', now));

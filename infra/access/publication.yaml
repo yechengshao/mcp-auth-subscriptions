@@ -1,0 +1,136 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Separate GitHub OIDC publishers for the Access image and native authorizer ZIP.",
+  "Parameters": {
+    "GithubOidcProviderArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$",
+      "Description": "Reuse the account provider; this template does not create or mutate it."
+    },
+    "GithubRepository": {
+      "Type": "String",
+      "Default": "yechengshao/mcp-auth-subscriptions",
+      "AllowedPattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "AccessGithubEnvironment": {
+      "Type": "String",
+      "Default": "access-publish",
+      "AllowedPattern": "^[A-Za-z0-9_-]{1,40}$"
+    },
+    "AuthorizerGithubEnvironment": {
+      "Type": "String",
+      "Default": "authorizer-publish",
+      "AllowedPattern": "^[A-Za-z0-9_-]{1,40}$"
+    },
+    "AccessRepositoryName": {
+      "Type": "String",
+      "Default": "mcp-access",
+      "AllowedPattern": "^[a-z0-9]+([._/-][a-z0-9]+)*$"
+    },
+    "ArtifactBucketName": {
+      "Type": "String",
+      "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+      "Description": "Globally unique bucket name reserved for versioned authorizer release ZIPs."
+    }
+  },
+  "Resources": {
+    "AccessRepository": {
+      "Type": "AWS::ECR::Repository",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "RepositoryName": { "Ref": "AccessRepositoryName" },
+        "ImageTagMutability": "IMMUTABLE",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "EncryptionConfiguration": { "EncryptionType": "AES256" }
+      }
+    },
+    "AuthorizerArtifactBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": { "Ref": "ArtifactBucketName" },
+        "VersioningConfiguration": { "Status": "Enabled" },
+        "OwnershipControls": { "Rules": [{ "ObjectOwnership": "BucketOwnerEnforced" }] },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [{ "ServerSideEncryptionByDefault": { "SSEAlgorithm": "AES256" } }]
+        }
+      }
+    },
+    "AccessPublisherRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Federated": { "Ref": "GithubOidcProviderArn" } },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": { "StringEquals": {
+              "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+              "token.actions.githubusercontent.com:sub": { "Fn::Sub": "repo:${GithubRepository}:environment:${AccessGithubEnvironment}" }
+            } }
+          }]
+        },
+        "Policies": [{
+          "PolicyName": "PublishAccessImageOnly",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              { "Effect": "Allow", "Action": "ecr:GetAuthorizationToken", "Resource": "*" },
+              {
+                "Effect": "Allow",
+                "Action": ["ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart"],
+                "Resource": { "Fn::GetAtt": ["AccessRepository", "Arn"] }
+              }
+            ]
+          }
+        }]
+      }
+    },
+    "AuthorizerPublisherRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Federated": { "Ref": "GithubOidcProviderArn" } },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": { "StringEquals": {
+              "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+              "token.actions.githubusercontent.com:sub": { "Fn::Sub": "repo:${GithubRepository}:environment:${AuthorizerGithubEnvironment}" }
+            } }
+          }]
+        },
+        "Policies": [{
+          "PolicyName": "PublishAuthorizerZipOnly",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Action": "s3:PutObject",
+              "Resource": { "Fn::Sub": "${AuthorizerArtifactBucket.Arn}/access/authorizer/*" }
+            }]
+          }
+        }]
+      }
+    }
+  },
+  "Outputs": {
+    "AccessRepositoryArn": { "Value": { "Fn::GetAtt": ["AccessRepository", "Arn"] } },
+    "AccessRepositoryUri": { "Value": { "Fn::GetAtt": ["AccessRepository", "RepositoryUri"] } },
+    "AccessPublisherRoleArn": { "Value": { "Fn::GetAtt": ["AccessPublisherRole", "Arn"] } },
+    "AuthorizerArtifactBucket": { "Value": { "Ref": "AuthorizerArtifactBucket" } },
+    "AuthorizerPublisherRoleArn": { "Value": { "Fn::GetAtt": ["AuthorizerPublisherRole", "Arn"] } }
+  }
+}

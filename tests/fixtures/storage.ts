@@ -53,7 +53,7 @@ export const accessRecords: Record<string, Record<string, unknown>> = {
     created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400, consumed: false },
   authorization_code: { ...accessBase, PK: `ENV#test#CODE#${'a'.repeat(64)}`, SK: 'CODE', entity_type: 'authorization_code',
     tx_id: 'tx_fixture', subscriber_id: 'subscriber_fixture', client_id: 'client_fixture', resource: 'https://api.example.invalid/mcp',
-    redirect_uri: 'https://client.example.invalid/callback', code_challenge: 'a'.repeat(43), code_challenge_method: 'S256',
+    redirect_uri: 'https://client.example.invalid/callback', scopes: ['mcp'], code_challenge: 'a'.repeat(43), code_challenge_method: 'S256',
     grant_id: 'grant_fixture', issued_at: now, expires_at: now + 60, transaction_expires_at: now + 1800,
     delete_after: now + 60 + 86400, consumed: false },
   grant_family: { ...accessBase, PK: 'ENV#test#GRANT#grant_fixture', SK: 'FAMILY', entity_type: 'grant_family',

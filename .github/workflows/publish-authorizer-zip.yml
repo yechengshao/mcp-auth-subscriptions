@@ -1,0 +1,107 @@
+name: Publish native authorizer ZIP
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable release label (for example, authorizer-2026-11-10.1)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: authorizer-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm ci --prefix authorizer --omit=dev
+      - run: npm run package:authorizer
+      - name: Verify package checksum and runtime metadata before publication
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          const archive = readFileSync('.artifacts/authorizer.zip');
+          const metadata = JSON.parse(readFileSync('.artifacts/authorizer.zip.metadata.json', 'utf8'));
+          const sha256 = createHash('sha256').update(archive);
+          if (metadata.runtime !== 'nodejs24.x' || metadata.architecture !== 'arm64' ||
+              metadata.packageSha256Hex !== sha256.digest('hex') ||
+              metadata.packageSha256Base64 !== createHash('sha256').update(archive).digest('base64')) {
+            throw new Error('authorizer_package_metadata_mismatch');
+          }
+          NODE
+      - name: Validate release inputs
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ARTIFACT_BUCKET: ${{ vars.AUTHORIZER_ARTIFACT_BUCKET }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PUBLISH_ROLE_ARN: ${{ secrets.AUTHORIZER_PUBLISH_ROLE_ARN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const values = [process.env.RELEASE_TAG, process.env.ARTIFACT_BUCKET, process.env.AWS_REGION, process.env.PUBLISH_ROLE_ARN];
+          if (values.some(value => !value)) throw new Error('missing_authorizer_publication_configuration');
+          if (!/^authorizer-[A-Za-z0-9_][A-Za-z0-9_.-]{0,100}$/.test(process.env.RELEASE_TAG)) throw new Error('invalid_release_tag');
+          if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(process.env.ARTIFACT_BUCKET)) throw new Error('invalid_artifact_bucket');
+          if (!/^[a-z0-9-]+$/.test(process.env.AWS_REGION) ||
+              !/^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9_+=,.@/-]+$/.test(process.env.PUBLISH_ROLE_ARN)) throw new Error('invalid_aws_publication_target');
+          NODE
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AUTHORIZER_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Upload versioned authorizer artifact
+        id: upload
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ARTIFACT_BUCKET: ${{ vars.AUTHORIZER_ARTIFACT_BUCKET }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ATTEMPT_KEY="access/authorizer/${RELEASE_TAG}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          PACKAGE_SHA="$(node --input-type=module -e "import {readFileSync} from 'node:fs'; process.stdout.write(JSON.parse(readFileSync('.artifacts/authorizer.zip.metadata.json')).packageSha256Base64)")"
+          VERSION_ID="$(aws s3api put-object --bucket "$ARTIFACT_BUCKET" --key "$ATTEMPT_KEY/authorizer.zip" --body .artifacts/authorizer.zip --checksum-algorithm SHA256 --query VersionId --output text)"
+          test -n "$VERSION_ID" && test "$VERSION_ID" != "None" && test "$VERSION_ID" != "null"
+          export ATTEMPT_KEY VERSION_ID PACKAGE_SHA
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const metadata = JSON.parse(readFileSync('.artifacts/authorizer.zip.metadata.json', 'utf8'));
+          const evidence = {
+            schema_version: 1,
+            component: 'authorizer',
+            runtime: metadata.runtime,
+            architecture: metadata.architecture,
+            release_tag: process.env.RELEASE_TAG,
+            source_commit: process.env.SOURCE_COMMIT,
+            s3_bucket: process.env.ARTIFACT_BUCKET,
+            s3_key: process.env.ATTEMPT_KEY + '/authorizer.zip',
+            s3_version_id: process.env.VERSION_ID,
+            package_sha256_base64: process.env.PACKAGE_SHA,
+            source_sha256: metadata.sourceSha256,
+            lock_sha256: metadata.authorizerLockSha256,
+            build_config_sha256: metadata.buildConfigSha256,
+            package_sha256_hex: createHash('sha256').update(readFileSync('.artifacts/authorizer.zip')).digest('hex')
+          };
+          if (!evidence.s3_version_id || evidence.s3_version_id === 'None' ||
+              createHash('sha256').update(readFileSync('.artifacts/authorizer.zip')).digest('base64') !== evidence.package_sha256_base64) {
+            throw new Error('authorizer_artifact_evidence_mismatch');
+          }
+          writeFileSync('.artifacts/authorizer-release.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+          echo "artifact_key=$ATTEMPT_KEY/authorizer.zip" >> "$GITHUB_OUTPUT"
+          echo "artifact_version=$VERSION_ID" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: authorizer-release-${{ inputs.release_tag }}
+          path: .artifacts/authorizer-release.json
+          if-no-files-found: error

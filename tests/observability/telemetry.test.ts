@@ -161,7 +161,7 @@ test('Lambda reserved trace context is read per invocation and is not cached', a
 
 test('application has no OpenTelemetry or trace-export runtime dependency', () => {
   const manifest = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
-  assert.deepEqual(Object.keys(manifest.dependencies).sort(), ['@aws-sdk/client-dynamodb', '@aws-sdk/client-sqs', '@aws-sdk/client-ssm', '@aws-sdk/lib-dynamodb', '@codegenie/serverless-express', 'ajv', 'express', 'jose', 'stripe']);
+  assert.deepEqual(Object.keys(manifest.dependencies).sort(), ['@aws-sdk/client-api-gateway', '@aws-sdk/client-dynamodb', '@aws-sdk/client-lambda', '@aws-sdk/client-sqs', '@aws-sdk/client-ssm', '@aws-sdk/lib-dynamodb', '@codegenie/serverless-express', 'ajv', 'express', 'jose', 'stripe']);
   assert.equal(configFromEnvironment('billing', {}).environment, 'development');
   assert.throws(() => configFromEnvironment('billing', { MCP_SERVICE: 'access' }));
 });

@@ -206,7 +206,8 @@ export class BillingService {
     const validUntil = termExpiry(payment.paidAt, snapshot.service_term), revision = (previous?.revision ?? 0) + 1;
     const subscriptionId = quote?.subscription_id ?? order.order_id;
     const projection = { ...entitlementKey, entity_type: 'entitlement', schema_version: 1, revision, environment: this.store.environment,
-      identity_issuer: order.identity.issuer, identity_subject: order.identity.subject, allowed: true, plan_id: snapshot.plan_id,
+      identity_issuer: order.identity.issuer, identity_subject: order.identity.subject, subscription_id: subscriptionId,
+      allowed: true, plan_id: snapshot.plan_id,
       duration_option_id: snapshot.duration_option_id, service_term: snapshot.service_term, catalog_version: snapshot.catalog_version,
       ssm_version: snapshot.ssm_version, usage_mapping: snapshot.usage_mapping, valid_until: validUntil, updated_at: now };
     const subscription = { ...this.base(order.identity, `SUB#${subscriptionId}`, 'subscription'), revision: (source?.revision ?? 0) + 1, subscription_id: subscriptionId,

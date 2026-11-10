@@ -6,11 +6,11 @@ import { sha256HexPattern } from '../../contracts/patterns.js';
 interface Session {
   PK: string; environment: string; purpose: 'onboarding' | 'management'; tx_id: string;
   authentication_stage: 'pending_identity' | 'identity_verified'; revoked?: boolean; identity?: { issuer: string; subject: string };
-  subscriber_id?: string; created_at: number; expires_at: number; delete_after: number;
+  subscriber_id?: string; grant_id?: string; created_at: number; expires_at: number; delete_after: number;
 }
 interface Transaction {
   PK: string; environment: string; purpose: 'onboarding' | 'management'; phase: string; identity?: { issuer: string; subject: string }; subscriber_id?: string;
-  created_at: number; expires_at: number; delete_after: number;
+  grant_id?: string; created_at: number; expires_at: number; delete_after: number;
 }
 const reject = (): never => { throw new Error('invalid_session_context'); };
 function deadline(value: { created_at: number; expires_at: number; delete_after: number }, now: number) {
@@ -30,7 +30,11 @@ export function validateSessionContext(input: unknown, txInput: unknown, environ
       session.expires_at !== tx.expires_at ||
       (session.authentication_stage === 'pending_identity') !== (tx.phase === 'pending_identity') ||
       (session.authentication_stage === 'identity_verified' && (tx.identity?.issuer !== session.identity?.issuer ||
-        tx.identity?.subject !== session.identity?.subject || tx.subscriber_id !== session.subscriber_id))) reject();
+        tx.identity?.subject !== session.identity?.subject || tx.subscriber_id !== session.subscriber_id)) ||
+      (tx.purpose === 'onboarding' && (!tx.grant_id ||
+        (session.authentication_stage === 'pending_identity' && session.grant_id !== undefined) ||
+        (session.authentication_stage === 'identity_verified' && session.grant_id !== tx.grant_id))) ||
+      (tx.purpose === 'management' && (tx.grant_id !== undefined || session.grant_id !== undefined))) reject();
   return structuredClone(session);
 }
 export function validateManagementContext(session: unknown, tx: unknown, entitlement: unknown, environment: string, now: number): void {

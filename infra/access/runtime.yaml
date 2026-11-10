@@ -1,0 +1,86 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Access OAuth/onboarding HTTP runtime; reads billing eligibility only and invokes the exact billing alias.",
+  "Parameters": {
+    "Environment": { "Type": "String", "AllowedValues": ["development", "test", "production"], "Default": "test" },
+    "FunctionName": { "Type": "String", "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,47}" },
+    "ImageUri": { "Type": "String", "AllowedPattern": "[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9_./-]+@sha256:[a-f0-9]{64}" },
+    "StateTableName": { "Type": "String" },
+    "StateTableArn": { "Type": "String", "AllowedPattern": "arn:aws:dynamodb:[a-z0-9-]+:[0-9]{12}:table/[A-Za-z0-9_.-]+" },
+    "EntitlementTableName": { "Type": "String" },
+    "EntitlementTableArn": { "Type": "String", "AllowedPattern": "arn:aws:dynamodb:[a-z0-9-]+:[0-9]{12}:table/[A-Za-z0-9_.-]+" },
+    "TelemetryPolicyArn": { "Type": "String" },
+    "BillingAliasArn": { "Type": "String", "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*" },
+    "SigningParameterArn": { "Type": "String", "AllowedPattern": "arn:aws:ssm:[a-z0-9-]+:[0-9]{12}:parameter/[A-Za-z0-9_.\\/-]+" },
+    "SigningKmsKeyArn": { "Type": "String", "Default": "" },
+    "AccessConfigJson": { "Type": "String", "MinLength": 2, "MaxLength": 3000, "NoEcho": false },
+    "PublicJwksJson": { "Type": "String", "MinLength": 2, "MaxLength": 3000, "NoEcho": false },
+    "SigningConfigJson": { "Type": "String", "MinLength": 2, "MaxLength": 1500, "NoEcho": false },
+    "ProvisioningConfigJson": { "Type": "String", "MinLength": 2, "MaxLength": 1500, "NoEcho": false },
+    "TokenTtlSeconds": { "Type": "Number", "MinValue": 60, "MaxValue": 3600, "Default": 3600 },
+    "ReleaseId": { "Type": "String", "AllowedPattern": "[A-Za-z0-9_.-]{1,96}" },
+    "TracingMode": { "Type": "String", "AllowedValues": ["Active", "PassThrough"], "Default": "PassThrough" },
+    "ReservedConcurrency": { "Type": "Number", "MinValue": 1, "MaxValue": 100, "Default": 5 }
+  },
+  "Conditions": {
+    "CustomSigningKey": { "Fn::Not": [{ "Fn::Equals": [{ "Ref": "SigningKmsKeyArn" }, ""] }] }
+  },
+  "Resources": {
+    "Role": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Principal": { "Service": "lambda.amazonaws.com" }, "Action": "sts:AssumeRole" }] },
+        "ManagedPolicyArns": [{ "Ref": "TelemetryPolicyArn" }],
+        "Policies": [{ "PolicyName": "AccessDependencies", "PolicyDocument": { "Version": "2012-10-17", "Statement": [
+          { "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:ConditionCheckItem"], "Resource": { "Ref": "StateTableArn" } },
+          { "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:ConditionCheckItem"], "Resource": { "Ref": "EntitlementTableArn" } },
+          { "Effect": "Allow", "Action": "lambda:InvokeFunction", "Resource": { "Ref": "BillingAliasArn" } },
+          { "Effect": "Allow", "Action": "ssm:GetParameter", "Resource": { "Ref": "SigningParameterArn" } },
+          { "Fn::If": ["CustomSigningKey", { "Effect": "Allow", "Action": "kms:Decrypt", "Resource": { "Ref": "SigningKmsKeyArn" }, "Condition": { "StringEquals": { "kms:ViaService": { "Fn::Sub": "ssm.${AWS::Region}.amazonaws.com" } } } }, { "Ref": "AWS::NoValue" }] },
+          { "Effect": "Allow", "Action": "apigateway:POST", "Resource": { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/apikeys" } },
+          { "Effect": "Allow", "Action": "apigateway:GET", "Resource": [
+            { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/apikeys" },
+            { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/usageplans" }
+          ] },
+          { "Effect": "Allow", "Action": "apigateway:POST", "Resource": { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/usageplans/*/keys" } },
+          { "Effect": "Allow", "Action": "apigateway:DELETE", "Resource": { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/usageplans/*/keys/*" } }
+        ] } }]
+      }
+    },
+    "Function": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": { "Ref": "FunctionName" },
+        "PackageType": "Image",
+        "Code": { "ImageUri": { "Ref": "ImageUri" } },
+        "Role": { "Fn::GetAtt": ["Role", "Arn"] },
+        "Architectures": ["arm64"],
+        "MemorySize": 512,
+        "Timeout": 30,
+        "ReservedConcurrentExecutions": { "Ref": "ReservedConcurrency" },
+        "TracingConfig": { "Mode": { "Ref": "TracingMode" } },
+        "Environment": { "Variables": {
+          "MCP_SERVICE": "access",
+          "MCP_ENVIRONMENT": { "Ref": "Environment" },
+          "MCP_RELEASE": { "Ref": "ReleaseId" },
+          "ACCESS_STATE_TABLE": { "Ref": "StateTableName" },
+          "BILLING_ENTITLEMENTS_TABLE": { "Ref": "EntitlementTableName" },
+          "ACCESS_AWS_ACCOUNT_ID": { "Fn::Select": [4, { "Fn::Split": [":", { "Ref": "BillingAliasArn" }] }] },
+          "ACCESS_BILLING_LAMBDA_ALIAS_ARN": { "Ref": "BillingAliasArn" },
+          "ACCESS_CONFIG_JSON": { "Ref": "AccessConfigJson" },
+          "ACCESS_PUBLIC_JWKS_JSON": { "Ref": "PublicJwksJson" },
+          "ACCESS_SIGNING_CONFIG_JSON": { "Ref": "SigningConfigJson" },
+          "ACCESS_PROVISIONING_CONFIG_JSON": { "Ref": "ProvisioningConfigJson" },
+          "ACCESS_TOKEN_TTL_SECONDS": { "Ref": "TokenTtlSeconds" }
+        } }
+      }
+    },
+    "Version": { "Type": "AWS::Lambda::Version", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "FunctionName": { "Ref": "Function" }, "Description": { "Ref": "ReleaseId" } } },
+    "Alias": { "Type": "AWS::Lambda::Alias", "Properties": { "Name": "live", "FunctionName": { "Ref": "Function" }, "FunctionVersion": { "Fn::GetAtt": ["Version", "Version"] } } }
+  },
+  "Outputs": {
+    "AccessAliasArn": { "Value": { "Ref": "Alias" } },
+    "AccessRoleArn": { "Value": { "Fn::GetAtt": ["Role", "Arn"] } },
+    "AccessFunctionArn": { "Value": { "Fn::GetAtt": ["Function", "Arn"] } }
+  }
+}

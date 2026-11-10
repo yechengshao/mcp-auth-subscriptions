@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create-mode Cognito hosted-login pool and public S256 OAuth client for Access. Existing pools require a read-only compatibility review before reuse.
+Parameters:
+  UserPoolName:
+    Type: String
+    MinLength: 1
+    MaxLength: 128
+    AllowedPattern: '^[A-Za-z0-9 _.-]+$'
+  DomainPrefix:
+    Type: String
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+  CoordinatorCallbackUri:
+    Type: String
+    MaxLength: 2048
+    AllowedPattern: '^https://[^\s]+$'
+  CoordinatorLogoutUri:
+    Type: String
+    MaxLength: 2048
+    AllowedPattern: '^https://[^\s]+$'
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Ref UserPoolName
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      AutoVerifiedAttributes:
+        - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+  PublicOAuthClient:
+    Type: AWS::Cognito::UserPoolClient
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-access-public'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - !Ref CoordinatorCallbackUri
+      LogoutURLs:
+        - !Ref CoordinatorLogoutUri
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+  HostedLoginDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Domain: !Ref DomainPrefix
+      UserPoolId: !Ref UserPool
+Outputs:
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolIssuer:
+    Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+  PublicOAuthClientId:
+    Value: !Ref PublicOAuthClient
+  HostedLoginDomain:
+    Value: !Sub 'https://${DomainPrefix}.auth.${AWS::Region}.amazoncognito.com'

@@ -1,0 +1,12 @@
+.git
+.github
+.artifacts
+.codex
+.agents
+node_modules
+dist
+coverage
+tmp
+*.log
+*.tgz
+*.zip
