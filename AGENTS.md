@@ -9,3 +9,5 @@ When implementing any application handler, worker, external-service adapter or i
 - Treat observability coverage as part of implementation review, not deferred cleanup; distinguish local instrumentation/configuration tests from unrun live CloudWatch/X-Ray delivery checks.
 
 Use AWS-native monitoring only: do not add OpenTelemetry, third-party tracing SDKs, custom span exporters, collectors or monitoring workers. Preserve correlation IDs and available AWS tracking metadata; detailed application timings belong in sanitized logs, not custom spans.
+
+AWS resources MUST be created only from CloudFormation templates in `infra/`, never by hand or with ad hoc CLI commands; see the constitution's Infrastructure as Code principle.
