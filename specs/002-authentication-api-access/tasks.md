@@ -9,7 +9,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 
 ## Foundations and authorizer
 
-- [ ] T001 Write access boundary, REST and observability infrastructure tests for ownership, alias permissions, retained state, acyclic wiring, role separation and absence of Step Functions resources. Files: `tests/access/access_contract.test.ts`.
+- [x] T001 Write access boundary, REST and observability infrastructure tests for ownership, alias permissions, retained state, acyclic wiring, role separation and absence of Step Functions resources. Files: `tests/access/access_contract.test.ts`.
 - [x] T002 Write isolated token, JWKS and authorizer tests covering wrong resource/client/type, expiry, usage-key tampering, unavailable keys, exact REST methodArn, and zero datastore or MCP calls on denial. Files: `tests/access/authorizer.test.ts`, `tests/access/support/identity_fixture.ts`. Depends: T001, T014.
 - [x] T003 Implement the isolated Node.js REST REQUEST handler with JWT and JWKS verification and signed usage-key validation, with no datastore, Stripe or MCP imports. Files: `authorizer/handler.ts`, `authorizer/package.json`, `authorizer/package-lock.json`. Depends: T002.
 - [x] T004 Build and test an npm-locked Node.js 24.x ARM64 authorizer ZIP with production dependencies only and recorded SHA-256 evidence, exercised without Docker. Files: `infra/access/package-authorizer.ts`, `infra/access/zip.ts`, `scripts/package_authorizer.mjs`, `tests/access/authorizer_package.test.ts`. Depends: T003.

@@ -82,3 +82,7 @@ Current local verification: TypeScript typecheck/build, all 225 tests, `cfn-lint
 - `infra/access/auth.yaml`: `AllowAdminCreateUserOnly: false`; `AWS::Cognito::UserPoolIdentityProvider` for Google (retained) with client ID and `NoEcho` client-secret parameters; app client lists `COGNITO` and `Google` and depends on the provider. Cognito resources keep `DeletionPolicy: Retain`.
 - `infra/access/cognito-compatibility.ts` and both tests updated: self-registration required; identity providers must be exactly COGNITO and Google. Results: compatibility tests 2/2, access contract test 8/8, cfn-lint clean.
 - Pending: Google Cloud OAuth client (operator step; redirect `https://<domain>.auth.ca-central-1.amazoncognito.com/oauth2/idpresponse`), domain prefix, base REST API ID for callback URLs. T005 stays open for the authorizer and the rest of its scope.
+
+## T001 closed (2026-11-14)
+
+Boundary tests now cover cross-stack grants (entitlement table and billing alias only), authorizer isolation, retained state with TTL, Cognito retention and Google federation, the prepared authorizer's invoke surface, and acyclic wiring (no `ImportValue` in access templates). The service side checks that `runtime-rest.yaml` takes only `RestApiId` and no access outputs (`tests/integration/test_deployment_contract.py`). Access contract suite: 9/9.

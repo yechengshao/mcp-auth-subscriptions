@@ -90,3 +90,8 @@ test('access image build requires immutable Node 24 sources and builds only the 
   assert.throws(() => accessImageBuild(['--build-image', 'node:24-bookworm-slim', '--runtime-image', runtimeImage, '--tag', 'access-local:fixture']));
   assert.throws(() => accessImageBuild(['--build-image', buildImage, '--runtime-image', 'public.ecr.aws/lambda/nodejs:24', '--tag', 'access-local:fixture']));
 });
+test('stack wiring is acyclic by construction: access templates use no cross-stack imports', () => {
+  for (const file of ['auth.yaml', 'authorizer.yaml', 'publication.yaml', 'runtime.yaml', 'storage.yaml']) {
+    assert.equal(readFileSync(`infra/access/${file}`, 'utf8').includes('ImportValue'), false, file);
+  }
+});
