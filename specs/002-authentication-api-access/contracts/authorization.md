@@ -4,7 +4,7 @@
 
 ## Separate identity and service issuers
 
-Cognito managed login uses a public app client, authorization code + S256 PKCE, no client secret. Create mode retains a pool/client/domain with operator/admin enrollment initially; compatible reuse checks the whole pool/client/domain and callback/scopes configuration without resetting users, taking ownership or changing policies silently. Self-registration and additional client flows need explicit design changes. Cognito callback/logout URLs are exact operator inputs for the coordinator, not guessed AI-host callbacks.
+Cognito managed login uses a public app client, authorization code + S256 PKCE, no client secret. Create mode retains a pool/client/domain. Self-registration is enabled so first sign-in can create the user, and the only identity providers are Cognito and one Google federation (OIDC, operator-owned Google OAuth client, secret held outside templates). Compatible reuse checks the whole pool/client/domain and callback/scopes configuration without resetting users, taking ownership or changing policies silently. Additional providers or client flows need explicit design changes. Cognito callback/logout URLs are exact operator inputs for the coordinator, not guessed AI-host callbacks.
 
 The coordinator validates upstream Cognito signature/algorithm/key/issuer, ID-token audience/nonce and access-token client/type/time/scope as applicable before accepting the login. Only verified immutable Cognito issuer/subject determines billing ownership. Email never establishes ownership. Cognito signing keys and upstream JWT claims are distinct from downstream service signing keys and claims. Application code cannot mint Cognito JWTs or lengthen their expiry.
 

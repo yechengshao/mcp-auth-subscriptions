@@ -22,12 +22,14 @@ test('access state has retention and selective TTL, with no activation transport
   assert.match(source, /dynamodb:GetItem[\s\S]*dynamodb:PutItem[\s\S]*dynamodb:ConditionCheckItem/);
   assert.equal(source.includes('dynamodb:UpdateItem'), false);
 });
-test('Cognito create-mode template retains an admin-enrolled public code-flow client with fixed callbacks', () => {
+test('Cognito create-mode template retains a self-registering public code-flow client with a Google federation', () => {
   const template = readFileSync('infra/access/auth.yaml', 'utf8');
-  for (const requirement of ['DeletionPolicy: Retain','AllowAdminCreateUserOnly: true','GenerateSecret: false',
+  for (const requirement of ['DeletionPolicy: Retain','AllowAdminCreateUserOnly: false','GenerateSecret: false',
     'AllowedOAuthFlowsUserPoolClient: true','- code','- openid','- email','PreventUserExistenceErrors: ENABLED',
-    'CoordinatorCallbackUri','CoordinatorLogoutUri','AWS::Cognito::UserPoolDomain']) assert.ok(template.includes(requirement));
-  for (const prohibited of ['Implicit','selfSignUp','AWS::Cognito::UserPoolIdentityProvider']) assert.equal(template.includes(prohibited), false);
+    'CoordinatorCallbackUri','CoordinatorLogoutUri','AWS::Cognito::UserPoolDomain',
+    'AWS::Cognito::UserPoolIdentityProvider','ProviderName: Google','ProviderType: Google','- COGNITO','- Google',
+    'GoogleClientSecret','NoEcho: true']) assert.ok(template.includes(requirement), requirement);
+  for (const prohibited of ['Implicit','selfSignUp','AllowAdminCreateUserOnly: true']) assert.equal(template.includes(prohibited), false);
 });
 test('prepared authorizer function has only the telemetry role and no public or service invoke surface', () => {
   const template = JSON.parse(readFileSync('infra/access/authorizer.yaml', 'utf8'));

@@ -38,13 +38,13 @@ export function checkCognitoCompatibility(input: unknown): { compatible: boolean
   const mismatches: string[] = [];
   const check = (ok: boolean, code: string) => { if (!ok) mismatches.push(code); };
   check(observed.pool.UserPoolId === expected.user_pool_id, 'user_pool_id');
-  check(observed.pool.AdminCreateUserConfig?.AllowAdminCreateUserOnly === true, 'admin_only_enrollment');
+  check(observed.pool.AdminCreateUserConfig?.AllowAdminCreateUserOnly === false, 'self_registration_enabled');
   check(observed.client.UserPoolId === expected.user_pool_id, 'client_pool');
   check(observed.client.ClientId === expected.client_id, 'client_id');
   check(observed.client.GenerateSecret === false && !observed.client.ClientSecret, 'public_client_no_secret');
   check(observed.client.AllowedOAuthFlowsUserPoolClient === true && exactSet(observed.client.AllowedOAuthFlows, ['code']), 'authorization_code_flow_only');
   check(exactSet(observed.client.AllowedOAuthScopes, ['openid', 'email']), 'oauth_scopes');
-  check(exactSet(observed.client.SupportedIdentityProviders, ['COGNITO']), 'identity_providers');
+  check(exactSet(observed.client.SupportedIdentityProviders, ['COGNITO', 'Google']), 'identity_providers');
   check(exactSet(observed.client.CallbackURLs, [expected.callback_uri]), 'callback_urls');
   check(exactSet(observed.client.LogoutURLs, [expected.logout_uri]), 'logout_urls');
   check(observed.client.PreventUserExistenceErrors === 'ENABLED', 'user_enumeration_protection');
