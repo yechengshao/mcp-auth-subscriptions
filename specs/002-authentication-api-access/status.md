@@ -85,4 +85,4 @@ Current local verification: TypeScript typecheck/build, all 225 tests, `cfn-lint
 
 ## T001 closed (2026-11-14)
 
-Boundary tests now cover cross-stack grants (entitlement table and billing alias only), authorizer isolation, retained state with TTL, Cognito retention and Google federation, the prepared authorizer's invoke surface, and acyclic wiring (no `ImportValue` in access templates). The service side checks that `runtime-rest.yaml` takes only `RestApiId` and no access outputs (`tests/integration/test_deployment_contract.py`). Access contract suite: 9/9.
+Boundary tests now cover cross-stack grants (entitlement table and billing alias only), authorizer isolation, retained state with TTL, Cognito retention and Google federation, the prepared authorizer's invoke surface, and no cross-stack imports (`ImportValue`) in access templates. Circular dependencies inside a template are caught by cfn-lint (E3004, verified on a planted cycle), and all five access templates pass cfn-lint. The service side checks that `runtime-rest.yaml` takes `RestApiId` and no access outputs (`tests/integration/test_deployment_contract.py`). Access contract suite: 9/9.
