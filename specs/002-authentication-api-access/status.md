@@ -86,3 +86,9 @@ Current local verification: TypeScript typecheck/build, all 225 tests, `cfn-lint
 ## T001 closed (2026-11-14)
 
 Boundary tests now cover cross-stack grants (entitlement table and billing alias only), authorizer isolation, retained state with TTL, Cognito retention and Google federation, the prepared authorizer's invoke surface, and no cross-stack imports (`ImportValue`) in access templates. Circular dependencies inside a template are caught by cfn-lint (E3004, verified on a planted cycle), and all five access templates pass cfn-lint. The service side checks that `runtime-rest.yaml` takes `RestApiId` and no access outputs (`tests/integration/test_deployment_contract.py`). Access contract suite: 9/9.
+
+## T014 entitlement projection (2026-11-18)
+
+- `tests/access/oauth_contract.test.ts` (new, the file T014 names): the billing-owned entitlement projection passes with its stable `subscription_id`, and is rejected when the ID is missing or malformed, owned by another identity or environment, not allowed, or expired. Rejections use the schema's generic `invalid_contract` error, so the tests confirm rejection, not which field failed.
+- Before this, no test exercised `validateEntitlement`; the requirement existed only in code. Earlier contract, signing, storage and billing-adapter suites were already passing (37/37 across them).
+- T014 stays unchecked: its wording also covers identity, billing-interface and signing contract finalization, which need review against spec 003 before ticking.
