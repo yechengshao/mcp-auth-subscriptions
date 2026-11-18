@@ -9,7 +9,8 @@ const now = (entitlement.valid_until as number) - 1000;
 const check = (value: Record<string, unknown>, at = now) =>
   validateEntitlement(value, environment, identity.issuer, identity.subject, at);
 
-test('valid billing entitlement projection passes with its stable subscription_id', () => {
+// Stability across revisions is a billing-side guarantee; here we pin presence and string type only.
+test('valid billing entitlement projection passes with a subscription_id string', () => {
   assert.equal(typeof entitlement.subscription_id, 'string');
   assert.doesNotThrow(() => check(entitlement as unknown as Record<string, unknown>));
 });
@@ -25,7 +26,7 @@ test('malformed subscription_id is rejected by the projection schema', () => {
 });
 
 test('projection owned by another identity or environment is rejected', () => {
-  assert.throws(() => check({ ...entitlement, identity_subject: 'someone-else' } as unknown as Record<string, unknown>), /entitlement_owner_mismatch|PK|owner/);
+  assert.throws(() => check({ ...entitlement, identity_subject: 'someone-else' } as unknown as Record<string, unknown>), /entitlement_owner_mismatch/);
   assert.throws(() => check({ ...entitlement, environment: 'production' } as unknown as Record<string, unknown>), /entitlement_owner_mismatch/);
 });
 
