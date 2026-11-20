@@ -105,3 +105,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Updated wording: `billing/contracts/storage-operations.md` (entitlement row, and the subscription aggregate rule) and `002…/contracts/access-storage.md` (projection field). The earlier "stable aggregate" wording is removed.
 - Code: already matches (renewal gets a new order-based ID; upgrade keeps the quote's ID). Tests: the existing upgrade test (ID survives a plan change) still matches; a renewal test (new ID, old record kept) is not yet added.
 - Open point to confirm: a paid upgrade is also a payment. The contract keeps its `subscription_id`; if upgrades should also get a new ID, update the upgrade rule.
+
+## Upgrades get their own subscription ID (contract update, 2026-11-20)
+
+- Decision: every paid payment, including a paid upgrade, creates a new subscription with its own `subscription_id`. The source subscription is marked superseded and kept in history.
+- Updated: `003…/contracts/storage-operations.md` (entitlement row, aggregate rule, upgrade commit) and `003…/contracts/plan-upgrade.md` (supersede step).
+- Not yet aligned: billing code still keeps the source `subscription_id` on upgrades, and `tests/billing/adapters.test.ts` asserts that old rule. Code and that test need changing to match the contract before the contract is treated as implemented.
