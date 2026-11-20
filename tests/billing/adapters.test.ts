@@ -198,6 +198,28 @@ test('paid upgrade reserves credit, preserves old access until payment and consu
   assert.equal(successor?.subscription_id, changed.subscription_id);
   assert.equal(successor?.state, 'paid');
 });
+test('renewal after expiry creates a new subscription, keeps the expired term as history, and points the entitlement at the new ID', async () => {
+  const h = harness(); await h.service.checkout(h.request); h.paid(); h.clock(now + 300);
+  const first = [...h.rows.values()].find(row => row.entity_type === 'order')!;
+  await h.service.reconcileKey({ PK: first.PK, SK: first.SK });
+  const original = structuredClone([...h.rows.values()].find(row => row.entity_type === 'entitlement')!);
+  const expiredBefore = structuredClone([...h.rows.values()].find(row => row.entity_type === 'subscription' && row.SK === `SUB#${original.subscription_id}`)!);
+  h.clock(original.valid_until + 10);
+  const renewal: BillingRequest = { ...h.request, idempotency_key: 'renewal-key', input: { ...h.request.input, intent: 'renewal' } } as BillingRequest;
+  await h.service.checkout(renewal);
+  const renewalOrder = [...h.rows.values()].find(row => row.entity_type === 'order' && row.intent === 'renewal')!;
+  assert.notEqual(renewalOrder.order_id, first.order_id);
+  h.clock(original.valid_until + 310); h.paid(); await h.service.reconcileKey({ PK: renewalOrder.PK, SK: renewalOrder.SK });
+  const changed = [...h.rows.values()].find(row => row.entity_type === 'entitlement')!;
+  assert.equal(changed.subscription_id, renewalOrder.order_id);
+  assert.notEqual(changed.subscription_id, original.subscription_id);
+  assert.equal(changed.revision, original.revision + 1);
+  const expiredAfter = [...h.rows.values()].find(row => row.entity_type === 'subscription' && row.SK === `SUB#${original.subscription_id}`);
+  assert.deepEqual(expiredAfter, expiredBefore);
+  const successor = [...h.rows.values()].find(row => row.entity_type === 'subscription' && row.SK === `SUB#${changed.subscription_id}`);
+  assert.equal(successor?.subscription_id, changed.subscription_id);
+  assert.equal(successor?.state, 'paid');
+});
 test('stale catalog input cannot create a Checkout or provider effect', async () => {
   const h = harness(); const response = await h.service.checkout({ ...h.request, input: { ...h.request.input, catalog_version: 'stale' } }) as any;
   assert.equal(response.error_code, 'catalog_changed'); assert.deepEqual(h.counts(), { posts: 0, sends: 0 });

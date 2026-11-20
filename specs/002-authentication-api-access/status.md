@@ -118,3 +118,7 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - `billing/contracts/storage.ts`: subscription state accepts `superseded`; `superseded_by` is optional.
 - `tests/billing/adapters.test.ts`: upgrade test now asserts a new ID, the superseded source, and a paid successor. Billing adapter suite: 21/21.
 - Pre-existing, not caused by this change: `tests/billing/contracts.test.ts` (2 failures, service-term examples path) and `tests/access/authorizer_package.test.ts` (1 failure, authorizer path) fail the same way on the last commit when run from this checkout.
+
+## Renewal test (2026-11-20)
+
+- `tests/billing/adapters.test.ts`: a renewal after expiry gets a new subscription ID, the expired term record stays unchanged, the entitlement points at the new ID with a higher revision, and the successor is `paid`. A temporary mutation that reuses the old ID fails the test; the code was restored. Billing adapter suite: 22/22.
