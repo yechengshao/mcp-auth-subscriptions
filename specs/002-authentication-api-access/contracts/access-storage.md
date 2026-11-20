@@ -8,7 +8,7 @@ Use string PK/SK, schema_version=1, integer revision and UTC epoch-second timest
 
 Exact registered client/redirect/resource/scope and client-config version come from validated deployment registration, not a mutable browser record. No GSI or account-wide Scan is required: all authority reads use exact base keys and strong consistency. Billing entitlement lookup uses its shared identity-key algorithm; the catalog/purchased mapping contract remains unchanged.
 
-The billing-owned entitlement projection includes the stable application `subscription_id` as well as the current plan, paid-through time, usage mapping and revision. Access uses that identifier only to call Billing's own-account upgrade operations; it does not read payment, customer, order or history rows from `BillingState`.
+The billing-owned entitlement projection includes the application `subscription_id` of the current paid term as well as the current plan, paid-through time, usage mapping and revision. Access uses that identifier only to call Billing's own-account upgrade operations; it does not read payment, customer, order or history rows from `BillingState`.
 
 ## One access table: AccessState
 

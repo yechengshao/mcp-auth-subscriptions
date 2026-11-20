@@ -98,3 +98,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Assignment (`billing/service.ts`, paid commit): a first purchase uses its order ID as `subscription_id`; a paid upgrade reuses the quote's `subscription_id`. Upgrade reservations and the `SUB#` record are keyed by the same ID.
 - Test added (`tests/billing/adapters.test.ts`, upgrade test): after a plan change the entitlement keeps the same `subscription_id`, and the `SUB#` record stays under that key. A temporary mutation that gives the upgrade a new ID fails the test; the code was restored.
 - Open decision: a renewal is a new order with no quote, so the current code gives it a new `subscription_id`. The contract calls the ID stable, and manual-renewal does not say whether a renewal is the same subscription or a new one. Decide before pinning renewal behaviour in a test.
+
+## Subscription ID per paid term (contract update, 2026-11-20)
+
+- Decision: each initial purchase or manual renewal creates a new subscription with its own `subscription_id`. A paid upgrade keeps its source term's `subscription_id` and introduces a new `term_id`.
+- Updated wording: `billing/contracts/storage-operations.md` (entitlement row, and the subscription aggregate rule) and `002…/contracts/access-storage.md` (projection field). The earlier "stable aggregate" wording is removed.
+- Code: already matches (renewal gets a new order-based ID; upgrade keeps the quote's ID). Tests: the existing upgrade test (ID survives a plan change) still matches; a renewal test (new ID, old record kept) is not yet added.
+- Open point to confirm: a paid upgrade is also a payment. The contract keeps its `subscription_id`; if upgrades should also get a new ID, update the upgrade rule.
