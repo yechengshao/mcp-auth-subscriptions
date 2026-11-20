@@ -188,14 +188,15 @@ test('paid upgrade reserves credit, preserves old access until payment and consu
   assert.equal([...h.rows.values()].filter(row => row.entity_type === 'consumed_credit').length, 1);
   const changed = [...h.rows.values()].find(row => row.entity_type === 'entitlement')!;
   assert.equal(changed.plan_id, 'premium'); assert.equal(changed.revision, 2);
-  // The stable subscription ID survives a plan change: same projection ID, same subscription record key.
-  assert.equal(changed.subscription_id, original.subscription_id);
-  assert.equal(original.subscription_id, order.order_id);
-  const subscriptionRecord = [...h.rows.values()].find(row => row.entity_type === 'subscription' && row.SK === `SUB#${original.subscription_id}`);
-  assert.equal(subscriptionRecord?.subscription_id, original.subscription_id);
-  assert.equal(changed.valid_until, now + 319 + 3 * 86400);
-  assert.equal([...h.rows.values()].find(row => row.entity_type === 'credit_reservation')!.state, 'consumed');
-  assert.equal([...h.rows.values()].filter(row => row.entity_type === 'decision_history').length, 2);
+  // Every paid payment, including an upgrade, creates its own subscription; the source is superseded and kept.
+  assert.equal(changed.subscription_id, upgrade.order_id);
+  assert.notEqual(changed.subscription_id, original.subscription_id);
+  const superseded = [...h.rows.values()].find(row => row.entity_type === 'subscription' && row.SK === `SUB#${original.subscription_id}`);
+  assert.equal(superseded?.state, 'superseded');
+  assert.equal(superseded?.superseded_by, changed.subscription_id);
+  const successor = [...h.rows.values()].find(row => row.entity_type === 'subscription' && row.SK === `SUB#${changed.subscription_id}`);
+  assert.equal(successor?.subscription_id, changed.subscription_id);
+  assert.equal(successor?.state, 'paid');
 });
 test('stale catalog input cannot create a Checkout or provider effect', async () => {
   const h = harness(); const response = await h.service.checkout({ ...h.request, input: { ...h.request.input, catalog_version: 'stale' } }) as any;

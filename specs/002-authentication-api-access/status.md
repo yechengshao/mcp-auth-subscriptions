@@ -111,3 +111,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Decision: every paid payment, including a paid upgrade, creates a new subscription with its own `subscription_id`. The source subscription is marked superseded and kept in history.
 - Updated: `003…/contracts/storage-operations.md` (entitlement row, aggregate rule, upgrade commit) and `003…/contracts/plan-upgrade.md` (supersede step).
 - Not yet aligned: billing code still keeps the source `subscription_id` on upgrades, and `tests/billing/adapters.test.ts` asserts that old rule. Code and that test need changing to match the contract before the contract is treated as implemented.
+
+## Upgrade code aligned to per-payment subscription IDs (2026-11-20)
+
+- `billing/service.ts`: every paid commit (purchase, renewal, upgrade) uses its order ID as the new `subscription_id`, written as a new subscription at revision 1. A paid upgrade also marks the source subscription `superseded` (revision +1, `superseded_by` the new ID), with the same conditional check as before.
+- `billing/contracts/storage.ts`: subscription state accepts `superseded`; `superseded_by` is optional.
+- `tests/billing/adapters.test.ts`: upgrade test now asserts a new ID, the superseded source, and a paid successor. Billing adapter suite: 21/21.
+- Pre-existing, not caused by this change: `tests/billing/contracts.test.ts` (2 failures, service-term examples path) and `tests/access/authorizer_package.test.ts` (1 failure, authorizer path) fail the same way on the last commit when run from this checkout.

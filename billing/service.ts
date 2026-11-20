@@ -204,13 +204,13 @@ export class BillingService {
           !previous?.allowed || previous.valid_until !== source.paid_through || previous.plan_id !== source.snapshot.plan_id) throw new Error('paid_upgrade_repair_required');
     } else if (previous && previous.valid_until > payment.paidAt) throw new Error('paid_term_conflict');
     const validUntil = termExpiry(payment.paidAt, snapshot.service_term), revision = (previous?.revision ?? 0) + 1;
-    const subscriptionId = quote?.subscription_id ?? order.order_id;
+    const subscriptionId = order.order_id;
     const projection = { ...entitlementKey, entity_type: 'entitlement', schema_version: 1, revision, environment: this.store.environment,
       identity_issuer: order.identity.issuer, identity_subject: order.identity.subject, subscription_id: subscriptionId,
       allowed: true, plan_id: snapshot.plan_id,
       duration_option_id: snapshot.duration_option_id, service_term: snapshot.service_term, catalog_version: snapshot.catalog_version,
       ssm_version: snapshot.ssm_version, usage_mapping: snapshot.usage_mapping, valid_until: validUntil, updated_at: now };
-    const subscription = { ...this.base(order.identity, `SUB#${subscriptionId}`, 'subscription'), revision: (source?.revision ?? 0) + 1, subscription_id: subscriptionId,
+    const subscription = { ...this.base(order.identity, `SUB#${subscriptionId}`, 'subscription'), revision: 1, subscription_id: subscriptionId,
       customer_id: payment.customerId, order_id: order.order_id, term_id: order.order_id, snapshot, term_start: payment.paidAt,
       paid_through: validUntil, state: 'paid', revoked: false, payment_id: payment.paymentId, updated_at: now };
     const history = { ...this.base(order.identity, `HISTORY#${revision.toString().padStart(16, '0')}`, 'decision_history'), revision,
@@ -221,7 +221,7 @@ export class BillingService {
     if (customer && customer.stripe_customer_id !== payment.customerId) throw new Error('customer_conflict');
     const writes: Write[] = [
       { row: { ...order, state: 'paid', payment_id: payment.paymentId, revision: order.revision + 1, updated_at: now }, expectedRevision: order.revision },
-      { row: projection, ...(previous ? { expectedRevision: previous.revision } : {}) }, { row: subscription, ...(source ? { expectedRevision: source.revision } : {}) },
+      { row: projection, ...(previous ? { expectedRevision: previous.revision } : {}) }, { row: subscription }, ...(source ? [{ row: { ...source, state: 'superseded', superseded_by: subscriptionId, revision: source.revision + 1, updated_at: now }, expectedRevision: source.revision }] : []),
       // HISTORY revision is the entitlement revision, but the record is always an immutable insert.
       { row: history },
     ];
