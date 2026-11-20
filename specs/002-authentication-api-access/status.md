@@ -92,3 +92,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - `tests/access/oauth_contract.test.ts` (new, the file T014 names): the billing-owned entitlement projection passes with its stable `subscription_id`, and is rejected when the ID is missing or malformed, owned by another identity or environment, not allowed, or expired. Rejections use the schema's generic `invalid_contract` error, so the tests confirm rejection, not which field failed.
 - Before this, no test exercised `validateEntitlement`; the requirement existed only in code. Earlier contract, signing, storage and billing-adapter suites were already passing (37/37 across them).
 - T014 stays unchecked: its wording also covers identity, billing-interface and signing contract finalization, which need review against spec 003 before ticking.
+
+## Subscription ID in billing (2026-11-20)
+
+- Assignment (`billing/service.ts`, paid commit): a first purchase uses its order ID as `subscription_id`; a paid upgrade reuses the quote's `subscription_id`. Upgrade reservations and the `SUB#` record are keyed by the same ID.
+- Test added (`tests/billing/adapters.test.ts`, upgrade test): after a plan change the entitlement keeps the same `subscription_id`, and the `SUB#` record stays under that key. A temporary mutation that gives the upgrade a new ID fails the test; the code was restored.
+- Open decision: a renewal is a new order with no quote, so the current code gives it a new `subscription_id`. The contract calls the ID stable, and manual-renewal does not say whether a renewal is the same subscription or a new one. Decide before pinning renewal behaviour in a test.
