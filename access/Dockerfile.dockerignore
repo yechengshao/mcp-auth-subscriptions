@@ -10,3 +10,11 @@ tmp
 *.log
 *.tgz
 *.zip
+.env
+.env.*
+*.pem
+*.key
+*.p12
+secrets
+.aws
+.npmrc
