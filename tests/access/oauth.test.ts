@@ -377,3 +377,28 @@ test('management login uses the same session cookies, requires current entitleme
     assert.equal(responseHeader(afterLogout, 'location'), `${config.issuer}/login`);
   }
 });
+
+test('a browser login expires exactly 1800 seconds after start and its remaining time never grows', async () => {
+  let clock = now;
+  const created: Array<Record<string, unknown>> = [];
+  type Store = ConstructorParameters<typeof BrowserSessions>[1];
+  type Cognito = ConstructorParameters<typeof BrowserSessions>[2];
+  const store = { environment: config.environment, createLogin: async (input: Record<string, unknown>) => { created.push(input); } } as unknown as Store;
+  const cognito = { authorize: () => 'https://login.example.invalid/authorize' } as unknown as Cognito;
+  const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'session-fixture' }, { sink: () => {}, now: () => clock * 1000 });
+  const sessions = new BrowserSessions(config, store, cognito, telemetry, () => clock);
+
+  await sessions.start('onboarding', Object.fromEntries(onboardingQuery));
+  const login = created.at(-1)!;
+  assert.equal(login.expiresAt, now + 1800);
+  assert.equal(login.deleteAfter, now + 1800 + 86400);
+
+  const expires = login.expiresAt as number;
+  assert.equal(sessions.remaining(expires), 1800);
+  clock = now + 600;
+  assert.equal(sessions.remaining(expires), 1200);
+  clock = now + 1800;
+  assert.equal(sessions.remaining(expires), 0);
+  clock = now;
+  assert.equal(sessions.remaining(now + 5000), 1800, 'remaining time is capped at 30 minutes');
+});
