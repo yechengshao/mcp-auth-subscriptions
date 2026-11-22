@@ -34,7 +34,7 @@ test('access publisher can push only to its immutable scanned ECR repository', (
   assert.deepEqual(statements[0], { Effect: 'Allow', Action: 'ecr:GetAuthorizationToken', Resource: '*' });
   assert.deepEqual(statements[1].Resource, { 'Fn::GetAtt': ['AccessRepository', 'Arn'] });
   assert.deepEqual(statements[1].Action, [
-    'ecr:BatchCheckLayerAvailability', 'ecr:CompleteLayerUpload', 'ecr:InitiateLayerUpload', 'ecr:PutImage', 'ecr:UploadLayerPart',
+    'ecr:BatchCheckLayerAvailability', 'ecr:BatchGetImage', 'ecr:CompleteLayerUpload', 'ecr:GetDownloadUrlForLayer', 'ecr:InitiateLayerUpload', 'ecr:PutImage', 'ecr:UploadLayerPart',
   ]);
 });
 
