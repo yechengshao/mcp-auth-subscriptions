@@ -122,3 +122,12 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 ## Renewal test (2026-11-20)
 
 - `tests/billing/adapters.test.ts`: a renewal after expiry gets a new subscription ID, the expired term record stays unchanged, the entitlement points at the new ID with a higher revision, and the successor is `paid`. A temporary mutation that reuses the old ID fails the test; the code was restored. Billing adapter suite: 22/22.
+
+## Access image publication evidence (2026-11-22)
+
+- Release `access-2026-11-22.3` from `main` at `2756f4b`, run 45069363579, all steps passed. Image `mcp-access:access-2026-11-22.3`, index digest `sha256:041abeab13665edf9f26d6893c8aa861051410ecc5bb39c1336ad99485972807`; ARM64 manifest `sha256:9afb572e716fe3bcba3349e80bec01ad53044b770db399f727708070bbe4141c`.
+- Base image pins: build `node:24-bookworm-slim@sha256:dc26ae92…`, runtime `public.ecr.aws/lambda/nodejs:24@sha256:659129486b70…` (the `24` tag still resolves to this digest, so no newer base exists).
+- Scan of the ARM64 manifest: 0 critical, 4 high, 6 medium, 1 low. The high findings are CVE-2026-95520 and CVE-2026-95521 in `rpm` and `rpm-libs` 4.16.1.3-29.amzn2023.0.9, from the Lambda base image. No fixed version is published yet.
+- Decision: pin the current base image and accept the two high findings until AWS publishes a patched base. Recheck when the `24` tag moves and rerun the publish.
+- Scan-on-push does not cover image indexes, so the scan was run on the ARM64 manifest. Future releases should scan the ARM64 manifest digest.
+- T019 stays unchecked: its dependencies (T016–T018) are still open.
