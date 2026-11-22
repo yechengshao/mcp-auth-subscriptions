@@ -181,3 +181,18 @@ test('RFC 7009 revoke is non-disclosing for unknown and foreign-client tokens an
   assert.equal(family?.status, 'revoked');
   assert.equal(family?.revocation_reason, 'client_revoke');
 });
+
+test('a code is rejected when the redirect, client or resource differs, or after its 60-second lifetime, and stays unconsumed', async () => {
+  const value = setup();
+  const rejected = (promise: Promise<unknown>) => assert.rejects(promise, error => error instanceof OAuthTokenFailure && error.oauthError === 'invalid_grant');
+  await rejected(value.service.exchangeCode({ code, clientId, redirectUri: `${redirectUri}?x=1`, codeVerifier: verifier, resource }));
+  await rejected(value.service.exchangeCode({ code, clientId: 'other_fixture', redirectUri, codeVerifier: verifier, resource }));
+  await assert.rejects(value.service.exchangeCode({ code, clientId, redirectUri, codeVerifier: verifier, resource: 'https://other.example.invalid/mcp' }),
+    error => error instanceof OAuthTokenFailure && error.oauthError === 'invalid_request');
+  assert.equal((await value.store.get(value.codeKey))?.consumed, false);
+
+  value.clock.value = now + 60;
+  await rejected(value.service.exchangeCode({ code, clientId, redirectUri, codeVerifier: verifier, resource }));
+  assert.equal((await value.store.get(value.codeKey))?.consumed, false);
+  assert.equal(value.signed.length, 0, 'no token is signed for a rejected code');
+});
