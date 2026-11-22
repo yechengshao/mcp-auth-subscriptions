@@ -47,3 +47,10 @@ test('billing publication workflow is manual, main-only and OIDC scoped without 
   assert.match(workflow, /IMAGE_DIGEST/);
   assert.doesNotMatch(workflow, /aws cloudformation deploy|lambda:UpdateFunctionCode|aws sts get-caller-identity/);
 });
+
+test('billing publication deploy inputs supply the immutable subject prefix and match the template', () => {
+  const params = JSON.parse(readFileSync('infra/billing/publication.params.json', 'utf8'));
+  const prefix = params.find((p: { ParameterKey: string }) => p.ParameterKey === 'GithubSubjectPrefix');
+  assert.ok(prefix, 'GithubSubjectPrefix must be supplied');
+  assert.match(prefix.ParameterValue, new RegExp(template.Parameters.GithubSubjectPrefix.AllowedPattern));
+});

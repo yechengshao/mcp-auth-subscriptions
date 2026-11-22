@@ -77,3 +77,10 @@ test('Access release workflows are manual, main-only and keep publishing separat
     assert.match(workflow, /actions\/upload-artifact@v4/);
   }
 });
+
+test('access publication deploy inputs supply the immutable subject prefix and match the template', () => {
+  const params = JSON.parse(readFileSync('infra/access/publication.params.json', 'utf8'));
+  const prefix = params.find((p: { ParameterKey: string }) => p.ParameterKey === 'GithubSubjectPrefix');
+  assert.ok(prefix, 'GithubSubjectPrefix must be supplied');
+  assert.match(prefix.ParameterValue, new RegExp(template.Parameters.GithubSubjectPrefix.AllowedPattern));
+});
