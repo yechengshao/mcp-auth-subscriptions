@@ -84,3 +84,11 @@ test('access publication deploy inputs supply the immutable subject prefix and m
   assert.ok(prefix, 'GithubSubjectPrefix must be supplied');
   assert.match(prefix.ParameterValue, new RegExp(template.Parameters.GithubSubjectPrefix.AllowedPattern));
 });
+
+test('access deploy inputs supply every required template parameter', () => {
+  const params = JSON.parse(readFileSync('infra/access/publication.params.json', 'utf8'));
+  const supplied = new Set(params.map((p: { ParameterKey: string }) => p.ParameterKey));
+  for (const [name, def] of Object.entries<{ Default?: string }>(template.Parameters)) {
+    if (def.Default === undefined) assert.ok(supplied.has(name), `${name} is required but not supplied`);
+  }
+});

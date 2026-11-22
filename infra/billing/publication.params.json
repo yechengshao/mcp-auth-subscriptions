@@ -1,5 +1,9 @@
 [
   {
+    "ParameterKey": "GithubOidcProviderArn",
+    "ParameterValue": "arn:aws:iam::503098479806:oidc-provider/token.actions.githubusercontent.com"
+  },
+  {
     "ParameterKey": "GithubSubjectPrefix",
     "ParameterValue": "repo:yechengshao@7886247/mcp-auth-subscriptions@1446588582"
   }
