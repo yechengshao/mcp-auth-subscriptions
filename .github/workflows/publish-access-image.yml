@@ -59,6 +59,8 @@ jobs:
           file: access/Dockerfile
           platforms: linux/arm64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ vars.ACCESS_ECR_REPOSITORY_URI }}:${{ inputs.release_tag }}
           build-args: |
             NODE_BUILD_IMAGE=${{ vars.NODE_BUILD_IMAGE }}

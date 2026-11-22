@@ -97,3 +97,8 @@ test('access release evidence upload includes the hidden .artifacts directory', 
   const workflow = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
   assert.match(workflow, /path: \.artifacts\/access-release-\*\.json\n\s+include-hidden-files: true/);
 });
+
+test('access image is pushed as one ARM64 manifest without attestation manifests', () => {
+  const workflow = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
+  assert.match(workflow, /platforms: linux\/arm64\n\s+push: true\n\s+provenance: false\n\s+sbom: false/);
+});
