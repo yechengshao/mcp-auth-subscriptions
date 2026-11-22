@@ -16,13 +16,13 @@ export function accessImageBuild(argv: string[]): AccessImageBuild {
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index], value = argv[index + 1];
     if (!key || !value || !['--build-image', '--runtime-image', '--tag'].includes(key) || args[key]) {
-      throw new Error('usage: package:access-image --build-image node:24-bookworm-slim@sha256:<64-hex> --runtime-image public.ecr.aws/lambda/nodejs:24@sha256:<64-hex> --tag access-local:<tag>');
+      throw new Error('usage: package:access-image --build-image node:24-bookworm-slim@sha256:<64-hex> --runtime-image public.ecr.aws/lambda/nodejs:24-arm64@sha256:<64-hex> --tag access-local:<tag>');
     }
     args[key] = value;
   }
   const buildImage = args['--build-image']!, runtimeImage = args['--runtime-image']!, tag = args['--tag']!;
   if (!/^node:24-bookworm-slim@sha256:[a-f0-9]{64}$/.test(buildImage) ||
-      !/^public\.ecr\.aws\/lambda\/nodejs:24@sha256:[a-f0-9]{64}$/.test(runtimeImage) || !repoTag.test(tag)) {
+      !/^public\.ecr\.aws\/lambda\/nodejs:24-arm64@sha256:[a-f0-9]{64}$/.test(runtimeImage) || !repoTag.test(tag)) {
     throw new Error('immutable_node24_arm64_images_required');
   }
   return { buildImage, runtimeImage, tag };

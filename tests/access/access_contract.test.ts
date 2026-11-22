@@ -81,7 +81,7 @@ test('access Lambda image uses the managed runtime, production install and exclu
 });
 test('access image build requires immutable Node 24 sources and builds only the ARM64 runtime', () => {
   const buildImage = `node:24-bookworm-slim@sha256:${'a'.repeat(64)}`;
-  const runtimeImage = `public.ecr.aws/lambda/nodejs:24@sha256:${'b'.repeat(64)}`;
+  const runtimeImage = `public.ecr.aws/lambda/nodejs:24-arm64@sha256:${'b'.repeat(64)}`;
   const input = accessImageBuild(['--build-image', buildImage, '--runtime-image', runtimeImage, '--tag', 'access-local:fixture']);
   const args = accessImageBuildArgs(input);
   assert.equal(args[args.indexOf('--platform') + 1], 'linux/arm64');

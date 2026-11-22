@@ -274,7 +274,7 @@ hash evidence under `.artifacts/`; it does not push to ECR or deploy:
 ```sh
 npm run package:access-image -- \
   --build-image 'node:24-bookworm-slim@sha256:REPLACE_WITH_64_HEX_DIGEST' \
-  --runtime-image 'public.ecr.aws/lambda/nodejs:24@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --runtime-image 'public.ecr.aws/lambda/nodejs:24-arm64@sha256:REPLACE_WITH_64_HEX_DIGEST' \
   --tag 'access-local:REPLACE_WITH_RELEASE'
 ```
 
