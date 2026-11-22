@@ -10,8 +10,12 @@ test('billing publication role is restricted to the named GitHub environment and
   assert.deepEqual(trust.Principal.Federated, { Ref: 'GithubOidcProviderArn' });
   assert.deepEqual(trust.Condition.StringEquals['token.actions.githubusercontent.com:aud'], 'sts.amazonaws.com');
   assert.deepEqual(trust.Condition.StringEquals['token.actions.githubusercontent.com:sub'], {
-    'Fn::Sub': 'repo:${GithubRepository}:environment:${GithubEnvironment}',
+    'Fn::Sub': '${GithubSubjectPrefix}:environment:${GithubEnvironment}',
   });
+  const prefix = template.Parameters.GithubSubjectPrefix;
+  assert.equal(prefix.Default, undefined, 'subject prefix must be supplied, not defaulted');
+  assert.match('repo:yechengshao@1/mcp-auth-subscriptions@2', new RegExp(prefix.AllowedPattern));
+  assert.doesNotMatch('repo:yechengshao/mcp-auth-subscriptions', new RegExp(prefix.AllowedPattern));
   const statements = role.Properties.Policies[0].PolicyDocument.Statement;
   assert.deepEqual(statements[0], { Effect: 'Allow', Action: 'ecr:GetAuthorizationToken', Resource: '*' });
   assert.deepEqual(statements[1].Resource, { 'Fn::GetAtt': ['BillingRepository', 'Arn'] });

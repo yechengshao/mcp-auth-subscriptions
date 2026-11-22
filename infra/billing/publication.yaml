@@ -7,12 +7,10 @@
       "AllowedPattern": "^arn:aws:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$",
       "Description": "Reuse the account provider; this template does not create or mutate it."
     },
-    "GithubRepository": {
+    "GithubSubjectPrefix": {
       "Type": "String",
-      "Default": "yechengshao/mcp-auth-subscriptions",
-      "MinLength": 3,
-      "MaxLength": 100,
-      "AllowedPattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+      "AllowedPattern": "^repo:[A-Za-z0-9_.-]+@[0-9]+/[A-Za-z0-9_.-]+@[0-9]+$",
+      "Description": "Immutable GitHub subject claim prefix (owner@id/repo@id) for the billing repository; no default, so the IDs are supplied at deploy time."
     },
     "GithubEnvironment": {
       "Type": "String",
@@ -50,7 +48,7 @@
             "Condition": { "StringEquals": {
               "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
               "token.actions.githubusercontent.com:sub": {
-                "Fn::Sub": "repo:${GithubRepository}:environment:${GithubEnvironment}"
+                "Fn::Sub": "${GithubSubjectPrefix}:environment:${GithubEnvironment}"
               }
             } }
           }]
