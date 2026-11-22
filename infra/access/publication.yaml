@@ -7,10 +7,10 @@
       "AllowedPattern": "^arn:aws:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$",
       "Description": "Reuse the account provider; this template does not create or mutate it."
     },
-    "GithubRepository": {
+    "GithubSubjectPrefix": {
       "Type": "String",
-      "Default": "yechengshao/mcp-auth-subscriptions",
-      "AllowedPattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+      "AllowedPattern": "^repo:[A-Za-z0-9_.-]+@[0-9]+/[A-Za-z0-9_.-]+@[0-9]+$",
+      "Description": "Immutable GitHub subject claim prefix (owner@id/repo@id) for the access repository; no default, so the IDs are supplied at deploy time."
     },
     "AccessGithubEnvironment": {
       "Type": "String",
@@ -76,7 +76,7 @@
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": { "StringEquals": {
               "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-              "token.actions.githubusercontent.com:sub": { "Fn::Sub": "repo:${GithubRepository}:environment:${AccessGithubEnvironment}" }
+              "token.actions.githubusercontent.com:sub": { "Fn::Sub": "${GithubSubjectPrefix}:environment:${AccessGithubEnvironment}" }
             } }
           }]
         },
@@ -108,7 +108,7 @@
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": { "StringEquals": {
               "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-              "token.actions.githubusercontent.com:sub": { "Fn::Sub": "repo:${GithubRepository}:environment:${AuthorizerGithubEnvironment}" }
+              "token.actions.githubusercontent.com:sub": { "Fn::Sub": "${GithubSubjectPrefix}:environment:${AuthorizerGithubEnvironment}" }
             } }
           }]
         },

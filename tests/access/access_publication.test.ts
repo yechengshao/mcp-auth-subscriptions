@@ -12,11 +12,15 @@ test('access and authorizer publishers use separate protected GitHub environment
     assert.equal(trust.Condition.StringEquals['token.actions.githubusercontent.com:aud'], 'sts.amazonaws.com');
   }
   assert.deepEqual(accessTrust.Condition.StringEquals['token.actions.githubusercontent.com:sub'], {
-    'Fn::Sub': 'repo:${GithubRepository}:environment:${AccessGithubEnvironment}',
+    'Fn::Sub': '${GithubSubjectPrefix}:environment:${AccessGithubEnvironment}',
   });
   assert.deepEqual(authorizerTrust.Condition.StringEquals['token.actions.githubusercontent.com:sub'], {
-    'Fn::Sub': 'repo:${GithubRepository}:environment:${AuthorizerGithubEnvironment}',
+    'Fn::Sub': '${GithubSubjectPrefix}:environment:${AuthorizerGithubEnvironment}',
   });
+  const prefix = template.Parameters.GithubSubjectPrefix;
+  assert.equal(prefix.Default, undefined, 'subject prefix must be supplied, not defaulted');
+  assert.match('repo:yechengshao@1/mcp-auth-subscriptions@2', new RegExp(prefix.AllowedPattern));
+  assert.doesNotMatch('repo:yechengshao/mcp-auth-subscriptions', new RegExp(prefix.AllowedPattern));
 });
 
 test('access publisher can push only to its immutable scanned ECR repository', () => {
