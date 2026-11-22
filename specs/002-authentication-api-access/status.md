@@ -131,3 +131,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Decision: pin the current base image and accept the two high findings until AWS publishes a patched base. Recheck when the `24` tag moves and rerun the publish.
 - Scan-on-push does not cover image indexes, so the scan was run on the ARM64 manifest. Future releases should scan the ARM64 manifest digest.
 - T019 stays unchecked: its dependencies (T016–T018) are still open.
+
+## Current access image (2026-11-22, release .4)
+
+- Release `access-2026-11-22.4` from `main` at `7f65079`, run 45071398333, all steps passed including the evidence upload.
+- Image `mcp-access:access-2026-11-22.4` is a single ARM64 manifest, digest `sha256:b2acbd7000ff88565e78ec5857a76cede8c09ad79cfd4cec74e9ea7d87ecc51e`. Scan on the tag is complete: 0 critical, 4 high, 6 medium, 1 low; high findings are CVE-2026-95520 and CVE-2026-95521 (`rpm`, `rpm-libs`) from the base image.
+- Runtime base pinned to `public.ecr.aws/lambda/nodejs:24-arm64@sha256:1fcf85b0c17215de43e671b3c4dfb405fc46539b21f4e04b87407bc6661019f5`.
+- `.2` and `.3` are superseded; `.2`'s evidence was never uploaded and `.3` is an index whose scan is on the ARM64 child only.
+- T019 remains unchecked: its dependencies (T016–T018) are open, even though the image and evidence are in place.
