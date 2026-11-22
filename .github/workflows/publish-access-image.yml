@@ -94,4 +94,5 @@ jobs:
         with:
           name: access-release-${{ inputs.release_tag }}
           path: .artifacts/access-release-*.json
+          include-hidden-files: true
           if-no-files-found: error

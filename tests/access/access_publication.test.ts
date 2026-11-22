@@ -92,3 +92,8 @@ test('access deploy inputs supply every required template parameter', () => {
     if (def.Default === undefined) assert.ok(supplied.has(name), `${name} is required but not supplied`);
   }
 });
+
+test('access release evidence upload includes the hidden .artifacts directory', () => {
+  const workflow = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
+  assert.match(workflow, /path: \.artifacts\/access-release-\*\.json\n\s+include-hidden-files: true/);
+});
