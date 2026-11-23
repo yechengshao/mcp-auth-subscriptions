@@ -6,7 +6,7 @@ import { BillingAliasInvoker, type BillingCall, type BillingResult } from '../..
 import type { UsageBindingProvisioner } from '../../access/usage_bindings.js';
 import type { BrowserContext } from '../../access/sessions.js';
 import { credentialDigest, transactionKey, subscriberBindingKey } from '../../access/grants.js';
-import { validateAccessRecord } from '../../access/contracts/storage.js';
+import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { Telemetry } from '../../observability/telemetry.js';
 import { accessRecords } from '../fixtures/storage.js';
@@ -39,7 +39,7 @@ class MemoryOnboardingStore implements OnboardingStore {
       if (expectedRevision === undefined ? current !== undefined : current?.revision !== expectedRevision) {
         const error = new Error('conditional conflict'); error.name = 'TransactionCanceledException'; throw error;
       }
-      validateAccessRecord(row, this.environment);
+      validateStoredRecord(encodeRecord(row), this.environment);
     }
     for (const { row } of writes) this.rows.set(keyOf(row as StateKey), structuredClone(row));
   }

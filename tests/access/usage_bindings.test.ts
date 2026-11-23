@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AccessRow, StateKey } from '../../access/model.js';
-import { validateAccessRecord } from '../../access/contracts/storage.js';
 import { UsageBindingProvisioner, ProvisioningFailure, type ApiGatewayUsagePlanPort, type UsageBindingStore } from '../../access/usage_bindings.js';
 import { createUsageBindingProvisioner } from '../../access/provisioning.js';
 import { Telemetry } from '../../observability/telemetry.js';

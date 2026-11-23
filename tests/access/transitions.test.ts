@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { transitionTransaction } from '../../access/transitions.js';
-import { validateAccessRecord } from '../../access/contracts/storage.js';
+import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
 import { identity, environment, now } from '../fixtures/contracts.js';
 import type { AccessRow } from '../../access/model.js';
 
@@ -41,11 +41,11 @@ test('transaction transitions reject skipped phases, missing immutable purchase 
 test('cancelled pre-identity transactions are valid durable state and distinct from verified failures', () => {
   const cancelled = transitionTransaction(initial, 'cancelled');
   assert.equal(cancelled.phase, 'cancelled');
-  validateAccessRecord(cancelled, environment);
+  validateStoredRecord(encodeRecord(cancelled), environment);
 
   const failed = transitionTransaction(initial, 'identity_verified', { identity, subscriber_id: 'subscriber_fixture' });
   const terminalFailure = transitionTransaction(failed, 'failed');
   assert.equal(terminalFailure.phase, 'failed');
-  validateAccessRecord(terminalFailure, environment);
+  validateStoredRecord(encodeRecord(terminalFailure), environment);
   assert.throws(() => transitionTransaction({ ...initial, phase: 'checkout_pending' }, 'cancelled'), /invalid_onboarding_transition/);
 });

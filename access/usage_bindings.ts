@@ -103,7 +103,7 @@ export class UsageBindingProvisioner {
     if (!binding) {
       const operationId = randomUUID();
       const proposed: AccessRow = {
-        ...key, schema_version: 1, entity_type: 'subscriber_binding', revision: 1,
+        ...key, entity_type: 'subscriber_binding', revision: 1,
         environment: this.store.environment, subscriber_id: input.subscriberId,
         plan_id: entitlement.plan_id, duration_option_id: entitlement.duration_option_id,
         catalog_version: entitlement.catalog_version, entitlement_revision: entitlement.revision,

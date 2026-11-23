@@ -10,7 +10,7 @@ import { TrustedJwks } from '../../security/jwks.js';
 import { accessRecords } from '../fixtures/storage.js';
 import { entitlement, environment, now, usage_mapping } from '../fixtures/contracts.js';
 import { Onboarding, type OnboardingStore } from '../../access/onboarding.js';
-import { validateAccessRecord } from '../../access/contracts/storage.js';
+import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
 import type { BrowserContext } from '../../access/sessions.js';
 import type { AccessRow, StateKey } from '../../access/model.js';
 import type { BillingCall, BillingResult } from '../../access/adapters/billing.js';
@@ -38,7 +38,7 @@ class MemoryOnboardingStore implements OnboardingStore {
     for (const { row, expectedRevision } of writes) {
       const current = this.rows.get(keyOf(row as StateKey));
       if (expectedRevision === undefined ? current !== undefined : current?.revision !== expectedRevision) throw conflict();
-      validateAccessRecord(row, environment);
+      validateStoredRecord(encodeRecord(row), environment);
     }
     for (const { row } of writes) this.rows.set(keyOf(row as StateKey), structuredClone(row));
   }

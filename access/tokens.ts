@@ -204,7 +204,7 @@ export class AccessTokens {
   private familyRow(input: { identity: { issuer: string; subject: string }; subscriberId: string; clientId: string;
     resource: string; grantId: string; scopes: string[]; entitlement: AccessRow; accessExpiry: number; now: number }) {
     const expiry = input.entitlement.valid_until;
-    return { PK: `ENV#${this.store.environment}#GRANT#${input.grantId}`, SK: 'FAMILY', schema_version: 1,
+    return { PK: `ENV#${this.store.environment}#GRANT#${input.grantId}`, SK: 'FAMILY', 
       entity_type: 'grant_family', revision: 1, environment: this.store.environment, grant_id: input.grantId,
       identity: input.identity, subscriber_id: input.subscriberId, client_id: input.clientId, resource: input.resource,
       scopes: input.scopes, status: 'active', refresh_expires_at: expiry, rotation_counter: 0,
@@ -215,7 +215,7 @@ export class AccessTokens {
   private refreshRow(token: string, input: { grantId: string; subscriberId: string; clientId: string; resource: string;
     sequence: number; familyExpiry: number; accessExpiry: number; now: number }) {
     const expiry = input.familyExpiry;
-    return { PK: `ENV#${this.store.environment}#REFRESH#${credentialDigest(token)}`, SK: 'TOKEN', schema_version: 1,
+    return { PK: `ENV#${this.store.environment}#REFRESH#${credentialDigest(token)}`, SK: 'TOKEN', 
       entity_type: 'refresh_credential', revision: 1, environment: this.store.environment, grant_id: input.grantId,
       subscriber_id: input.subscriberId, client_id: input.clientId, resource: input.resource, sequence: input.sequence,
       status: 'active', issued_at: input.now, expires_at: expiry, family_expires_at: expiry,

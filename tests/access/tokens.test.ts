@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { identityPartition } from '../../contracts/identity.js';
-import { validateAccessRecord } from '../../access/contracts/storage.js';
+import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
 import { AccessTokens, OAuthTokenFailure, type TokenStore } from '../../access/tokens.js';
 import { authCodeKey, grantFamilyKey, refreshCredentialKey, subscriberBindingKey, transactionKey } from '../../access/grants.js';
 import type { AccessRow, StateKey } from '../../access/model.js';
@@ -40,7 +40,7 @@ class MemoryTokenStore implements TokenStore {
     for (const { row, expectedRevision } of writes) {
       const previous = this.rows.get(rowKey({ PK: row.PK as string, SK: row.SK as string }));
       if (expectedRevision === undefined ? previous !== undefined : previous?.revision !== expectedRevision) throw conflict();
-      validateAccessRecord(row, this.environment);
+      validateStoredRecord(encodeRecord(row), this.environment);
     }
     for (const { row } of writes) this.rows.set(rowKey({ PK: row.PK as string, SK: row.SK as string }), structuredClone(row));
   }

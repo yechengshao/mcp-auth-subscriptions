@@ -4,7 +4,6 @@ import { identityPartition } from '../contracts/identity.js';
 import { identifierPattern } from '../contracts/patterns.js';
 import type { Telemetry } from '../observability/telemetry.js';
 import type { BillingCall, BillingPort, BillingResult } from './ports.js';
-import { validateAccessRecord } from './contracts/storage.js';
 import type { BrowserContext } from './sessions.js';
 import type { AccessRow, StateKey } from './model.js';
 import { authCodeKey, subscriberBindingKey, transactionKey, newOpaqueCredential } from './grants.js';
@@ -203,7 +202,7 @@ export class Onboarding {
     const expires = Math.min(now + 60, transaction.expires_at);
     if (expires <= now) throw new OnboardingFailure(409, 'continuation_expired');
     const codeRow: AccessRow = {
-      ...codeKey, schema_version: 1, entity_type: 'authorization_code', revision: 1, environment: this.store.environment,
+      ...codeKey, entity_type: 'authorization_code', revision: 1, environment: this.store.environment,
       tx_id: txId, subscriber_id: subscriberId, client_id: downstream.client_id,
       resource: downstream.resource, redirect_uri: downstream.redirect_uri, scopes: downstream.scopes,
       code_challenge: downstream.code_challenge, code_challenge_method: 'S256', grant_id: transaction.grant_id,
@@ -212,7 +211,6 @@ export class Onboarding {
     };
     const issued = transitionTransaction(transaction, 'code_issued');
     try {
-      validateAccessRecord(codeRow, this.store.environment);
       await this.store.commit([{ row: codeRow }, { row: issued, expectedRevision: transaction.revision }],
         this.authorityChecks(identity, entitlement!, binding));
     } catch (error) {

@@ -158,3 +158,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - T018: onboarding and management suites pass (24 tests across the onboarding, management, and HTTP suites).
 - T023: added `tests/access/recovery.test.ts` (a stalled owner whose lease was taken over cannot overwrite the configured binding) and `tests/access/onboarding_callbacks.test.ts` (duplicate, late-after-cancel, and skipped-phase callbacks are rejected). The shared usage-binding fakes moved to `tests/access/support/usage_fakes.ts`. No detached post-return work was found: the remaining timers are request-scoped aborts and client-side polling.
 - T022 gap: `onboarding-workflow.md` requires new releases and rollbacks to support existing unexpired records, and incompatible records to fail closed with a repair path. Unknown schema versions fail closed, but the cross-release compatibility test and repair path do not exist yet. T022, T023, and T018 stay unchecked until that policy is decided.
+
+## Record versioning moved to the adapter (2026-11-23)
+
+- `access/adapters/record-codec.ts` now owns `WRITE_SCHEMA_VERSION` (1) and `READ_SCHEMA_VERSIONS` (`[1]`), stamps the write version on every write, and selects the validator for the version read back.
+- Domain code (`tokens.ts`, `usage_bindings.ts`, `onboarding.ts`) builds records without a version and no longer calls the validator; `store.ts` encodes and validates on commit and get.
+- Test fakes encode through the same codec. New `tests/access/record_codec.test.ts` covers stamping, unknown versions, and unversioned records. Suite: 253 of 253.
+- Versions that remain outside the adapter are wire and configuration contracts (`provisioning.ts` budget config, `ports.ts` billing message), not stored records.

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, type TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
-import { validateAccessRecord } from './contracts/storage.js';
+import { encodeRecord, validateStoredRecord } from './adapters/record-codec.js';
 import { compile } from '../contracts/schema.js';
 import { entitlementSchema } from '../contracts/entitlement.js';
 import { identityPartition } from '../contracts/identity.js';
@@ -24,13 +24,13 @@ export class AccessStore implements BrowserSessionStore {
     if (typeof key.PK !== 'string' || !key.PK.startsWith(`ENV#${this.environment}#`) || typeof key.SK !== 'string' || !key.SK) throw new Error('invalid_access_key');
   }
   private base(PK: string, SK: string, entity_type: string) {
-    return { PK, SK, entity_type, schema_version: 1, revision: 1, environment: this.environment };
+    return { PK, SK, entity_type, revision: 1, environment: this.environment };
   }
   async get(key: StateKey): Promise<AccessRow | undefined> {
     this.key(key);
     const result = await this.telemetry.dependency('dynamodb.read', () => this.db.send(new GetCommand({ TableName: this.table, Key: key, ConsistentRead: true })));
     if (result.Item) {
-      validateAccessRecord(result.Item, this.environment);
+      validateStoredRecord(result.Item, this.environment);
       if (result.Item.PK !== key.PK || result.Item.SK !== key.SK) throw new Error('access_record_mismatch');
     }
     return result.Item;
@@ -94,8 +94,9 @@ export class AccessStore implements BrowserSessionStore {
   }
   async commit(writes: StateWrite[], checks: StateCheck[] = []) {
     if (!writes.length || writes.length + checks.length > 100) throw new Error('invalid_access_transaction');
-    const items: NonNullable<TransactWriteCommandInput['TransactItems']> = writes.map(({ row, expectedRevision }) => {
-      validateAccessRecord(row, this.environment);
+    const items: NonNullable<TransactWriteCommandInput['TransactItems']> = writes.map(({ row: domainRow, expectedRevision }) => {
+      const row = encodeRecord(domainRow);
+      validateStoredRecord(row, this.environment);
       if (row.revision !== (expectedRevision ?? 0) + 1) throw new Error('invalid_access_revision');
       return { Put: { TableName: this.table, Item: row,
         ConditionExpression: expectedRevision === undefined ? 'attribute_not_exists(PK)' : '#revision = :revision',
@@ -115,7 +116,7 @@ export class AccessStore implements BrowserSessionStore {
   async ensureProfile(identity: { issuer: string; subject: string }): Promise<AccessRow> {
     const key = { PK: identityPartition(this.environment, identity.issuer, identity.subject), SK: 'PROFILE' };
     const current = await this.get(key); if (current) return current;
-    const proposed = { ...key, entity_type: 'identity_profile', schema_version: 1, revision: 1,
+    const proposed = { ...key, entity_type: 'identity_profile', revision: 1,
       environment: this.environment, identity, subscriber_id: randomUUID() };
     try { await this.commit([{ row: proposed }]); return proposed; }
     catch (error) {
