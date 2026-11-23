@@ -222,3 +222,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Findings: 4 HIGH and 6 MEDIUM, all in operating-system packages from the pinned Lambda base image. `rpm`/`rpm-libs` (CVE-2026-95520, CVE-2026-95521, HIGH) and `sqlite-libs` (CVE-2026-119371 to -119378 excluding -119374, MEDIUM). No fixed version is reported.
 - Decision: accepted for now and the base image stays pinned, per the project's pin-until-fixed rule. Revisit when AWS publishes a patched `public.ecr.aws/lambda/nodejs:24-arm64` digest; the release then needs a new build and digest.
 - Application code and npm dependencies have no findings.
+
+## T005 Cognito deploy (2026-11-23)
+
+- Stack `mcp-access-auth` in `ca-central-1` reached `CREATE_COMPLETE`, deployed from `infra/access/auth.yaml` on `main` (`bb34330`). The Google client secret was entered at the prompt and not stored.
+- Outputs: user pool `ca-central-1_XDIAH3aaZ`, public OAuth client `2qu3mfq1kkr9l8n98a1iuemr9i`, hosted login `https://access-mcp-trading-view.auth.ca-central-1.amazoncognito.com`.
+- Callback and logout URLs are placeholders (`https://example.invalid/...`). They must be replaced with the REST API's default address once T007 creates it.
+- Still open for T005: the authorizer ZIP publish and the access runtime stack.
+- Google's registered redirect URI already points at this hosted login domain.
