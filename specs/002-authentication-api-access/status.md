@@ -209,3 +209,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Build: `docker buildx build --platform linux/arm64` with the pinned `node:24-bookworm-slim@sha256:dc26ae92…` fails at `RUN npm ci` with `exec format error`, because this host has no arm64 binfmt handler. Registering it requires a privileged container, which the session's permission policy denied, so no image or digest evidence was produced here.
 - Native check (not the image): `npm ci`, `npm run build`, the Dockerfile's `dist` pruning and `npm prune --omit=dev` all succeed on the host, and the resulting layout contains the directories the Dockerfile copies.
 - Next: run the arm64 build on a host with binfmt/QEMU or in the `access-publish` workflow, then record the image digest. Until then T019 stays unchecked.
+
+## T019 publication evidence (2026-11-23)
+
+- Workflow run 45120428758 (`Publish Access Lambda image`, `main` at `cca9c30`, environment `access-publish` approved) succeeded: tests, npm ci, arm64 build and push, and release evidence upload.
+- Pushed image: `503098479806.dkr.ecr.ca-central-1.amazonaws.com/mcp-access@sha256:72c0560290fcf11a8bc7b220a41333ec42e24e1541e6dbfb9e976d2efeef7066`, tag `access-2026-11-23.1`.
+- Still open before T019 is ticked: the ECR scan-on-push result. The AWS session credentials had expired, so `DescribeImageScanFindings` could not run. The tag mutability and scan-on-push settings also need the same check.
