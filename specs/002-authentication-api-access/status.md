@@ -202,3 +202,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Onboarding and management use cases sit behind the thin HTTP handlers. Local tests cover the payment-plus-binding gate (an entitlement is authoritative only before binding), resume only after binding readiness, mismatched owners, and the management upgrade, downgrade and refund paths delegated to billing.
 - Billing implements every operation access calls (`listPlans`, `createCheckout`, `getOrder`, `quoteUpgrade`, `confirmUpgrade`).
 - Local evidence only: the live billing invocation, Stripe and Cognito behavior remain `not_run`.
+
+## T019 status (2026-11-23): blocked on local arm64 emulation
+
+- Network: the proxy blocked `public.ecr.aws` and its CloudFront layer host. Both were added to the environment allowlist after your approval card, and the pinned Lambda runtime `public.ecr.aws/lambda/nodejs:24-arm64@sha256:1fcf85b0…` now pulls.
+- Build: `docker buildx build --platform linux/arm64` with the pinned `node:24-bookworm-slim@sha256:dc26ae92…` fails at `RUN npm ci` with `exec format error`, because this host has no arm64 binfmt handler. Registering it requires a privileged container, which the session's permission policy denied, so no image or digest evidence was produced here.
+- Native check (not the image): `npm ci`, `npm run build`, the Dockerfile's `dist` pruning and `npm prune --omit=dev` all succeed on the host, and the resulting layout contains the directories the Dockerfile copies.
+- Next: run the arm64 build on a host with binfmt/QEMU or in the `access-publish` workflow, then record the image digest. Until then T019 stays unchecked.
