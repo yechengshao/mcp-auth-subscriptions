@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { jwtVerify } from 'jose';
-import { createSigningKeyCache, createServiceTokenSigner, ssmSigningLoader } from '../../access/signing.js';
+import { createSigningKeyCache, createServiceTokenSigner, secretsSigningLoader } from '../../access/signing.js';
 import { publicKeySet, TrustedJwks, remoteJwks } from '../../security/jwks.js';
 import { Telemetry } from '../../observability/telemetry.js';
 import { claims, identityFixture, now, trust } from './support/identity_fixture.js';
 const fixture = await identityFixture();
-const configuration = { parameterArn: 'arn:aws:ssm:us-east-1:000000000000:parameter/test/signing', version: 1, kid: 'fixture_key', publicJwk: fixture.publicJwk };
+const configuration = { secretArn: 'arn:aws:secretsmanager:us-east-1:000000000000:secret:test/signing-AbCdEf', version: 1, kid: 'fixture_key', publicJwk: fixture.publicJwk };
 test('local RS256 signer and trusted public verifier agree; cold/warm/concurrent requests share one key fetch', async () => {
   let reads = 0;
   const cache = createSigningKeyCache(async () => { reads++; return { value: fixture.pem, version: 1 }; }, configuration);
@@ -45,12 +45,12 @@ test('key rotation retains old public keys while each configured private key mat
     assert.equal((await jwtVerify(token, verifier.get(kid)!, { currentDate: new Date(now * 1000) })).payload.sub, claims.sub);
   }
 });
-test('signing-loader sends only exact parameter ARN/version with decryption and never logs key material', async () => {
+test('signing-loader reads only the pinned secret at AWSCURRENT and never logs key material', async () => {
   const logs: string[] = []; const commands: unknown[] = [];
   const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: line => logs.push(line) });
-  const ssm = { send: async (command: any) => { commands.push(command.input); return { Parameter: { Type: 'SecureString', Value: fixture.pem, Version: 1 } }; } };
-  await createSigningKeyCache(ssmSigningLoader(configuration, telemetry, ssm as any), configuration).get();
-  assert.deepEqual(commands, [{ Name: configuration.parameterArn + ':1', WithDecryption: true }]);
+  const secrets = { send: async (command: any) => { commands.push(command.input); return { SecretString: JSON.stringify({ version: 1, private_key_pem: fixture.pem }) }; } };
+  await createSigningKeyCache(secretsSigningLoader(configuration, telemetry, secrets as any), configuration).get();
+  assert.deepEqual(commands, [{ SecretId: configuration.secretArn, VersionStage: 'AWSCURRENT' }]);
   assert.equal(logs.join('').includes(fixture.pem), false);
 });
 test('a key retrieval crossing paid expiry cannot produce a service token', async () => {

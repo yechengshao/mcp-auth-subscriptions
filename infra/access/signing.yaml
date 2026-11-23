@@ -1,0 +1,36 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Access JWT signing key in Secrets Manager. The private key is generated outside CloudFormation and supplied as a NoEcho parameter; only the access runtime role may read it.",
+  "Parameters": {
+    "SigningSecretName": {
+      "Type": "String",
+      "Default": "mcp-access/signing-key",
+      "AllowedPattern": "^[A-Za-z0-9/_+=.@-]{1,200}$"
+    },
+    "SigningKeyJson": {
+      "Type": "String",
+      "NoEcho": true,
+      "MinLength": 2,
+      "MaxLength": 4000,
+      "Description": "JSON object {\"version\": <integer>, \"private_key_pem\": \"<PKCS8 RSA PEM>\"}. Generated outside CloudFormation; never written to templates or chat."
+    }
+  },
+  "Resources": {
+    "SigningSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Name": { "Ref": "SigningSecretName" },
+        "Description": "Private RSA signing key for access service tokens. Read only by the access runtime role.",
+        "SecretString": { "Ref": "SigningKeyJson" }
+      }
+    }
+  },
+  "Outputs": {
+    "SigningSecretArn": {
+      "Description": "Pass to infra/access/runtime.yaml as SigningSecretArn.",
+      "Value": { "Ref": "SigningSecret" }
+    }
+  }
+}

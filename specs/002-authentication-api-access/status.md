@@ -250,3 +250,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - `tests/access/onboarding_journey.test.ts` covers browser closure mid-checkout (a fresh request resumes without a second order), duplicate paid notifications (activation once, no new order), reordered delivery (resume before payment is refused), a plan change after checkout (refused, original order kept), a crash after the provider order but before its save (retried with the same idempotency key), and a late payment after cancellation (never reactivates).
 - Shared onboarding fakes moved to `tests/access/support/onboarding_fakes.ts`.
 - T025 stays open: its dependency T024 depends on T005, whose access runtime stack is not yet deployed (see T005 notes). T007, T009, T010, T011, T012 and T020 are blocked by the same chain. T013 needs live billing.
+
+## Signing key moved to Secrets Manager (2026-11-23)
+
+- Decision: the access JWT signing key lives in a Secrets Manager secret, not SSM. CloudFormation can't create SecureString parameters, and Secrets Manager can be created from a template.
+- `infra/access/signing.yaml` creates the retained secret `mcp-access/signing-key` from a `NoEcho` parameter `SigningKeyJson`, a JSON object `{"version": n, "private_key_pem": "<PKCS8 RSA PEM>"}`. The key is generated outside CloudFormation and is never written to a template or to chat.
+- `infra/access/runtime.yaml` takes `SigningSecretArn` and grants the access runtime `secretsmanager:GetSecretValue` on that secret only. The authorizer has no access to it.
+- `access/signing.ts` reads `AWSCURRENT` through `secretsSigningLoader`, checks the version, and still verifies the public half against the configured JWK.
+- Not yet done: generating the RSA key and creating the stack, the runtime deploy, and the signing config (`secretArn`) in `SigningConfigJson`. These need your approval and the key generation step.

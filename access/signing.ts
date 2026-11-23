@@ -1,16 +1,16 @@
 import { createPublicKey } from 'node:crypto';
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { SignJWT, importPKCS8, type JWK } from 'jose';
 import { publicKeySet } from '../security/jwks.js';
 import { validateServiceClaims, validateTrust, type ServiceClaims, type TokenTrust } from '../security/service-token.js';
 import type { Telemetry } from '../observability/telemetry.js';
-export interface SigningConfiguration { parameterArn: string; version: number; kid: string; publicJwk: JWK }
+export interface SigningConfiguration { secretArn: string; version: number; kid: string; publicJwk: JWK }
 export type PrivateKeyLoader = (signal: AbortSignal) => Promise<{ value: string; version: number }>;
 /** No private material is stored on disk, in DynamoDB, in JWKS or in logs. */
 export function createSigningKeyCache(loader: PrivateKeyLoader, config: SigningConfiguration,
   options: { now?: () => number; maxAgeMs?: number } = {}) {
   const now = options.now ?? Date.now, maxAge = options.maxAgeMs ?? 300000;
-  if (!/^arn:aws:ssm:[a-z0-9-]+:[0-9]{12}:parameter\/[A-Za-z0-9_.\/-]+$/.test(config.parameterArn) ||
+  if (!/^arn:aws:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[A-Za-z0-9\/_+=.@-]+$/.test(config.secretArn) ||
       !Number.isSafeInteger(config.version) || config.version < 1 || config.publicJwk.kid !== config.kid ||
       !Number.isInteger(maxAge) || maxAge < 1 || maxAge > 300000) throw new Error('invalid_signing_configuration');
   const fixed = structuredClone(config);
@@ -42,15 +42,21 @@ export function createSigningKeyCache(loader: PrivateKeyLoader, config: SigningC
     },
   };
 }
-export function ssmSigningLoader(config: SigningConfiguration, telemetry: Telemetry, ssm = new SSMClient({
+/**
+ * Reads the current secret value. The secret JSON is {"version": <int>, "private_key_pem": "<PKCS8 PEM>"}.
+ * The version must match the configured one, and the key cache still checks the public half against the configured JWK.
+ */
+export function secretsSigningLoader(config: SigningConfiguration, telemetry: Telemetry, secrets = new SecretsManagerClient({
   maxAttempts: 1, requestHandler: { connectionTimeout: 1000, requestTimeout: 3000 },
 })): PrivateKeyLoader {
   const fixed = structuredClone(config);
   return async signal => {
     try {
-      const result = await telemetry.dependency('ssm.signing_key', () => ssm.send(new GetParameterCommand({ Name: `${fixed.parameterArn}:${fixed.version}`, WithDecryption: true }), { abortSignal: signal }));
-      if (result.Parameter?.Type !== 'SecureString' || !result.Parameter.Value || result.Parameter.Version !== fixed.version) throw new Error('signing_key_unavailable');
-      return { value: result.Parameter.Value, version: result.Parameter.Version };
+      const result = await telemetry.dependency('secrets.signing_key', () => secrets.send(
+        new GetSecretValueCommand({ SecretId: fixed.secretArn, VersionStage: 'AWSCURRENT' }), { abortSignal: signal }));
+      const parsed = JSON.parse(result.SecretString ?? '') as { version?: unknown; private_key_pem?: unknown };
+      if (parsed.version !== fixed.version || typeof parsed.private_key_pem !== 'string') throw new Error('signing_key_unavailable');
+      return { value: parsed.private_key_pem, version: fixed.version };
     } catch { throw new Error('signing_key_unavailable'); }
   };
 }

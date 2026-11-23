@@ -11,7 +11,7 @@ import type { HttpEvent, HttpResult, InvocationContext } from '../observability/
 import type { OAuthExtension } from './http/types.js';
 import { createOAuthExtension } from './http/oauth-extension.js';
 import { AccessTokens } from './tokens.js';
-import { createServiceTokenSigner, createSigningKeyCache, ssmSigningLoader, type SigningConfiguration } from './signing.js';
+import { createServiceTokenSigner, createSigningKeyCache, secretsSigningLoader, type SigningConfiguration } from './signing.js';
 import { BillingAliasInvoker } from './adapters/billing.js';
 import { createUsageBindingProvisioner, type AccessProvisioningConfiguration } from './provisioning.js';
 import { Onboarding } from './onboarding.js';
@@ -78,7 +78,7 @@ export async function handler(event: unknown, context: InvocationContext) {
       const provisioning = configuredJson('ACCESS_PROVISIONING_CONFIG_JSON', 'ACCESS_PROVISIONING_CONFIG_PATH') as AccessProvisioningConfiguration;
       const trust = { issuer: config.issuer, resource: config.resource,
         clientIds: config.clients.map(client => client.client_id), clockSkewSeconds: 5 };
-      const keyCache = createSigningKeyCache(ssmSigningLoader(signing, telemetry), signing);
+      const keyCache = createSigningKeyCache(secretsSigningLoader(signing, telemetry), signing);
       const tokens = new AccessTokens(store, createServiceTokenSigner(trust, keyCache), {
         ...trust, accessTtlSeconds: Number(process.env.ACCESS_TOKEN_TTL_SECONDS ?? '3600'),
         restApiId: provisioning.target.rest_api_id, stage: provisioning.target.stage,

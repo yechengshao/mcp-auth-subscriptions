@@ -52,8 +52,8 @@ test('access HTTP runtime is digest-pinned, traced, and constrained to its three
   assert.deepEqual(entitlement?.Action, ['dynamodb:GetItem','dynamodb:ConditionCheckItem']);
   assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'lambda:InvokeFunction' &&
     JSON.stringify(value.Resource) === JSON.stringify({ Ref: 'BillingAliasArn' })));
-  assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'ssm:GetParameter' &&
-    JSON.stringify(value.Resource) === JSON.stringify({ Ref: 'SigningParameterArn' })));
+  assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'secretsmanager:GetSecretValue' &&
+    JSON.stringify(value.Resource) === JSON.stringify({ Ref: 'SigningSecretArn' })));
   const functionProperties = template.Resources.Function.Properties;
   assert.equal(functionProperties.PackageType, 'Image');
   assert.deepEqual(functionProperties.Architectures, ['arm64']);
@@ -103,4 +103,17 @@ test('access provisioning retries and budgets are finite and bounded', async () 
   for (const change of [{ max_attempts: 0 }, { max_attempts: 1_000 }, { backoff_max_ms: 10_000_000 }, { provisioning_budget_ms: 1 }]) {
     assert.throws(() => validateAccessBudgets({ ...budgets, ...change }));
   }
+});
+
+test('signing key template keeps one retained Secrets Manager secret fed by a NoEcho parameter', () => {
+  const template = JSON.parse(readFileSync('infra/access/signing.yaml', 'utf8'));
+  assert.equal(template.Parameters.SigningKeyJson.NoEcho, true);
+  assert.equal(template.Parameters.SigningKeyJson.Default, undefined);
+  const secret = template.Resources.SigningSecret;
+  assert.equal(secret.Type, 'AWS::SecretsManager::Secret');
+  assert.equal(secret.DeletionPolicy, 'Retain');
+  assert.equal(secret.UpdateReplacePolicy, 'Retain');
+  assert.deepEqual(secret.Properties.SecretString, { Ref: 'SigningKeyJson' });
+  assert.deepEqual(template.Outputs.SigningSecretArn.Value, { Ref: 'SigningSecret' });
+  assert.equal(JSON.stringify(template).includes('AWS::SSM::Parameter'), false);
 });
