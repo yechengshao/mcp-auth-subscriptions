@@ -183,3 +183,8 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Record compatibility rules live in the storage contract (`access-storage.md#record-compatibility`): additive changes, migration script before breaking changes, fail-closed validation, unknown top-level fields carried through reads and writes, and `delete_after` forbidden on identity profiles and subscriber bindings.
 - The onboarding contract keeps only the flow and release process and links to the storage section.
 - Local evidence: `npm run check` passes with 269 tests, including the storage and onboarding contract checks. Live DynamoDB rollback and migration behavior remains `not_run`.
+
+## T023 race increment (2026-11-23)
+
+- `tests/access/race.test.ts`: two owners advancing the same transaction revision against a DynamoDB stand-in that evaluates the store's revision conditions. Exactly one write lands; the other is a `TransactionCanceledException`; a stale owner cannot advance a transaction the winner already moved past.
+- T023 stays unchecked. Still open from its acceptance list: crash before and after commits and provider calls, expired transactions refusing to advance, late-paid reconnect after cancellation, and browser-closure resume.
