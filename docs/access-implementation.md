@@ -23,7 +23,7 @@ ZIP uploaded as a versioned S3 object; the access HTTP runtime remains image-bas
 | access/onboarding.ts | Idempotent plan/checkout continuation, payment status, activation and original callback resume |
 | access/management.ts | Owner-scoped subscription management, server-priced upgrade quotes, upgrade confirmation, support-only financial requests and post-payment binding activation |
 | access/http/ | Thin Express inbound adapters for OAuth, session, onboarding and billing browser routes |
-| access/handler.ts | Lambda composition root wiring DynamoDB, Cognito, SSM signing, billing alias and API Gateway ports |
+| access/handler.ts | Lambda composition root wiring DynamoDB, Cognito, Secrets Manager signing, billing alias and API Gateway ports |
 | infra/access/auth.yaml | Retained Cognito create-mode pool, admin-only enrollment, public code-flow client and fixed callbacks |
 | infra/access/storage.yaml | Retained on-demand AccessState, selective TTL and exact item-action policy |
 | infra/access/authorizer.yaml | Managed-runtime ARM64 ZIP authorizer/version/alias and telemetry-only role; no gateway or public invoke grant |
@@ -180,12 +180,13 @@ operation/correlation/native AWS tracking metadata, never bearer/usage keys.
 
 ## Signing and state adapters
 
-The access signer accepts only an exact SSM parameter ARN/version and matching
-public kid/artifact supplied by deployment configuration. Store the operator's RSA
-PKCS8 private key in SecureString through the secure provisioning workflow.
-`ssmSigningLoader` requests that exact version with decryption. IAM grants belong
-to access alone; narrowly scoped kms:Decrypt is needed only for the selected
-SecureString key. There is no KMS Sign API call per token.
+The access signer accepts only an exact Secrets Manager secret ARN, the pinned
+version and the matching public kid supplied by deployment configuration. Store the
+operator's RSA PKCS8 private key in the secret created by `infra/access/signing.yaml`,
+as the JSON `{"version": n, "private_key_pem": "..."}`, through the secure provisioning
+workflow. `secretsSigningLoader` reads the `AWSCURRENT` value and checks the pinned
+version. IAM grants belong to access alone; kms:Decrypt is needed only if a
+customer-managed KMS key encrypts the secret. There is no KMS Sign API call per token.
 
 Only parsed non-extractable key material is cached, in execution-environment
 memory, for at most 300 seconds. Concurrent loads share one three-second attempt.
@@ -228,7 +229,7 @@ still pending.
 The runtime composes discovery metadata, Cognito login/callback, shared browser
 sessions, token/revocation handlers and onboarding controllers through the
 `OAuthExtension`. HTTP modules remain thin adapters over session, token and
-onboarding use cases; DynamoDB, Cognito, SSM, billing Lambda and API Gateway are
+onboarding use cases; DynamoDB, Cognito, Secrets Manager, billing Lambda and API Gateway are
 outbound adapters selected at startup. The status poll is a same-origin,
 CSRF-protected `POST`; the browser return never trusts Stripe query parameters and
 uses a top-level resume `POST` before the 303 to the registered AI callback.
