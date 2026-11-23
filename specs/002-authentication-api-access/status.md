@@ -244,3 +244,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - T021: the publication stack (`mcp-access-publication`, UPDATE_COMPLETE) grants the access identity only its ECR repository and the authorizer identity only its S3 prefix; `tests/access/access_publication.test.ts` pins these.
 - Provisioning budgets are now bounded: at most 10 attempts, a 25-second provisioning budget (under the 29-second REST proxy limit), and at most 60 seconds of backoff.
 - T024 stays open: its acceptance tests pass locally (no access queue, pipe, DLQ, event mapping or replay schedule in any template; exact entitlement grants; bounded retries), but it depends on T005, whose access runtime stack is not yet deployed.
+
+## T025 local simulations (2026-11-23)
+
+- `tests/access/onboarding_journey.test.ts` covers browser closure mid-checkout (a fresh request resumes without a second order), duplicate paid notifications (activation once, no new order), reordered delivery (resume before payment is refused), a plan change after checkout (refused, original order kept), a crash after the provider order but before its save (retried with the same idempotency key), and a late payment after cancellation (never reactivates).
+- Shared onboarding fakes moved to `tests/access/support/onboarding_fakes.ts`.
+- T025 stays open: its dependency T024 depends on T005, whose access runtime stack is not yet deployed (see T005 notes). T007, T009, T010, T011, T012 and T020 are blocked by the same chain. T013 needs live billing.
