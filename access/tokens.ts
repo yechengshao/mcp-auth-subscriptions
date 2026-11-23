@@ -22,7 +22,7 @@ export type ServiceTokenSigner = (claims: ServiceClaims) => Promise<string>;
 export interface TokenResponse {
   access_token: string; token_type: 'Bearer'; expires_in: number; refresh_token: string; scope: string;
 }
-export type OAuthErrorCode = 'invalid_request' | 'invalid_client' | 'invalid_grant' | 'unsupported_grant_type' | 'temporarily_unavailable';
+export type OAuthErrorCode = 'invalid_request' | 'invalid_client' | 'invalid_grant' | 'invalid_target' | 'unsupported_grant_type' | 'temporarily_unavailable';
 export class OAuthTokenFailure extends Error {
   constructor(readonly status: 400 | 401 | 503, readonly oauthError: OAuthErrorCode) { super(oauthError); }
 }
@@ -45,8 +45,9 @@ export class AccessTokens {
   async exchangeCode(input: { code: string; clientId: string; redirectUri: string; codeVerifier: string; resource: string }): Promise<TokenResponse> {
     if (!this.config.clientIds.includes(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
     if (typeof input.code !== 'string' || !opaque.test(input.code) || typeof input.codeVerifier !== 'string' ||
-        !verifierPattern.test(input.codeVerifier) || typeof input.redirectUri !== 'string' || input.redirectUri.length > 2048 ||
-        input.resource !== this.config.resource) throw new OAuthTokenFailure(400, 'invalid_request');
+        !verifierPattern.test(input.codeVerifier) || typeof input.redirectUri !== 'string' || input.redirectUri.length > 2048) throw new OAuthTokenFailure(400, 'invalid_request');
+    // RFC 8707: a resource this server does not serve is an invalid target, not a malformed request.
+    if (input.resource !== this.config.resource) throw new OAuthTokenFailure(400, 'invalid_target');
     const now = this.clock();
     const code = await this.read(authCodeKey(this.store.environment, input.code));
     if (!code || code.entity_type !== 'authorization_code' || code.consumed || code.expires_at <= now ||

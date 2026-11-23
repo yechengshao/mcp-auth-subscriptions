@@ -188,7 +188,7 @@ test('a code is rejected when the redirect, client or resource differs, or after
   await rejected(value.service.exchangeCode({ code, clientId, redirectUri: `${redirectUri}?x=1`, codeVerifier: verifier, resource }));
   await rejected(value.service.exchangeCode({ code, clientId: 'other_fixture', redirectUri, codeVerifier: verifier, resource }));
   await assert.rejects(value.service.exchangeCode({ code, clientId, redirectUri, codeVerifier: verifier, resource: 'https://other.example.invalid/mcp' }),
-    error => error instanceof OAuthTokenFailure && error.oauthError === 'invalid_request');
+    error => error instanceof OAuthTokenFailure && error.oauthError === 'invalid_target');
   assert.equal((await value.store.get(value.codeKey))?.consumed, false);
 
   value.clock.value = now + 60;
