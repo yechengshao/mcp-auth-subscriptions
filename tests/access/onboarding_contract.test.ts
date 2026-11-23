@@ -13,7 +13,7 @@ test('Cognito cancellation atomically revokes the browser session, consumes PKCE
   const txId = 'tx_cancel_contract';
   const sessionDigest = 'a'.repeat(64);
   const transaction = {
-    PK: `ENV#${environment}#TX#${txId}`, SK: 'STATE', entity_type: 'transaction', schema_version: 1,
+    PK: `ENV#${environment}#TX#${txId}`, SK: 'STATE', entity_type: 'transaction', 
     revision: 1, environment, purpose: 'onboarding', phase: 'pending_identity', grant_id: 'grant_cancel_contract',
     downstream: { client_id: 'client_fixture', redirect_uri: 'https://client.example.invalid/callback',
       resource: 'https://access.example.invalid/mcp', scopes: ['mcp:invoke'], code_challenge: 'A'.repeat(43),
@@ -22,13 +22,13 @@ test('Cognito cancellation atomically revokes the browser session, consumes PKCE
     created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,
   };
   const session = {
-    PK: `ENV#${environment}#SESSION#${sessionDigest}`, SK: 'SESSION', entity_type: 'session', schema_version: 1,
+    PK: `ENV#${environment}#SESSION#${sessionDigest}`, SK: 'SESSION', entity_type: 'session', 
     revision: 1, environment, purpose: 'onboarding', tx_id: txId, authentication_stage: 'pending_identity',
     csrf_digest: 'b'.repeat(64), created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,
   };
   const attempt = {
     PK: `ENV#${environment}#UPSTREAM#${'c'.repeat(64)}`, SK: 'ATTEMPT', entity_type: 'upstream_attempt',
-    schema_version: 1, revision: 1, environment, tx_id: txId, session_digest: sessionDigest,
+    revision: 1, environment, tx_id: txId, session_digest: sessionDigest,
     nonce_digest: 'd'.repeat(64), pkce_verifier: 'E'.repeat(43), cognito_client_id: 'cognito_fixture',
     cognito_issuer: 'https://cognito.example.invalid/pool', callback_uri: 'https://access.example.invalid/oauth/cognito/callback',
     created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400, consumed: false,

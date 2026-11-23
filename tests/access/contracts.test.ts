@@ -38,14 +38,14 @@ test('verified ownership plus current eligibility is mandatory for management wi
     { ...entitlement, identity_subject: 'other' }, null]) assert.throws(() => check(session, paid));
 });
 test('durable identity profiles reject TTL and wrong-owner storage keys', () => {
-  const profile = { PK, SK: 'PROFILE', schema_version: 1, entity_type: 'identity_profile', revision: 1,
+  const profile = { PK, SK: 'PROFILE', entity_type: 'identity_profile', revision: 1,
     environment: 'test', identity, subscriber_id: 'subscriber_fixture' };
   validateProfile(profile, 'test');
   assert.throws(() => validateProfile({ ...profile, delete_after: now }, 'test'));
   assert.throws(() => validateProfile({ ...profile, PK: 'wrong' }, 'test'));
 });
 test('refresh records cannot outlive paid family or erase replay evidence early', () => {
-  const value = { PK: `ENV#test#REFRESH#${'d'.repeat(64)}`, SK: 'TOKEN', schema_version: 1,
+  const value = { PK: `ENV#test#REFRESH#${'d'.repeat(64)}`, SK: 'TOKEN', 
     entity_type: 'refresh_credential', revision: 1, environment: 'test', grant_id: 'grant_fixture',
     subscriber_id: 'subscriber_fixture', client_id: 'client_fixture', resource: 'https://api.example.invalid/mcp',
     sequence: 1, status: 'active', issued_at: now, expires_at: now + 3600, family_expires_at: now + 3600,

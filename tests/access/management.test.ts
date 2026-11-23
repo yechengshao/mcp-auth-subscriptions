@@ -11,13 +11,13 @@ import { Telemetry } from '../../observability/telemetry.js';
 const keyOf = (row: any) => `${row.PK}\0${row.SK}`;
 const txId = 'management_tx_fixture';
 function managementTransaction(): AccessRow {
-  return { PK: `ENV#${environment}#TX#${txId}`, SK: 'STATE', entity_type: 'transaction', schema_version: 1, revision: 1,
+  return { PK: `ENV#${environment}#TX#${txId}`, SK: 'STATE', entity_type: 'transaction', revision: 1,
     environment, purpose: 'management', phase: 'identity_verified', identity, subscriber_id: 'subscriber_fixture',
     local_destination: '/billing', created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400 };
 }
 function context(transaction = managementTransaction()): BrowserContext {
   return { sessionDigest: 'a'.repeat(64), csrf: 'csrf_fixture', transaction, session: {
-    PK: `ENV#${environment}#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', schema_version: 1, revision: 1,
+    PK: `ENV#${environment}#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', revision: 1,
     environment, purpose: 'management', tx_id: txId, authentication_stage: 'identity_verified', identity,
     subscriber_id: 'subscriber_fixture', csrf_digest: 'b'.repeat(64), created_at: now, expires_at: now + 1800,
     delete_after: now + 1800 + 86400,

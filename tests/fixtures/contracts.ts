@@ -24,13 +24,13 @@ export const entitlement = {
   catalog_version: 'fixture_v1', ssm_version: 1, usage_mapping, valid_until: now + 5000, updated_at: now,
 };
 export const session = {
-  PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', schema_version: 1,
+  PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION',
   entity_type: 'session', revision: 1, environment, purpose: 'management', tx_id: 'tx_fixture',
   authentication_stage: 'identity_verified', identity, subscriber_id: 'subscriber_fixture',
   csrf_digest: 'b'.repeat(64), created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,
 };
 export const transaction = {
-  PK: 'ENV#test#TX#tx_fixture', SK: 'STATE', schema_version: 1, entity_type: 'transaction', revision: 1,
+  PK: 'ENV#test#TX#tx_fixture', SK: 'STATE', entity_type: 'transaction', revision: 1,
   environment, purpose: 'management', local_destination: '/billing', phase: 'identity_verified', identity, subscriber_id: 'subscriber_fixture',
   created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,
 };

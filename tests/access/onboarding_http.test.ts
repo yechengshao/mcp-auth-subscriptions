@@ -15,11 +15,11 @@ const config: AccessConfiguration = {
     clientId: 'cognito_fixture', callbackUri: 'https://access.example.invalid/oauth/cognito/callback', scopes: ['openid', 'email'] },
 };
 const context: BrowserContext = { sessionDigest: 'a'.repeat(64), session: {
-  PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', schema_version: 1, entity_type: 'session', revision: 1,
+  PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', revision: 1,
   environment: 'test', purpose: 'onboarding', tx_id: 'tx_fixture', grant_id: 'grant_fixture', authentication_stage: 'identity_verified',
   identity: { issuer: config.cognito.issuer, subject: 'owner_fixture' }, subscriber_id: 'subscriber_fixture',
   csrf_digest: 'b'.repeat(64), created_at: 1800000000, expires_at: 1800001800, delete_after: 1800088200,
-}, transaction: { PK: 'ENV#test#TX#tx_fixture', SK: 'STATE', schema_version: 1, entity_type: 'transaction', revision: 1,
+}, transaction: { PK: 'ENV#test#TX#tx_fixture', SK: 'STATE', entity_type: 'transaction', revision: 1,
   environment: 'test', purpose: 'onboarding', phase: 'identity_verified', grant_id: 'grant_fixture', created_at: 1800000000,
   expires_at: 1800001800, delete_after: 1800088200 }, csrf: 'csrf_fixture' };
 

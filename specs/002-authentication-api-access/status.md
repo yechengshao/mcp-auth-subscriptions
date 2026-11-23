@@ -165,3 +165,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Domain code (`tokens.ts`, `usage_bindings.ts`, `onboarding.ts`) builds records without a version and no longer calls the validator; `store.ts` encodes and validates on commit and get.
 - Test fakes encode through the same codec. New `tests/access/record_codec.test.ts` covers stamping, unknown versions, and unversioned records. Suite: 253 of 253.
 - Versions that remain outside the adapter are wire and configuration contracts (`provisioning.ts` budget config, `ports.ts` billing message), not stored records.
+
+## Access record schema version removed (2026-11-23)
+
+- No access records have been written to DynamoDB, so the `schema_version` field and its codec were removed from access records. The access validator now uses its own record base, which rejects any field it does not list, including `schema_version`.
+- Billing records keep their `schema_version` (billing has its own storage contract), and the wire and configuration versions are unchanged.
+- The onboarding contract still describes multi-version compatibility; it needs the additive-only rule before T022 can close.

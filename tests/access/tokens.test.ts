@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { identityPartition } from '../../contracts/identity.js';
-import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
+import { validateAccessRecord } from '../../access/contracts/storage.js';
 import { AccessTokens, OAuthTokenFailure, type TokenStore } from '../../access/tokens.js';
 import { authCodeKey, grantFamilyKey, refreshCredentialKey, subscriberBindingKey, transactionKey } from '../../access/grants.js';
 import type { AccessRow, StateKey } from '../../access/model.js';
@@ -40,7 +40,7 @@ class MemoryTokenStore implements TokenStore {
     for (const { row, expectedRevision } of writes) {
       const previous = this.rows.get(rowKey({ PK: row.PK as string, SK: row.SK as string }));
       if (expectedRevision === undefined ? previous !== undefined : previous?.revision !== expectedRevision) throw conflict();
-      validateStoredRecord(encodeRecord(row), this.environment);
+      validateAccessRecord(row, this.environment);
     }
     for (const { row } of writes) this.rows.set(rowKey({ PK: row.PK as string, SK: row.SK as string }), structuredClone(row));
   }
@@ -55,11 +55,11 @@ function setup() {
   const downstream = { client_id: clientId, redirect_uri: redirectUri, resource, scopes: ['mcp:invoke'],
     code_challenge: challenge, code_challenge_method: 'S256', state: 'host_state_fixture',
     issuer: 'https://access.example.invalid', client_config_version: 'clients_fixture' };
-  const transaction: AccessRow = { PK: txKey.PK, SK: txKey.SK, schema_version: 1, entity_type: 'transaction', revision: 1,
+  const transaction: AccessRow = { PK: txKey.PK, SK: txKey.SK, entity_type: 'transaction', revision: 1,
     environment, purpose: 'onboarding', phase: 'code_issued', downstream, identity, subscriber_id: subscriberId,
     grant_id: grantId, created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400 };
   const cKey = authCodeKey(environment, code);
-  const codeRow: AccessRow = { PK: cKey.PK, SK: cKey.SK, schema_version: 1, entity_type: 'authorization_code', revision: 1,
+  const codeRow: AccessRow = { PK: cKey.PK, SK: cKey.SK, entity_type: 'authorization_code', revision: 1,
     environment, tx_id: txId, subscriber_id: subscriberId, client_id: clientId, resource, redirect_uri: redirectUri,
     scopes: ['mcp:invoke'], code_challenge: challenge, code_challenge_method: 'S256', grant_id: grantId,
     issued_at: now, transaction_expires_at: now + 1800, expires_at: now + 60, delete_after: now + 60 + 86400, consumed: false };

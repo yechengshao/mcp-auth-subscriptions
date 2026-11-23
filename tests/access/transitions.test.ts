@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { transitionTransaction } from '../../access/transitions.js';
-import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
+import { validateAccessRecord } from '../../access/contracts/storage.js';
 import { identity, environment, now } from '../fixtures/contracts.js';
 import type { AccessRow } from '../../access/model.js';
 
 const initial: AccessRow = { PK: 'ENV#test#TX#tx_transition', SK: 'STATE', entity_type: 'transaction',
-  schema_version: 1, revision: 1, environment, purpose: 'onboarding', phase: 'pending_identity', grant_id: 'grant_transition',
+  revision: 1, environment, purpose: 'onboarding', phase: 'pending_identity', grant_id: 'grant_transition',
   downstream: { client_id: 'host_fixture', redirect_uri: 'https://host.example.invalid/callback',
     resource: 'https://access.example.invalid/mcp', scopes: ['mcp:invoke'], state: 'original_state',
     issuer: 'https://access.example.invalid', client_config_version: 'clients_fixture_v1',
@@ -41,11 +41,11 @@ test('transaction transitions reject skipped phases, missing immutable purchase 
 test('cancelled pre-identity transactions are valid durable state and distinct from verified failures', () => {
   const cancelled = transitionTransaction(initial, 'cancelled');
   assert.equal(cancelled.phase, 'cancelled');
-  validateStoredRecord(encodeRecord(cancelled), environment);
+  validateAccessRecord(cancelled, environment);
 
   const failed = transitionTransaction(initial, 'identity_verified', { identity, subscriber_id: 'subscriber_fixture' });
   const terminalFailure = transitionTransaction(failed, 'failed');
   assert.equal(terminalFailure.phase, 'failed');
-  validateStoredRecord(encodeRecord(terminalFailure), environment);
+  validateAccessRecord(terminalFailure, environment);
   assert.throws(() => transitionTransaction({ ...initial, phase: 'checkout_pending' }, 'cancelled'), /invalid_onboarding_transition/);
 });

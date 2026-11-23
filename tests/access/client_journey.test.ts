@@ -10,7 +10,7 @@ import { TrustedJwks } from '../../security/jwks.js';
 import { accessRecords } from '../fixtures/storage.js';
 import { entitlement, environment, now, usage_mapping } from '../fixtures/contracts.js';
 import { Onboarding, type OnboardingStore } from '../../access/onboarding.js';
-import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
+import { validateAccessRecord } from '../../access/contracts/storage.js';
 import type { BrowserContext } from '../../access/sessions.js';
 import type { AccessRow, StateKey } from '../../access/model.js';
 import type { BillingCall, BillingResult } from '../../access/adapters/billing.js';
@@ -38,7 +38,7 @@ class MemoryOnboardingStore implements OnboardingStore {
     for (const { row, expectedRevision } of writes) {
       const current = this.rows.get(keyOf(row as StateKey));
       if (expectedRevision === undefined ? current !== undefined : current?.revision !== expectedRevision) throw conflict();
-      validateStoredRecord(encodeRecord(row), environment);
+      validateAccessRecord(row, environment);
     }
     for (const { row } of writes) this.rows.set(keyOf(row as StateKey), structuredClone(row));
   }
@@ -54,7 +54,7 @@ const result = (outcome: BillingResult['outcome'], payload: Record<string, unkno
   retryable: outcome === 'pending' || outcome === 'retryable_unavailable', message: 'fixture', payload,
 });
 function transaction(phase: string): AccessRow {
-  return { PK: 'ENV#test#TX#tx_journey_fixture', SK: 'STATE', entity_type: 'transaction', schema_version: 1,
+  return { PK: 'ENV#test#TX#tx_journey_fixture', SK: 'STATE', entity_type: 'transaction', 
     revision: 1, environment, purpose: 'onboarding', phase, grant_id: 'grant_journey_fixture', identity,
     subscriber_id: 'subscriber_fixture', correlation_id: 'journey_corr_fixture', order_id: 'order_fixture',
     downstream: { client_id: 'chatgpt_fixture', redirect_uri: 'https://chatgpt.example.invalid/callback',
@@ -64,7 +64,7 @@ function transaction(phase: string): AccessRow {
 }
 function browser(tx: AccessRow): BrowserContext {
   return { sessionDigest: 'a'.repeat(64), csrf: 'csrf_fixture', session: {
-    PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', schema_version: 1,
+    PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', 
     revision: 1, environment, purpose: 'onboarding', tx_id: 'tx_journey_fixture', grant_id: tx.grant_id,
     authentication_stage: 'identity_verified', identity, subscriber_id: 'subscriber_fixture', csrf_digest: 'b'.repeat(64),
     created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,

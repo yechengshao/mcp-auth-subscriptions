@@ -6,7 +6,7 @@ import { BillingAliasInvoker, type BillingCall, type BillingResult } from '../..
 import type { UsageBindingProvisioner } from '../../access/usage_bindings.js';
 import type { BrowserContext } from '../../access/sessions.js';
 import { credentialDigest, transactionKey, subscriberBindingKey } from '../../access/grants.js';
-import { encodeRecord, validateStoredRecord } from '../../access/adapters/record-codec.js';
+import { validateAccessRecord } from '../../access/contracts/storage.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { Telemetry } from '../../observability/telemetry.js';
 import { accessRecords } from '../fixtures/storage.js';
@@ -39,7 +39,7 @@ class MemoryOnboardingStore implements OnboardingStore {
       if (expectedRevision === undefined ? current !== undefined : current?.revision !== expectedRevision) {
         const error = new Error('conditional conflict'); error.name = 'TransactionCanceledException'; throw error;
       }
-      validateStoredRecord(encodeRecord(row), this.environment);
+      validateAccessRecord(row, this.environment);
     }
     for (const { row } of writes) this.rows.set(keyOf(row as StateKey), structuredClone(row));
   }
@@ -63,7 +63,7 @@ const result = (outcome: BillingResult['outcome'], payload: Record<string, unkno
 
 function transaction(phase: string = 'identity_verified'): AccessRow {
   const txId = 'tx_onboarding_fixture';
-  return { PK: `ENV#test#TX#${txId}`, SK: 'STATE', entity_type: 'transaction', schema_version: 1, revision: 1,
+  return { PK: `ENV#test#TX#${txId}`, SK: 'STATE', entity_type: 'transaction', revision: 1,
     environment, purpose: 'onboarding', phase, grant_id: 'grant_onboarding_fixture',
     identity, subscriber_id: 'subscriber_fixture', correlation_id: 'onboarding_corr_fixture',
     downstream: { client_id: 'chatgpt_fixture', redirect_uri: 'https://chatgpt.example.invalid/callback',
@@ -74,7 +74,7 @@ function transaction(phase: string = 'identity_verified'): AccessRow {
 }
 function context(tx = transaction()): BrowserContext {
   return { sessionDigest: 'a'.repeat(64), csrf: 'csrf_fixture', session: {
-    PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', schema_version: 1, revision: 1,
+    PK: `ENV#test#SESSION#${'a'.repeat(64)}`, SK: 'SESSION', entity_type: 'session', revision: 1,
     environment, purpose: 'onboarding', tx_id: tx.tx_id ?? tx.PK.split('#').at(-1), grant_id: tx.grant_id,
     authentication_stage: 'identity_verified', identity, subscriber_id: 'subscriber_fixture',
     csrf_digest: 'b'.repeat(64), created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,

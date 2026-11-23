@@ -1,5 +1,5 @@
 import type { AccessRow, StateKey } from '../../../access/model.js';
-import { encodeRecord, validateStoredRecord } from '../../../access/adapters/record-codec.js';
+import { validateAccessRecord } from '../../../access/contracts/storage.js';
 import type { ApiGatewayUsagePlanPort, UsageBindingStore } from '../../../access/usage_bindings.js';
 import { entitlement, environment, usage_mapping, now } from '../../fixtures/contracts.js';
 import { accessRecords } from '../../fixtures/storage.js';
@@ -22,7 +22,7 @@ export class MemoryBindings implements UsageBindingStore {
       if ((expectedRevision === undefined && previous) || (expectedRevision !== undefined && previous?.revision !== expectedRevision)) {
         const error = new Error('conditional conflict'); error.name = 'TransactionCanceledException'; throw error;
       }
-      validateStoredRecord(encodeRecord(row), this.environment);
+      validateAccessRecord(row, this.environment);
     }
     for (const { row } of writes) this.rows.set(key(row as { PK: string; SK: string }), structuredClone(row));
   }

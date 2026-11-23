@@ -43,7 +43,7 @@ export const billingRecords: Record<string, Record<string, unknown>> = {
     decision_revision: 1, allowed: true, snapshot, valid_until: now + 259200, created_at: now },
   entitlement,
 };
-const accessBase = { schema_version: 1, revision: 1, environment };
+const accessBase = { revision: 1, environment };
 export const accessRecords: Record<string, Record<string, unknown>> = {
   session, transaction,
   identity_profile: { ...accessBase, PK, SK: 'PROFILE', entity_type: 'identity_profile', identity, subscriber_id: 'subscriber_fixture' },

@@ -1,10 +1,10 @@
-import { object, row, constant, choice, id, text, epoch, integer, positive, boolean, digest, identity, mapping, compile, type Schema } from '../../contracts/schema.js';
+import { object, constant, choice, id, text, epoch, integer, positive, boolean, digest, identity, mapping, compile, type Schema } from '../../contracts/schema.js';
 import { sessionSchema, transactionSchema, profileSchema, refreshSchema } from './schemas.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { canonicalJson } from '../../contracts/canonical.js';
 import { identifierPattern, sha256HexPattern, s256ChallengePattern, usageIdentifierKeyPattern } from '../../contracts/patterns.js';
 
-const base = { ...row, environment: id };
+const base = { PK: text, SK: text, entity_type: text, revision: integer, environment: id };
 const scopes = { type: 'array', uniqueItems: true, items: text };
 const challenge = { type: 'string', pattern: s256ChallengePattern.source };
 const keyValue = { type: 'string', pattern: usageIdentifierKeyPattern.source };

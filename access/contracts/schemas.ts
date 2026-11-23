@@ -1,5 +1,6 @@
-import { object, row, constant, choice, id, text, epoch, integer, digest, identity, boolean, correlation, compile, type Schema } from '../../contracts/schema.js';
+import { object, constant, choice, id, text, epoch, integer, digest, identity, boolean, correlation, compile, type Schema } from '../../contracts/schema.js';
 import { s256ChallengePattern } from '../../contracts/patterns.js';
+const row = { PK: text, SK: text, entity_type: text, revision: integer };
 
 const purpose = choice('onboarding', 'management');
 const verified = { identity, subscriber_id: id };

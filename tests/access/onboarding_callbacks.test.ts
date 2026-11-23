@@ -5,7 +5,7 @@ import { transitionTransaction } from '../../access/transitions.js';
 import { identity, now } from '../fixtures/contracts.js';
 
 const transaction = (phase: string, revision = 1): AccessRow => ({
-  PK: 'ENV#test#TX#tx_fixture', SK: 'TRANSACTION', schema_version: 1, entity_type: 'transaction', revision,
+  PK: 'ENV#test#TX#tx_fixture', SK: 'TRANSACTION', entity_type: 'transaction', revision,
   environment: 'test', purpose: 'onboarding', phase, created_at: now, expires_at: now + 1800, delete_after: now + 1800 + 86400,
 } as unknown as AccessRow);
 const verified = { identity, subscriber_id: 'subscriber_fixture' };

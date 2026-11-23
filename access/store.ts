@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, type TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
-import { encodeRecord, validateStoredRecord } from './adapters/record-codec.js';
+import { validateAccessRecord } from './contracts/storage.js';
 import { compile } from '../contracts/schema.js';
 import { entitlementSchema } from '../contracts/entitlement.js';
 import { identityPartition } from '../contracts/identity.js';
@@ -30,7 +30,7 @@ export class AccessStore implements BrowserSessionStore {
     this.key(key);
     const result = await this.telemetry.dependency('dynamodb.read', () => this.db.send(new GetCommand({ TableName: this.table, Key: key, ConsistentRead: true })));
     if (result.Item) {
-      validateStoredRecord(result.Item, this.environment);
+      validateAccessRecord(result.Item, this.environment);
       if (result.Item.PK !== key.PK || result.Item.SK !== key.SK) throw new Error('access_record_mismatch');
     }
     return result.Item;
@@ -95,8 +95,8 @@ export class AccessStore implements BrowserSessionStore {
   async commit(writes: StateWrite[], checks: StateCheck[] = []) {
     if (!writes.length || writes.length + checks.length > 100) throw new Error('invalid_access_transaction');
     const items: NonNullable<TransactWriteCommandInput['TransactItems']> = writes.map(({ row: domainRow, expectedRevision }) => {
-      const row = encodeRecord(domainRow);
-      validateStoredRecord(row, this.environment);
+      const row = domainRow;
+      validateAccessRecord(row, this.environment);
       if (row.revision !== (expectedRevision ?? 0) + 1) throw new Error('invalid_access_revision');
       return { Put: { TableName: this.table, Item: row,
         ConditionExpression: expectedRevision === undefined ? 'attribute_not_exists(PK)' : '#revision = :revision',

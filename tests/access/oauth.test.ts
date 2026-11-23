@@ -25,7 +25,7 @@ class MemorySessions implements BrowserSessionStore {
   readonly subscribers = new Map<string, string>();
   readonly paid = new Map<string, AccessRow>();
   async createLogin(input: PendingLogin) {
-    const base = (PK: string, SK: string, entity_type: string) => ({ PK, SK, entity_type, schema_version: 1, revision: 1, environment: this.environment });
+    const base = (PK: string, SK: string, entity_type: string) => ({ PK, SK, entity_type, revision: 1, environment: this.environment });
     const session = { ...base(`ENV#test#SESSION#${input.sessionDigest}`, 'SESSION', 'session'), purpose: input.purpose,
       tx_id: input.transactionId, authentication_stage: 'pending_identity', csrf_digest: input.csrfDigest,
       created_at: input.createdAt, expires_at: input.expiresAt, delete_after: input.deleteAfter };
@@ -57,7 +57,7 @@ class MemorySessions implements BrowserSessionStore {
     const { pkce_verifier: _verifier, ...attempt } = input.attempt;
     const old = input.session;
     const session: AccessRow = { PK: `ENV#test#SESSION#${input.verified.newSessionDigest}`, SK: 'SESSION', entity_type: 'session',
-      schema_version: 1, revision: 1, environment: this.environment, purpose: old.purpose, tx_id: old.tx_id,
+      revision: 1, environment: this.environment, purpose: old.purpose, tx_id: old.tx_id,
       authentication_stage: 'identity_verified', identity: input.verified.identity, subscriber_id: input.verified.subscriberId,
       ...(input.verified.grantId ? { grant_id: input.verified.grantId } : {}),
       csrf_digest: input.verified.csrfDigest, created_at: old.created_at, expires_at: old.expires_at, delete_after: old.delete_after };
