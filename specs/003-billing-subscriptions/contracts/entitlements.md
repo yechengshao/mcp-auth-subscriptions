@@ -19,6 +19,7 @@ Provider-to-projection cases follow the [lifecycle reducer contract](subscriptio
 | plan_id | Approved stable catalog tier; never an arbitrary client/Stripe metadata override |
 | duration_option_id / service_term | Purchased allowed duration and immutable term rule; expiry derives from verified payment |
 | catalog_version | Immutable purchased catalog release and parameter version reference |
+| subscription_id | Application ID of the current paid term, new for each paid purchase, renewal or upgrade; used for owner-scoped management and access's upgrade calls only, never as a native key or payment identifier |
 | usage_mapping | Purchased usage_plan_id/rest_api_id/stage snapshot from verified order; no subscriber key |
 | valid_until | Explicit UTC paid access expiry, checked without relying on database deletion |
 | revision | Monotonic committed decision revision, including meaningful plan/status/validity changes |
