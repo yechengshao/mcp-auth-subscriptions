@@ -236,3 +236,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Run 45124013122 (`publish-authorizer-zip.yml`, tag `authorizer-2026-11-23.2`, `main` at `e6038b4`) succeeded after the `authorizer-publish` environment was configured and approved. An earlier run (`authorizer-2026-11-23.1`) failed at input validation before any AWS call.
 - Artifact: `s3://mcp-access-authorizer-releases-503098479806/access/authorizer/authorizer-2026-11-23.2/45124013122-1/authorizer.zip`, version `w_2.3PVnkESEE93aEblBv735oeyqOr29`, 169,187 bytes, latest version.
 - T005 stays open: the access runtime stack (`infra/access/runtime.yaml`, image digest `sha256:72c05602…efeef7066`) and the real callback URLs after T007 remain.
+
+## Local closure increment (2026-11-23): T006, T008, T021, bounded retries
+
+- T006: the read-only cutover manifest and its migration fixtures are tested (`tests/access/gateway_cutover.test.ts`); it makes no AWS calls.
+- T008: publication workflows are manual, `main`-only, OIDC-protected and grant no deployment rights; both have run successfully (`publish-access-image` run 45120428758, `publish-authorizer-zip` run 45124013122).
+- T021: the publication stack (`mcp-access-publication`, UPDATE_COMPLETE) grants the access identity only its ECR repository and the authorizer identity only its S3 prefix; `tests/access/access_publication.test.ts` pins these.
+- Provisioning budgets are now bounded: at most 10 attempts, a 25-second provisioning budget (under the 29-second REST proxy limit), and at most 60 seconds of backoff.
+- T024 stays open: its acceptance tests pass locally (no access queue, pipe, DLQ, event mapping or replay schedule in any template; exact entitlement grants; bounded retries), but it depends on T005, whose access runtime stack is not yet deployed.

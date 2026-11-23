@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { accessDependencyGrants, authorizerLogPolicy } from '../../access/contracts/infrastructure.js';
 test('access cross-stack grants target only the entitlement table and exact billing alias', () => {
   const grants = accessDependencyGrants('arn:aws:dynamodb:us-east-1:000000000000:table/entitlements', 'arn:aws:lambda:us-east-1:000000000000:function:billing:live');
@@ -81,5 +81,26 @@ test('access Lambda image uses the managed runtime, production install and exclu
 test('access templates use no cross-stack imports, so stack outputs reach other stacks only as parameters', () => {
   for (const file of ['auth.yaml', 'authorizer.yaml', 'publication.yaml', 'runtime.yaml', 'storage.yaml']) {
     assert.equal(readFileSync(`infra/access/${file}`, 'utf8').includes('ImportValue'), false, file);
+  }
+});
+
+test('no access template declares a queue, pipe, dead-letter route, event-source mapping or replay schedule', () => {
+  const forbidden = ['AWS::SQS::', 'AWS::Pipes::', 'AWS::Lambda::EventSourceMapping', 'AWS::Events::Rule', 'AWS::Scheduler::',
+    'AWS::StepFunctions::', 'DeadLetterConfig', 'OnFailure', 'DestinationConfig', 'ScheduleExpression', 'EventSourceArn'];
+  const templates = readdirSync('infra/access').filter(file => /\.(yaml|json)$/.test(file));
+  assert.ok(templates.length >= 5, 'access templates must be present');
+  for (const file of templates) {
+    const text = readFileSync(`infra/access/${file}`, 'utf8');
+    for (const token of forbidden) assert.equal(text.includes(token), false, `${file} must not contain ${token}`);
+  }
+});
+
+test('access provisioning retries and budgets are finite and bounded', async () => {
+  const { validateAccessBudgets } = await import('../../access/contracts/configuration.js');
+  const budgets = { schema_version: 1, provisioning_budget_ms: 10_000, sdk_timeout_ms: 3_000, lease_seconds: 60,
+    max_attempts: 5, backoff_min_ms: 2_000, backoff_max_ms: 30_000 };
+  validateAccessBudgets(budgets);
+  for (const change of [{ max_attempts: 0 }, { max_attempts: 1_000 }, { backoff_max_ms: 10_000_000 }, { provisioning_budget_ms: 1 }]) {
+    assert.throws(() => validateAccessBudgets({ ...budgets, ...change }));
   }
 });

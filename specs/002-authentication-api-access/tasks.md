@@ -5,7 +5,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 # Tasks: Authentication and API Access
 
 **Spec**: [spec](spec.md) · [plan](plan.md) · [client contract](contracts/client-onboarding.md) · [REST contract](contracts/rest-gateway.md) · [migration history](../../../tradingview-mcp/specs/scope-migration.md)
-**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 12 of 25 checked (T001–T004, T014–T019, T022, T023). All current verification is local; live and provider checks are `not_run`.
+**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 15 of 25 checked (T001–T004, T006, T008, T014–T019, T021–T023). All current verification is local; live and provider checks are `not_run`.
 
 ## Foundations and authorizer
 
@@ -17,12 +17,12 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 ## Identity, REST gateway and cutover
 
 - [ ] T005 Implement retained Cognito reuse, PKCE callback configuration, signing-key JWKS, the single AccessState table, and Node.js ARM64 authorizer and access functions with no billing-write grants. Files: `infra/access/auth.yaml`, `infra/access/authorizer.yaml`, `infra/access/release-authorizer.ts`, `tests/access/access_contract.test.ts`. Depends: T004, T015, T017, T019.
-- [ ] T006 Write migration fixtures, then implement a read-only cutover manifest for distinct legacy HTTP and REST targets that rejects conflicting resources and makes no automatic changes. Files: `scripts/prepare_gateway_cutover.ts`, `tests/access/gateway_cutover.test.ts`. Depends: T001.
+- [x] T006 Write migration fixtures, then implement a read-only cutover manifest for distinct legacy HTTP and REST targets that rejects conflicting resources and makes no automatic changes. Files: `scripts/prepare_gateway_cutover.ts`, `tests/access/gateway_cutover.test.ts`. Depends: T001.
 - [ ] T007 Write then implement the phased REST gateway: REQUEST authorizer, CUSTOM paid methods, public discovery and OAuth routes, exact alias integrations, a 29-second proxy, stage logs and tier plans, with no HTTP payload-format fields. Files: `infra/access/gateway.yaml`, `tests/access/access_contract.test.ts`. Depends: T005, T006, T018, T024, and the spec-001 T052 alias contract.
 
 ## Publication and evidence
 
-- [ ] T008 Add manual, OIDC-protected publication workflows that build the authorizer ZIP and access image once, upload them with checksum and digest evidence, and grant no deployment or billing rights. Files: `.github/workflows/publish-authorizer-zip.yml`, `.github/workflows/publish-access-image.yml`, `tests/access/access_publication.test.ts`. Depends: T004, T019, T021.
+- [x] T008 Add manual, OIDC-protected publication workflows that build the authorizer ZIP and access image once, upload them with checksum and digest evidence, and grant no deployment or billing rights. Files: `.github/workflows/publish-authorizer-zip.yml`, `.github/workflows/publish-access-image.yml`, `tests/access/access_publication.test.ts`. Depends: T004, T019, T021.
 - [ ] T009 Write then implement separate local and read-only live verification for discovery, OAuth, refresh, privacy, subscriber isolation, REST plans, release identities and recovery outcomes, without asserting hard quotas. Files: `scripts/verify_access.ts`, `tests/access/access_verifier.test.ts`. Depends: T007, T008, T020, T025.
 - [ ] T010 Document the bootstrap, registered-host PKCE and payment flow, token and revocation bounds, billing recovery, compatible rollback, and REST cutover, marking every unperformed cloud or provider step. Files: `docs/authentication-api-access.md`, `specs/002-authentication-api-access/quickstart.md`. Depends: T006, T007, T008, T009.
 - [ ] T011 Add a required isolated CI workflow that typechecks, builds and runs the access and authorizer suites, and fails when selected dependencies or checks are missing. Files: `.github/workflows/test-access.yml`, `tests/access/`, `access/package.json`, `authorizer/package.json`. Depends: T008, T009.
@@ -38,7 +38,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 - [x] T018 Write integration tests, then implement onboarding and paid-management use cases behind thin Express controllers and internal billing ports, covering payment-plus-binding gates and resume. Files: `access/onboarding.ts`, `access/management.ts`, `tests/access/onboarding.test.ts`, `tests/access/management.test.ts`. Depends: T015, T016, T017, T023, and spec-003 internal operations.
 - [x] T019 Build and test a pinned, npm-locked ARM64 access image with digest evidence, excluding credentials, card data and MCP imports. Files: `access/Dockerfile`, `access/Dockerfile.dockerignore`, `tests/access/access_container.test.ts`. Depends: T016, T017, T018.
 - [ ] T020 Implement local full-journey simulations joining client S256, Cognito, billing order, entitlement, refresh and REST authorization against a mock MCP, including adversarial and expiry cases. Files: `tests/access/client_journey.test.ts`. Depends: T007, T019, T025, and spec-003 simulated billing acceptance.
-- [ ] T021 Finalize scoped publishing roles so the authorizer identity writes only its S3 prefix and the access identity publishes only its ECR repository, with no deployment or cross-component rights. Files: `infra/access/publication.yaml`, `tests/access/access_publication.test.ts`. Depends: T001 and the spec-001 publishing-IAM interface.
+- [x] T021 Finalize scoped publishing roles so the authorizer identity writes only its S3 prefix and the access identity publishes only its ECR repository, with no deployment or cross-component rights. Files: `infra/access/publication.yaml`, `tests/access/access_publication.test.ts`. Depends: T001 and the spec-001 publishing-IAM interface.
 
 ## Persisted onboarding and background recovery
 
