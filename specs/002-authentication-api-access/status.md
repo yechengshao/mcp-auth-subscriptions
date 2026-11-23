@@ -152,3 +152,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - T015: OAuth coordinator tests pass (11 across the OAuth suites), including the new 30-minute session expiry test. The task now names the root `package.json` and lock file, which the access image uses; no separate `access/` package exists.
 - T016: token tests pass, including the new negative code-exchange and refresh cases. Resource mismatches return `invalid_target` (RFC 8707); `/authorize` keeps `invalid_request` by decision.
 - T017: usage-binding tests (10) and the API Gateway adapter tests (5) pass. The adapter disables SDK retries (`maxAttempts: 1`).
+
+## T018 and T023 progress (2026-11-23)
+
+- T018: onboarding and management suites pass (24 tests across the onboarding, management, and HTTP suites).
+- T023: added `tests/access/recovery.test.ts` (a stalled owner whose lease was taken over cannot overwrite the configured binding) and `tests/access/onboarding_callbacks.test.ts` (duplicate, late-after-cancel, and skipped-phase callbacks are rejected). The shared usage-binding fakes moved to `tests/access/support/usage_fakes.ts`. No detached post-return work was found: the remaining timers are request-scoped aborts and client-side polling.
+- T022 gap: `onboarding-workflow.md` requires new releases and rollbacks to support existing unexpired records, and incompatible records to fail closed with a repair path. Unknown schema versions fail closed, but the cross-release compatibility test and repair path do not exist yet. T022, T023, and T018 stay unchecked until that policy is decided.
