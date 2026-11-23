@@ -139,3 +139,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Runtime base pinned to `public.ecr.aws/lambda/nodejs:24-arm64@sha256:1fcf85b0c17215de43e671b3c4dfb405fc46539b21f4e04b87407bc6661019f5`.
 - `.2` and `.3` are superseded; `.2`'s evidence was never uploaded and `.3` is an index whose scan is on the ARM64 child only.
 - T019 remains unchecked: its dependencies (T016–T018) are open, even though the image and evidence are in place.
+
+## T014 contract review (2026-11-23)
+
+- Entitlement projection: spec 003's logical entitlement table lacked `subscription_id`, which the access contract requires. Added it to `specs/003-billing-subscriptions/contracts/entitlements.md`.
+- Identity key: both specs define it as SHA-256 of the canonical JSON array `[issuer, subject]`. Access and billing both build partitions from the shared `contracts/identity.ts` function, and a sample input gives the same key as the canonical-JSON version.
+- Billing operations used by access (`listPlans`, `createCheckout`, `getOrder`, `reconcileOrder`, `quoteUpgrade`, `confirmUpgrade`, `manageSubscription`, `openPortal`) all exist in the spec 003 storage contract and billing code. `openPortal` is always `support_required` in this release, as spec 003 requires.
+- Signing: RS256 with the `at+jwt` header, an opaque `kid`, a SecureString key, and a 300-second maximum cache, matching `authorization.md`.

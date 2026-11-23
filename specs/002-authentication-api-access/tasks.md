@@ -5,7 +5,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 # Tasks: Authentication and API Access
 
 **Spec**: [spec](spec.md) · [plan](plan.md) · [client contract](contracts/client-onboarding.md) · [REST contract](contracts/rest-gateway.md) · [migration history](../../../tradingview-mcp/specs/scope-migration.md)
-**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 3 of 25 checked (T002–T004). All current verification is local; live and provider checks are `not_run`.
+**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 5 of 25 checked (T001–T004, T014). All current verification is local; live and provider checks are `not_run`.
 
 ## Foundations and authorizer
 
@@ -31,7 +31,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 
 ## OAuth coordination and activation prerequisites
 
-- [ ] T014 Finalize and test the cross-feature physical state, identity, billing-interface and signing contracts, plus the stable subscription ID in the entitlement projection, before dependent adapters. Files: `access/`, `tests/access/oauth_contract.test.ts`, `specs/002-authentication-api-access/contracts/`. Depends: T001 and spec-003 technical planning.
+- [x] T014 Finalize and test the cross-feature physical state, identity, billing-interface and signing contracts, plus the stable subscription ID in the entitlement projection, before dependent adapters. Files: `access/`, `tests/access/oauth_contract.test.ts`, `specs/002-authentication-api-access/contracts/`. Depends: T001 and spec-003 technical planning.
 - [ ] T015 Write OAuth tests, then implement the Express coordinator for client registration, metadata, authorize and Cognito callback, JWKS, and the 30-minute onboarding session, with routes as thin adapters. Files: `access/http/`, `access/handler.ts`, `access/ports.ts`, `access/identity.ts`, `access/package.json`, `access/package-lock.json`, `tests/access/oauth.test.ts`. Depends: T014.
 - [ ] T016 Write token and revocation tests, then implement one-use code exchange, PKCE binding, paid-bound JWTs with usageIdentifierKey, rotating refresh credentials and RFC 7009 revocation. Files: `access/tokens.ts`, `access/grants.ts`, `tests/access/tokens.test.ts`. Depends: T015, T017.
 - [ ] T017 Write provisioning tests, then implement idempotent per-subscriber key creation and usage-plan binding behind ports, with a native API Gateway adapter and sanitized retries. Files: `access/usage_bindings.ts`, `access/provisioning.ts`, `tests/access/usage_bindings.test.ts`. Depends: T014 and spec-003 entitlement contract.
