@@ -7,15 +7,11 @@ import { environment, now } from '../fixtures/contracts.js';
 
 const telemetry = new Telemetry({ service: 'access', environment, release: 'onboarding_contract_fixture' }, { sink: () => undefined });
 
-test('onboarding contract keeps record changes additive, fails closed and requires a migration plan for breaking changes', () => {
+test('onboarding contract defers record compatibility to the storage contract instead of restating it', () => {
   const contract = readFileSync('specs/002-authentication-api-access/contracts/onboarding-workflow.md', 'utf8');
-  for (const requirement of ['additive until a breaking change is planned', 'new fields are optional',
-    'written migration plan before it ships', 'run before the new code deploys', 'fail closed', 'never rewritten in place',
-    'Reads and writes ignore unknown top-level fields', 'carry them through unchanged', 'must not carry the TTL attribute `delete_after`',
-    'two-release rule']) {
-    assert.ok(contract.includes(requirement), requirement);
-  }
+  assert.ok(contract.includes('(access-storage.md#record-compatibility)'));
   assert.equal(contract.includes('release versions with durable work'), false);
+  assert.equal(contract.includes('two-release rule'), false);
 });
 
 test('Cognito cancellation atomically revokes the browser session, consumes PKCE state and persists a valid cancelled phase', async () => {

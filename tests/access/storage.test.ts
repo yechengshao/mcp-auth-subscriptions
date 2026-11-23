@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { accessRecordSchemas, validateAccessRecord } from '../../access/contracts/storage.js';
 import { accessRecords } from '../fixtures/storage.js';
 import { now } from '../fixtures/contracts.js';
@@ -88,3 +89,12 @@ test('identity profiles never carry a TTL attribute, because DynamoDB would expi
   assert.throws(() => validateAccessRecord({ ...accessRecords.identity_profile, delete_after: now + 86400 * 400 }, 'test'), /invalid_(contract|access_record)/);
 });
 
+test('storage contract states the record compatibility rules that the validator enforces', () => {
+  const contract = readFileSync('specs/002-authentication-api-access/contracts/access-storage.md', 'utf8');
+  for (const requirement of ['## Record compatibility', 'additive until a breaking change is planned', 'new fields are optional',
+    'written migration plan before it ships', 'run before the new code deploys', 'fail closed', 'never rewritten in place',
+    'Reads and writes ignore unknown top-level fields', 'carry them through unchanged', 'must not carry the TTL attribute `delete_after`',
+    'two-release rule']) {
+    assert.ok(contract.includes(requirement), requirement);
+  }
+});

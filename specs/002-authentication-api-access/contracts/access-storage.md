@@ -51,6 +51,10 @@ Legacy logical ready=true maps to state=configured: a successful AWS setup respo
 
 Persist cryptographically random candidate API-key value and stable operation identity under a conditional binding lease before CreateApiKey; supply that same value on retries rather than generating a new key after a timeout. Restrict and encrypt its storage like any native key. On uncertain creation/association, reconcile exact known key/association state, resolving duplicate/conflicting outcomes before effects; never treat an AWS name alone as unique or blindly create a replacement. API operation/provider uniqueness behavior must be verified in packaged/native fixtures and live acceptance; unresolved outcomes fail safely with support/retry guidance.
 
+## Record compatibility
+
+Keep record changes additive until a breaking change is planned: new fields are optional and nothing is removed or changed in meaning. A breaking change requires a written migration plan before it ships: a migration script, run before the new code deploys, kept until the affected records expire. Records that fail validation fail closed, are never rewritten in place, and are repaired only through that migration path. Reads and writes ignore unknown top-level fields and carry them through unchanged, so a rolled-back release can read and rewrite records written by a newer one without losing their fields. Declared fields and nested objects stay checked. Durable identity profiles and subscriber bindings must not carry the TTL attribute `delete_after`. A field that changes behavior still follows the two-release rule: the release to roll back to must accept the field before any release writes it.
+
 ## Atomic operation rules
 
 1. Authorize validates caller fields, then conditionally creates transaction/session/upstream attempt. Callback checks expiry/session/state/nonce and exchanges Cognito code; atomically consume upstream attempt, bind verified profile and rotate session/advance transaction. Profile put-if-absent may precede this transaction without granting access. Uncertain callback code exchange returns safe restart/recovery, not an identity bypass.

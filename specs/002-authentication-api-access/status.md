@@ -177,3 +177,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Constitution gained Proportionate Design (simplest mechanism the current requirements need; versioning, dual-running, or migration only when a specific change requires it; additive changes preferred).
 - Onboarding contract: record changes are additive until a breaking change is planned; failing records fail closed with a repair path. The access-storage contract no longer lists a record `schema_version`.
 - Still open: onboarding contract still records "schema/config/handler release versions with durable work". Decide whether to keep it before T022 closes.
+
+## T022 closure (2026-11-23)
+
+- Record compatibility rules live in the storage contract (`access-storage.md#record-compatibility`): additive changes, migration script before breaking changes, fail-closed validation, unknown top-level fields carried through reads and writes, and `delete_after` forbidden on identity profiles and subscriber bindings.
+- The onboarding contract keeps only the flow and release process and links to the storage section.
+- Local evidence: `npm run check` passes with 269 tests, including the storage and onboarding contract checks. Live DynamoDB rollback and migration behavior remains `not_run`.
