@@ -73,6 +73,10 @@ Apply these rules to future generated or revised specifications, plans, tasks, a
 supporting contracts. Keep requirements in specifications, implementation decisions
 in plans/contracts, and execution steps in task lists. Add supporting documents or
 diagrams only when they clarify necessary detail without repeating existing content.
+- A change that alters behavior, configuration, or infrastructure MUST update the
+  authoritative contract or specification in the same change. Code, templates, and
+  contracts MUST agree before merge; a contract that no longer matches the code is a
+  defect. Where practical, a test MUST pin the contract wording the code relies on.
 
 ## Compliance Review
 
@@ -100,5 +104,6 @@ patch version for clarifications. Reviews MUST check compliance with this consti
 - **1.2.1 — 2026-11-10**: Clarified that `tasks.md` holds only task lines and checkbox state, with progress evidence in `docs/` or a status file. Rationale: task files had accumulated dated evidence logs, which made counts and status drift out of sync.
 - **1.4.0 — 2026-11-13**: Added Infrastructure as Code: AWS resources only from CloudFormation templates, no root credentials, documented bootstrap exceptions. Rationale: first deployments are at risk of console-created or untracked resources.
 - **1.5.0 — 2026-11-23**: Added Proportionate Design: build the simplest mechanism the current requirements need, and add versioning, dual-running, or migration only when a specific change requires it. Rationale: the project is small and pre-production; mechanisms for hypothetical changes add maintenance cost before they add value. Compatibility rules become additive-only until a breaking change is planned.
+- **1.6.0 — 2026-11-23**: Added to Documentation Scope: a change that alters behavior, configuration, or infrastructure updates its authoritative contract in the same change, and code, templates, and contracts agree before merge. Rationale: a signing-key change left SSM wording in three contracts and the implementation doc, so the documents no longer described the deployed design.
 
-**Version**: 1.5.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-23
+**Version**: 1.6.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-23
