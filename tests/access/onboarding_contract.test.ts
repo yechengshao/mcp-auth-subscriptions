@@ -10,7 +10,9 @@ const telemetry = new Telemetry({ service: 'access', environment, release: 'onbo
 test('onboarding contract keeps record changes additive, fails closed and requires a migration plan for breaking changes', () => {
   const contract = readFileSync('specs/002-authentication-api-access/contracts/onboarding-workflow.md', 'utf8');
   for (const requirement of ['additive until a breaking change is planned', 'new fields are optional',
-    'written migration plan before it ships', 'run before the new code deploys', 'fail closed', 'never rewritten in place']) {
+    'written migration plan before it ships', 'run before the new code deploys', 'fail closed', 'never rewritten in place',
+    'Reads ignore unknown top-level fields', 'An undeclared sensitive name fails closed on read', 'Writes still reject every unknown field', 'drops the top-level fields it does not know',
+    'two-release rule']) {
     assert.ok(contract.includes(requirement), requirement);
   }
   assert.equal(contract.includes('release versions with durable work'), false);

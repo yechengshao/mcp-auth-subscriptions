@@ -1,5 +1,5 @@
 import { object, constant, choice, id, text, epoch, integer, positive, boolean, digest, identity, mapping, compile, type Schema } from '../../contracts/schema.js';
-import { sessionSchema, transactionSchema, profileSchema, refreshSchema } from './schemas.js';
+import { sessionSchema, transactionSchema, profileSchema, refreshSchema, compileTolerant } from './schemas.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { canonicalJson } from '../../contracts/canonical.js';
 import { identifierPattern, sha256HexPattern, s256ChallengePattern, usageIdentifierKeyPattern } from '../../contracts/patterns.js';
@@ -42,11 +42,20 @@ export const accessRecordSchemas: Record<string, Schema> = {
   }, ['api_key_id', 'error_class']),
 };
 const validators = new Map(Object.entries(accessRecordSchemas).map(([kind, schema]) => [kind, compile(schema)]));
+const readers = new Map(Object.entries(accessRecordSchemas).map(([kind, schema]) => [kind, compileTolerant(schema)]));
 function invalid(): never { throw new Error('invalid_access_record'); }
+/** Writes: strict, so unknown top-level fields (including accidental secrets) are never stored. */
 export function validateAccessRecord(input: unknown, environment: string): void {
+  checkAccessRecord(input, environment, validators);
+}
+/** Reads: unknown top-level fields are ignored; known fields are still checked. */
+export function readAccessRecord(input: unknown, environment: string): void {
+  checkAccessRecord(input, environment, readers);
+}
+function checkAccessRecord(input: unknown, environment: string, table: Map<string, (value: unknown) => void>): void {
   if (!input || typeof input !== 'object') invalid();
   const value = input as Record<string, unknown>, kind = value.entity_type as string;
-  const validate = validators.get(kind);
+  const validate = table.get(kind);
   if (!validate) invalid();
   validate(value);
   if (value.environment !== environment) invalid();
