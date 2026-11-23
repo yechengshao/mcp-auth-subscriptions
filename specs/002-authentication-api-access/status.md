@@ -215,3 +215,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Workflow run 45120428758 (`Publish Access Lambda image`, `main` at `cca9c30`, environment `access-publish` approved) succeeded: tests, npm ci, arm64 build and push, and release evidence upload.
 - Pushed image: `503098479806.dkr.ecr.ca-central-1.amazonaws.com/mcp-access@sha256:72c0560290fcf11a8bc7b220a41333ec42e24e1541e6dbfb9e976d2efeef7066`, tag `access-2026-11-23.1`.
 - Still open before T019 is ticked: the ECR scan-on-push result. The AWS session credentials had expired, so `DescribeImageScanFindings` could not run. The tag mutability and scan-on-push settings also need the same check.
+
+## T019 closure (2026-11-23): accepted base-image findings
+
+- ECR scan of `mcp-access@sha256:72c05602…efeef7066` completed. Repository: tag mutability IMMUTABLE, scan-on-push enabled.
+- Findings: 4 HIGH and 6 MEDIUM, all in operating-system packages from the pinned Lambda base image. `rpm`/`rpm-libs` (CVE-2026-95520, CVE-2026-95521, HIGH) and `sqlite-libs` (CVE-2026-119371 to -119378 excluding -119374, MEDIUM). No fixed version is reported.
+- Decision: accepted for now and the base image stays pinned, per the project's pin-until-fixed rule. Revisit when AWS publishes a patched `public.ecr.aws/lambda/nodejs:24-arm64` digest; the release then needs a new build and digest.
+- Application code and npm dependencies have no findings.
