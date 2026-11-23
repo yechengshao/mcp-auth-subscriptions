@@ -171,3 +171,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - No access records have been written to DynamoDB, so the `schema_version` field and its codec were removed from access records. The access validator now uses its own record base, which rejects any field it does not list, including `schema_version`.
 - Billing records keep their `schema_version` (billing has its own storage contract), and the wire and configuration versions are unchanged.
 - The onboarding contract still describes multi-version compatibility; it needs the additive-only rule before T022 can close.
+
+## Constitution 1.5.0 and access contract update (2026-11-23)
+
+- Constitution gained Proportionate Design (simplest mechanism the current requirements need; versioning, dual-running, or migration only when a specific change requires it; additive changes preferred).
+- Onboarding contract: record changes are additive until a breaking change is planned; failing records fail closed with a repair path. The access-storage contract no longer lists a record `schema_version`.
+- Still open: onboarding contract still records "schema/config/handler release versions with durable work". Decide whether to keep it before T022 closes.

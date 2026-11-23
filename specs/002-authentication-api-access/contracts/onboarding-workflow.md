@@ -12,7 +12,7 @@ Each request loads durable state, validates its trigger, performs bounded work, 
 
 ## Durable state and transitions
 
-Access transactions record an opaque ID, registered client/redirect/resource/PKCE binding, verified identity, own-order reference, phase, monotonic revision, schema version, absolute expiry, attempts, next-attempt time and sanitized release/error metadata. Sensitive session/code/grant fields follow the client/token contracts. Physical keys, record fields, retention and transaction rules follow the [access storage contract](access-storage.md); T014/T022 validate their schemas.
+Access transactions record an opaque ID, registered client/redirect/resource/PKCE binding, verified identity, own-order reference, phase, monotonic revision, absolute expiry, attempts, next-attempt time and sanitized release/error metadata. Sensitive session/code/grant fields follow the client/token contracts. Physical keys, record fields, retention and transaction rules follow the [access storage contract](access-storage.md); T014/T022 validate their schemas.
 
 All transitions use conditional writes against expected phase/revision, identity/order and unexpired state. Terminal cancelled/expired/redeemed states cannot reopen. Persist the required next provisioning action with its transition; a crash must leave recoverable state for the next browser/reconnect request, not depend on enqueueing. External effects use stable operation/idempotency references and durable outcomes. Recover uncertain responses by inspecting authoritative provider/binding state before retrying; there is no exactly-once invocation assumption.
 
@@ -42,7 +42,7 @@ Keep the 30-minute absolute continuation, 60-second code, access/refresh lifetim
 
 Log only opaque correlation, phase/revision, release and sanitized failure categories; exclude cookies, OAuth state/codes/verifiers, bearer/refresh tokens, native keys and full provider payloads. Coordinator owns sessions/signing and exact billing invocation; bounded access HTTP provisioning manages binding transitions and native-key operations; the access role cannot read Stripe secrets. No access role writes billing or holds Stripe credentials.
 
-Record schema/config/handler release versions with durable work. New releases and rollback must support existing unexpired records; incompatible records fail closed with a repair path. Retain identity/billing/grant/work data across deployments and scoped cleanup; cancellation applies only to owned transactions.
+Record schema/config/handler release versions with durable work. Keep record changes additive until a breaking change is planned: new fields are optional and nothing is removed or changed in meaning. Records that fail validation fail closed with a repair path. Retain identity/billing/grant/work data across deployments and scoped cleanup; cancellation applies only to owned transactions.
 
 ## Acceptance and sources
 

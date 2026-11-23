@@ -4,7 +4,7 @@
 
 ## Common conventions and ownership
 
-Use string PK/SK, schema_version=1, integer revision and UTC epoch-second timestamps. Environment is trusted deployment configuration. Derive identity_key as SHA-256 of canonical UTF-8 JSON `[issuer,subject]`, matching billing. Generate an opaque subscriber_id once per verified identity/environment; email is never identity. Store no secrets in key attributes or indexes. Access Lambda alone owns access writes; authorizer/MCP/billing receive no access-table grants. Tables use encryption at rest, explicit deletion protection/retention and scoped logs; never log records or credential values.
+Use string PK/SK, integer revision and UTC epoch-second timestamps. Environment is trusted deployment configuration. Derive identity_key as SHA-256 of canonical UTF-8 JSON `[issuer,subject]`, matching billing. Generate an opaque subscriber_id once per verified identity/environment; email is never identity. Store no secrets in key attributes or indexes. Access Lambda alone owns access writes; authorizer/MCP/billing receive no access-table grants. Tables use encryption at rest, explicit deletion protection/retention and scoped logs; never log records or credential values.
 
 Exact registered client/redirect/resource/scope and client-config version come from validated deployment registration, not a mutable browser record. No GSI or account-wide Scan is required: all authority reads use exact base keys and strong consistency. Billing entitlement lookup uses its shared identity-key algorithm; the catalog/purchased mapping contract remains unchanged.
 
@@ -12,7 +12,7 @@ The billing-owned entitlement projection includes the application `subscription_
 
 ## One access table: AccessState
 
-AccessTransient, AccessGrants and AccessBindings are logical record groups in ONE physical AccessState table, not separate resources. Preserve the PK/SK namespaces below; each row carries entity_type and schema_version so handlers/validators select the right shape. All access authority reads/transactions target AccessState. No streams or GSI are added by consolidation.
+AccessTransient, AccessGrants and AccessBindings are logical record groups in ONE physical AccessState table, not separate resources. Preserve the PK/SK namespaces below; each row carries entity_type so handlers/validators select the right shape. All access authority reads/transactions target AccessState. No streams or GSI are added by consolidation.
 
 Enable DynamoDB TTL on optional delete_after for the table. Only eligible transient/expired-grant rows carry that field; identity profiles and subscriber bindings MUST omit it. Retention applies per entity, not as a blanket table cleanup rule. Server code controls all TTL/key/entity fields; browser payloads cannot select record types or expiration cleanup. Encryption, backup/deletion protection and IAM now apply to the single table.
 

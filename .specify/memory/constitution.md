@@ -48,6 +48,11 @@
   payment reconciliation, but their necessity and recovery guarantees MUST be explicit.
   Retryability MUST NOT bypass current eligibility, ownership, CSRF or expiry checks.
 
+### Proportionate Design
+
+- Build the simplest mechanism the current requirements need. Add versioning, dual-running, or migration only when a specific change requires it, and record that trigger in the affected contract.
+- Prefer additive changes (new optional fields, nothing removed or changed in meaning) until a breaking change is unavoidable.
+
 ### Hexagonal Architecture
 
 - Lambda entrypoints MUST compose dependencies and adapt invocation data; they MUST NOT contain workflow decisions.
@@ -94,5 +99,6 @@ patch version for clarifications. Reviews MUST check compliance with this consti
 - **1.3.0 — 2026-11-10**: Added soft length budgets for task lines (under 60 words) and `tasks.md` (under 2,500 words), with justification required to exceed them. Rationale: the access task list had grown to paragraphs of acceptance detail, obscuring task status.
 - **1.2.1 — 2026-11-10**: Clarified that `tasks.md` holds only task lines and checkbox state, with progress evidence in `docs/` or a status file. Rationale: task files had accumulated dated evidence logs, which made counts and status drift out of sync.
 - **1.4.0 — 2026-11-13**: Added Infrastructure as Code: AWS resources only from CloudFormation templates, no root credentials, documented bootstrap exceptions. Rationale: first deployments are at risk of console-created or untracked resources.
+- **1.5.0 — 2026-11-23**: Added Proportionate Design: build the simplest mechanism the current requirements need, and add versioning, dual-running, or migration only when a specific change requires it. Rationale: the project is small and pre-production; mechanisms for hypothetical changes add maintenance cost before they add value. Compatibility rules become additive-only until a breaking change is planned.
 
-**Version**: 1.4.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-13
+**Version**: 1.5.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-23
