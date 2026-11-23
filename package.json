@@ -15,8 +15,6 @@
     "render:billing-runtime": "npm run build && node dist/infra/billing/release.js",
     "render:authorizer": "npm run build && node dist/infra/access/release-authorizer.js",
     "package:authorizer": "npm run build && node scripts/package_authorizer.mjs",
-    "package:access-image": "npm run build && node dist/infra/access/build-image.js",
-    "package:billing-image": "npm run build && node dist/infra/billing/build-image.js",
     "prepare:gateway-cutover": "npm run build && node dist/scripts/prepare_gateway_cutover.js",
     "check:cognito-snapshot": "npm run build && node dist/scripts/check_cognito_compatibility.js"
   },

@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { accessDependencyGrants, authorizerLogPolicy } from '../../access/contracts/infrastructure.js';
-import { accessImageBuild, accessImageBuildArgs } from '../../infra/access/build-image.js';
 test('access cross-stack grants target only the entitlement table and exact billing alias', () => {
   const grants = accessDependencyGrants('arn:aws:dynamodb:us-east-1:000000000000:table/entitlements', 'arn:aws:lambda:us-east-1:000000000000:function:billing:live');
   assert.deepEqual(grants[0]!.Action, ['dynamodb:GetItem','dynamodb:ConditionCheckItem']);
@@ -78,17 +77,6 @@ test('access Lambda image uses the managed runtime, production install and exclu
   assert.match(dockerfile, /dist\/access\/handler\.handler/);
   assert.match(readFileSync('infra/access/runtime.yaml', 'utf8'), /@sha256:\[a-f0-9\]/);
   assert.match(readFileSync('access/Dockerfile.dockerignore', 'utf8'), /node_modules/);
-});
-test('access image build requires immutable Node 24 sources and builds only the ARM64 runtime', () => {
-  const buildImage = `node:24-bookworm-slim@sha256:${'a'.repeat(64)}`;
-  const runtimeImage = `public.ecr.aws/lambda/nodejs:24-arm64@sha256:${'b'.repeat(64)}`;
-  const input = accessImageBuild(['--build-image', buildImage, '--runtime-image', runtimeImage, '--tag', 'access-local:fixture']);
-  const args = accessImageBuildArgs(input);
-  assert.equal(args[args.indexOf('--platform') + 1], 'linux/arm64');
-  assert.equal(args[args.indexOf('--build-arg') + 1], `NODE_BUILD_IMAGE=${buildImage}`);
-  assert.ok(args.includes(`LAMBDA_RUNTIME_IMAGE=${runtimeImage}`));
-  assert.throws(() => accessImageBuild(['--build-image', 'node:24-bookworm-slim', '--runtime-image', runtimeImage, '--tag', 'access-local:fixture']));
-  assert.throws(() => accessImageBuild(['--build-image', buildImage, '--runtime-image', 'public.ecr.aws/lambda/nodejs:24', '--tag', 'access-local:fixture']));
 });
 test('access templates use no cross-stack imports, so stack outputs reach other stacks only as parameters', () => {
   for (const file of ['auth.yaml', 'authorizer.yaml', 'publication.yaml', 'runtime.yaml', 'storage.yaml']) {

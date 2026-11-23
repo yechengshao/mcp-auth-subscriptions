@@ -29,19 +29,19 @@ configuration, retained storage, native monitoring, immutable ARM64 packaging an
 live verification. Source/runtime work is local; deployments and real provider
 acceptance remain not_run. `npm run check` validates local code and simulations.
 
-To build the isolated Lambda image locally, use digest-pinned Node.js 24 build
-and Lambda base images. The helper targets ARM64, runs the complete root checks in
-the build stage, installs only the locked billing runtime dependencies in the
-image, and writes local source/lock/template hash evidence. It does not publish
-the image or claim an ECR manifest digest:
+To build the isolated Lambda image locally, use the Dockerfile with digest-pinned
+Node.js 24 build and Lambda base images. The build targets ARM64, runs the
+complete root checks in the build stage, and installs only the locked billing
+runtime dependencies in the image. It does not publish the image or produce an
+ECR manifest digest. A Docker daemon is required:
 
 ```sh
-npm run package:billing-image -- \
-  --build-image 'node:24-bookworm-slim@sha256:REPLACE_WITH_64_HEX_DIGEST' \
-  --runtime-image 'public.ecr.aws/lambda/nodejs:24@sha256:REPLACE_WITH_64_HEX_DIGEST' \
-  --tag 'billing-local:REPLACE_WITH_RELEASE'
+docker buildx build --platform linux/arm64 --load \
+  --build-arg 'BUILD_IMAGE=node:24-bookworm-slim@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --build-arg 'LAMBDA_IMAGE=public.ecr.aws/lambda/nodejs:24@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --tag 'billing-local:REPLACE_WITH_RELEASE' \
+  --file Dockerfile.billing .
 ```
 
-The result is saved under `.artifacts/`. A Docker daemon is required. An ECR
-manifest digest is available only after the separately authorized publication
-workflow pushes the image.
+An ECR manifest digest is available only after the separately authorized
+publication workflow pushes the image.

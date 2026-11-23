@@ -121,17 +121,17 @@ created.
 For a local ARM64 package build without publishing, run:
 
 ```sh
-npm run package:billing-image -- \
-  --build-image 'node:24-bookworm-slim@sha256:YOUR_APPROVED_DIGEST' \
-  --runtime-image 'public.ecr.aws/lambda/nodejs:24@sha256:YOUR_APPROVED_DIGEST' \
-  --tag 'billing-local:YOUR_RELEASE_TAG'
+docker buildx build --platform linux/arm64 --load \
+  --build-arg 'BUILD_IMAGE=node:24-bookworm-slim@sha256:YOUR_APPROVED_DIGEST' \
+  --build-arg 'LAMBDA_IMAGE=public.ecr.aws/lambda/nodejs:24@sha256:YOUR_APPROVED_DIGEST' \
+  --tag 'billing-local:YOUR_RELEASE_TAG' \
+  --file Dockerfile.billing .
 ```
 
-The local image helper records source/lock/template evidence but cannot produce
-an ECR digest. If building inside this managed cloud environment after registry
-access is configured, add `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` so npm
-trusts the session proxy. The CA is a build secret mount and is not copied into
-the image.
+A local build cannot produce an ECR digest. If building inside this managed cloud
+environment after registry access is configured, add
+`--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` so npm trusts the session proxy.
+The CA is a build secret mount and is not copied into the image.
 
 Render the deployment template for that immutable artifact:
 

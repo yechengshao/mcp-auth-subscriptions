@@ -266,20 +266,22 @@ prove that a manually supplied manifest matches AWS. It rejects duplicate or
 catch-all routes, wrong-owner aliases and an unprotected MCP/health integration.
 The actual REST gateway template and live cutover remain separate unfinished work.
 
-To build the Access image later, supply immutable Node.js 24 build/runtime image
-references with their approved SHA-256 digests. The script targets ARM64, requires
-both image references to be digest-pinned, and writes local source/lock/template
-hash evidence under `.artifacts/`; it does not push to ECR or deploy:
+To build the Access image locally, use the Dockerfile directly with immutable
+Node.js 24 build and ARM64 Lambda runtime references pinned by SHA-256 digest.
+This does not push to ECR or deploy. The release workflow
+(`.github/workflows/publish-access-image.yml`) runs the same Dockerfile, validates
+the pins itself, and writes the release evidence:
 
 ```sh
-npm run package:access-image -- \
-  --build-image 'node:24-bookworm-slim@sha256:REPLACE_WITH_64_HEX_DIGEST' \
-  --runtime-image 'public.ecr.aws/lambda/nodejs:24-arm64@sha256:REPLACE_WITH_64_HEX_DIGEST' \
-  --tag 'access-local:REPLACE_WITH_RELEASE'
+docker buildx build --platform linux/arm64 --load \
+  --build-arg 'NODE_BUILD_IMAGE=node:24-bookworm-slim@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --build-arg 'LAMBDA_RUNTIME_IMAGE=public.ecr.aws/lambda/nodejs:24-arm64@sha256:REPLACE_WITH_64_HEX_DIGEST' \
+  --tag 'access-local:REPLACE_WITH_RELEASE' \
+  --file access/Dockerfile .
 ```
 
 After a separately authorized publish, use the ECR repository URI **with its
-registry digest** as `ImageUri` for `infra/access/runtime.yaml`. The local Docker
-image ID in the evidence file is not an ECR digest.
+registry digest** as `ImageUri` for `infra/access/runtime.yaml`. A local Docker
+image ID is not an ECR digest.
 
 Billing workflows now depend on repository, queue, payment-provider and telemetry dependencies rather than concrete AWS or Stripe adapters. Webhook transport validation stays in the handler; verified-event deduplication and reconciliation run in `BillingService`. Shared schema primitives, identity partitioning, canonical JSON and the billing-owned entitlement projection live in `contracts/`, so Access no longer imports Billing implementation modules. Persistence rows remain an explicit shared storage contract; packaged and live adapter acceptance is still pending.
