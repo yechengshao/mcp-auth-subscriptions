@@ -196,3 +196,14 @@ test('a code is rejected when the redirect, client or resource differs, or after
   assert.equal((await value.store.get(value.codeKey))?.consumed, false);
   assert.equal(value.signed.length, 0, 'no token is signed for a rejected code');
 });
+
+test('refresh with a resource this server does not serve is an invalid target and leaves the credential unchanged', async () => {
+  const value = setup();
+  const tokens = await value.service.exchangeCode({ code, clientId, redirectUri, codeVerifier: verifier, resource });
+  await assert.rejects(value.service.refresh({ refreshToken: tokens.refresh_token, clientId, resource: 'https://other.example.invalid/mcp' }),
+    error => error instanceof OAuthTokenFailure && error.oauthError === 'invalid_target');
+  const family = await value.store.get(grantFamilyKey(environment, value.grantId));
+  assert.equal(family?.status, 'active');
+  const credential = await value.store.get(refreshCredentialKey(environment, tokens.refresh_token));
+  assert.equal(credential?.status, 'active');
+});

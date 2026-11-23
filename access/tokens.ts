@@ -89,8 +89,8 @@ export class AccessTokens {
   async refresh(input: { refreshToken: string; clientId: string; resource?: string; scope?: string }): Promise<TokenResponse> {
     if (!this.config.clientIds.includes(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
     if (typeof input.refreshToken !== 'string' || !opaque.test(input.refreshToken) ||
-        (input.resource !== undefined && input.resource !== this.config.resource) ||
         (input.scope !== undefined && typeof input.scope !== 'string')) throw new OAuthTokenFailure(400, 'invalid_request');
+    if (input.resource !== undefined && input.resource !== this.config.resource) throw new OAuthTokenFailure(400, 'invalid_target');
     const now = this.clock();
     const oldKey = refreshCredentialKey(this.store.environment, input.refreshToken);
     const old = await this.read(oldKey);
