@@ -230,3 +230,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Callback and logout URLs are placeholders (`https://example.invalid/...`). They must be replaced with the REST API's default address once T007 creates it.
 - Still open for T005: the authorizer ZIP publish and the access runtime stack.
 - Google's registered redirect URI already points at this hosted login domain.
+
+## Authorizer ZIP publication (2026-11-23)
+
+- Run 45124013122 (`publish-authorizer-zip.yml`, tag `authorizer-2026-11-23.2`, `main` at `e6038b4`) succeeded after the `authorizer-publish` environment was configured and approved. An earlier run (`authorizer-2026-11-23.1`) failed at input validation before any AWS call.
+- Artifact: `s3://mcp-access-authorizer-releases-503098479806/access/authorizer/authorizer-2026-11-23.2/45124013122-1/authorizer.zip`, version `w_2.3PVnkESEE93aEblBv735oeyqOr29`, 169,187 bytes, latest version.
+- T005 stays open: the access runtime stack (`infra/access/runtime.yaml`, image digest `sha256:72c05602…efeef7066`) and the real callback URLs after T007 remain.
