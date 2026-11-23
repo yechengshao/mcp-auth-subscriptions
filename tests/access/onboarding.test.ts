@@ -228,3 +228,53 @@ test('concurrent resume requests issue exactly one callback code', async () => {
   assert.equal([...store.rows.values()].filter(value => value.entity_type === 'authorization_code').length, 1);
   assert.equal((await store.get(transactionKey(environment, 'tx_onboarding_fixture')))?.phase, 'code_issued');
 });
+
+test('a checkout intent that cannot be saved leaves the transaction unchanged, and a retry completes once', async () => {
+  const store = new MemoryOnboardingStore(), billing = new BillingFake();
+  const tx = transaction('identity_verified');
+  seedTransaction(store, tx);
+  const browser = context(tx), onboarding = service(store, billing);
+  const commit = store.commit.bind(store);
+  let failures = 1;
+  store.commit = async (...args: Parameters<typeof commit>) => {
+    if (failures-- > 0) throw new Error('dynamodb_timeout');
+    return commit(...args);
+  };
+  const offer = { planId: 'basic', durationOptionId: 'monthly', catalogVersion: 'catalog_fixture_v1' };
+  await assert.rejects(onboarding.checkout(browser, offer), error =>
+    error instanceof OnboardingFailure && error.status === 503 && error.code === 'temporarily_unavailable');
+  assert.equal((await store.get(transactionKey(environment, 'tx_onboarding_fixture')))?.phase, 'identity_verified');
+  assert.equal(billing.calls.length, 0, 'no provider call may happen before the intent is saved');
+
+  billing.replies.push(result('ok', { order_id: 'order_fixture', checkout_url: 'https://checkout.stripe.com/c/pay/session_fixture' }));
+  assert.deepEqual(await onboarding.checkout(browser, offer), { kind: 'redirect', url: 'https://checkout.stripe.com/c/pay/session_fixture' });
+  assert.equal(billing.calls.length, 1);
+  assert.equal(billing.calls[0]?.idempotencyKey, 'tx_onboarding_fixture');
+});
+
+test('an expired onboarding continuation is refused before any billing, binding or code step', async () => {
+  const store = new MemoryOnboardingStore(), billing = new BillingFake();
+  const tx = { ...transaction('checkout_pending'), expires_at: now };
+  seedTransaction(store, tx);
+  const browser = context(tx), onboarding = service(store, billing);
+  const offer = { planId: 'basic', durationOptionId: 'monthly', catalogVersion: 'catalog_fixture_v1' };
+  await assert.rejects(onboarding.checkout(browser, offer), error => error instanceof OnboardingFailure && error.code === 'session_expired');
+  await assert.rejects(onboarding.status(browser), error => error instanceof OnboardingFailure && error.code === 'session_expired');
+  await assert.rejects(onboarding.resume(browser), error => error instanceof OnboardingFailure && error.code === 'session_expired');
+  assert.equal(billing.calls.length, 0);
+});
+
+test('a payment that completes after the continuation failed sends the browser back to sign-in instead of reporting failure', async () => {
+  const store = new MemoryOnboardingStore(), billing = new BillingFake();
+  const tx = { ...transaction('failed'), order_id: 'order_fixture',
+    selected_offer: { plan_id: 'basic', duration_option_id: 'monthly', catalog_version: 'catalog_fixture_v1', intent: 'purchase' } };
+  seedTransaction(store, tx);
+  const browser = context(tx), onboarding = service(store, billing);
+  assert.deepEqual(await onboarding.status(browser), { state: 'payment_failed' });
+
+  store.paid = structuredClone(entitlement);
+  await assert.rejects(onboarding.status(browser), error =>
+    error instanceof OnboardingFailure && error.status === 409 && error.code === 'continuation_completed');
+  assert.equal(billing.calls.length, 0);
+});
+

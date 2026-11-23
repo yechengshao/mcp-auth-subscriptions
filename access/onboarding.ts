@@ -102,9 +102,13 @@ export class Onboarding {
     const txId = context.session.tx_id as string;
     const transaction = await this.currentTransaction(txId, context.transaction.grant_id);
     if (transaction.phase === 'code_issued' || transaction.phase === 'redeemed') return { state: 'completed' };
-    if (transaction.phase === 'failed') return { state: 'payment_failed' };
-    if (transaction.phase === 'cancelled') throw new OnboardingFailure(409, 'continuation_completed');
     const entitlement = await this.entitlement(context);
+    if (transaction.phase === 'failed') {
+      // A payment that completed after this continuation failed is still authoritative: send the browser back to sign-in.
+      if (this.active(entitlement, context.session.identity!, now)) throw new OnboardingFailure(409, 'continuation_completed');
+      return { state: 'payment_failed' };
+    }
+    if (transaction.phase === 'cancelled') throw new OnboardingFailure(409, 'continuation_completed');
     if (this.active(entitlement, context.session.identity!, now)) {
       try {
         await this.provisioning.ensure({ identity: context.session.identity!, subscriberId: context.session.subscriber_id!, invocationId: randomUUID() });
@@ -242,6 +246,9 @@ export class Onboarding {
         typeof context.session.subscriber_id !== 'string' || typeof context.transaction.grant_id !== 'string') {
       throw new OnboardingFailure(403, 'invalid_continuation');
     }
+    // Expiry is enforced here as well as in the session loader, so no onboarding step can outlive its continuation.
+    const now = this.clock();
+    if (context.session.expires_at <= now || context.transaction.expires_at <= now) throw new OnboardingFailure(409, 'session_expired');
   }
   private async currentTransaction(txId: string, grantId: string): Promise<AccessRow> {
     const transaction = await this.read(transactionKey(this.store.environment, txId));

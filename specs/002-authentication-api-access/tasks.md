@@ -5,7 +5,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 # Tasks: Authentication and API Access
 
 **Spec**: [spec](spec.md) · [plan](plan.md) · [client contract](contracts/client-onboarding.md) · [REST contract](contracts/rest-gateway.md) · [migration history](../../../tradingview-mcp/specs/scope-migration.md)
-**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 9 of 25 checked (T001–T004, T014–T017, T022). All current verification is local; live and provider checks are `not_run`.
+**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 10 of 25 checked (T001–T004, T014–T017, T022, T023). All current verification is local; live and provider checks are `not_run`.
 
 ## Foundations and authorizer
 
@@ -43,7 +43,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 ## Persisted onboarding and background recovery
 
 - [x] T022 Validate the access-storage record schemas and onboarding contract, including phase and revision guards, atomic writes and compatibility across releases, with no access-owned queue, outbox or schedule. Files: `tests/access/onboarding_contract.test.ts`, `specs/002-authentication-api-access/contracts/onboarding-workflow.md`. Depends: T014.
-- [ ] T023 Write crash and race tests, then implement shared transaction transitions, bounded status and resume, lease fencing, and recovery with no detached post-return work. Files: `access/transitions.ts`, `access/provisioning.ts`, `tests/access/onboarding_callbacks.test.ts`, `tests/access/recovery.test.ts`. Depends: T022, T015, T016, T017, and spec-003 reconciliation interface.
+- [x] T023 Write crash and race tests, then implement shared transaction transitions, bounded status and resume, lease fencing, and recovery with no detached post-return work. Files: `access/transitions.ts`, `access/provisioning.ts`, `tests/access/onboarding_callbacks.test.ts`, `tests/access/recovery.test.ts`. Depends: T022, T015, T016, T017, and spec-003 reconciliation interface.
 - [ ] T024 Write then enforce the absence of any access queue, Pipe, DLQ, SQS mapping or replay schedule, and validate exact entitlement read grants and bounded provisioning retries. Files: `tests/access/access_contract.test.ts`, `tests/access/onboarding_contract.test.ts`. Depends: T005, T022, T023.
 - [ ] T025 Run local handler, state and recovery simulations for browser closure, duplicate and reordered delivery, crashes, lease expiry, late payment and plan changes, separating fixtures from live event behavior. Files: `tests/access/onboarding_journey.test.ts`, `tests/access/onboarding_contract.test.ts`, `tests/access/recovery.test.ts`. Depends: T023, T024, and spec-003 simulated fixtures.
 

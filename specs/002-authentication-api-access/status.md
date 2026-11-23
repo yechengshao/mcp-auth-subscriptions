@@ -188,3 +188,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 
 - `tests/access/race.test.ts`: two owners advancing the same transaction revision against a DynamoDB stand-in that evaluates the store's revision conditions. Exactly one write lands; the other is a `TransactionCanceledException`; a stale owner cannot advance a transaction the winner already moved past.
 - T023 stays unchecked. Still open from its acceptance list: crash before and after commits and provider calls, expired transactions refusing to advance, late-paid reconnect after cancellation, and browser-closure resume.
+
+## T023 closure (2026-11-23)
+
+- Expiry: `Onboarding` now refuses an expired session or continuation before any checkout, status or resume step (HTTP 409 `session_expired`, because the failure type allows only certain status codes; the session loader still returns 401 for the same expiry).
+- Late payment: a failed continuation whose subscription has since become active now returns `continuation_completed`, so the browser restarts sign-in and gets an eligible transaction. Previously it reported `payment_failed`.
+- Crash before the intent save: `tests/access/onboarding.test.ts` shows the transaction stays at `identity_verified`, no provider call happens, and a retry completes once.
+- Already covered and rechecked: lost billing response after the intent save, concurrent checkout and resume, lease takeover by a stalled owner, and revision races (`tests/access/race.test.ts`). Browser closure is covered by stateless resume: every step reloads persisted state.
+- Local evidence only. Live DynamoDB, Stripe and billing behavior remain `not_run`.
