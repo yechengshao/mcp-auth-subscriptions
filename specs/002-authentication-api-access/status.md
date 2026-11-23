@@ -146,3 +146,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Identity key: both specs define it as SHA-256 of the canonical JSON array `[issuer, subject]`. Access and billing both build partitions from the shared `contracts/identity.ts` function, and a sample input gives the same key as the canonical-JSON version.
 - Billing operations used by access (`listPlans`, `createCheckout`, `getOrder`, `reconcileOrder`, `quoteUpgrade`, `confirmUpgrade`, `manageSubscription`, `openPortal`) all exist in the spec 003 storage contract and billing code. `openPortal` is always `support_required` in this release, as spec 003 requires.
 - Signing: RS256 with the `at+jwt` header, an opaque `kid`, a SecureString key, and a 300-second maximum cache, matching `authorization.md`.
+
+## T015–T017 closed (2026-11-23)
+
+- T015: OAuth coordinator tests pass (11 across the OAuth suites), including the new 30-minute session expiry test. The task now names the root `package.json` and lock file, which the access image uses; no separate `access/` package exists.
+- T016: token tests pass, including the new negative code-exchange and refresh cases. Resource mismatches return `invalid_target` (RFC 8707); `/authorize` keeps `invalid_request` by decision.
+- T017: usage-binding tests (10) and the API Gateway adapter tests (5) pass. The adapter disables SDK retries (`maxAttempts: 1`).
