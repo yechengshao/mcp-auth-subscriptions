@@ -11,7 +11,7 @@ test('onboarding contract keeps record changes additive, fails closed and requir
   const contract = readFileSync('specs/002-authentication-api-access/contracts/onboarding-workflow.md', 'utf8');
   for (const requirement of ['additive until a breaking change is planned', 'new fields are optional',
     'written migration plan before it ships', 'run before the new code deploys', 'fail closed', 'never rewritten in place',
-    'Reads ignore unknown top-level fields', 'An undeclared sensitive name fails closed on read', 'Writes still reject every unknown field', 'drops the top-level fields it does not know',
+    'Reads and writes ignore unknown top-level fields', 'carry them through unchanged', 'must not carry the TTL attribute `delete_after`',
     'two-release rule']) {
     assert.ok(contract.includes(requirement), requirement);
   }

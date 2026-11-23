@@ -1,5 +1,5 @@
 import { object, constant, choice, id, text, epoch, integer, positive, boolean, digest, identity, mapping, compile, type Schema } from '../../contracts/schema.js';
-import { sessionSchema, transactionSchema, profileSchema, refreshSchema, compileTolerant } from './schemas.js';
+import { sessionSchema, transactionSchema, profileSchema, refreshSchema, tolerantRecord } from './schemas.js';
 import { identityPartition } from '../../contracts/identity.js';
 import { canonicalJson } from '../../contracts/canonical.js';
 import { identifierPattern, sha256HexPattern, s256ChallengePattern, usageIdentifierKeyPattern } from '../../contracts/patterns.js';
@@ -39,18 +39,14 @@ export const accessRecordSchemas: Record<string, Schema> = {
     state: choice('pending', 'configured', 'error'), operation_id: id, api_key_value: keyValue, api_key_id: id,
     attempts: integer, next_attempt_at: epoch, lease_owner: id, fence: positive, lease_until: epoch,
     mutation, error_class: choice('dependency_unavailable', 'configuration_error', 'uncertain_effect', 'exhausted'), updated_at: epoch,
-  }, ['api_key_id', 'error_class']),
+    delete_after: { not: {} }, // Durable binding: the table TTL attribute is forbidden.
+  }, ['api_key_id', 'error_class', 'delete_after']),
 };
-const validators = new Map(Object.entries(accessRecordSchemas).map(([kind, schema]) => [kind, compile(schema)]));
-const readers = new Map(Object.entries(accessRecordSchemas).map(([kind, schema]) => [kind, compileTolerant(schema)]));
+const validators = new Map(Object.entries(accessRecordSchemas).map(([kind, schema]) => [kind, compile(tolerantRecord(schema))]));
 function invalid(): never { throw new Error('invalid_access_record'); }
-/** Writes: strict, so unknown top-level fields (including accidental secrets) are never stored. */
+/** Reads and writes share one check: unknown top-level fields pass through unchanged; known fields stay checked. */
 export function validateAccessRecord(input: unknown, environment: string): void {
   checkAccessRecord(input, environment, validators);
-}
-/** Reads: unknown top-level fields are ignored; known fields are still checked. */
-export function readAccessRecord(input: unknown, environment: string): void {
-  checkAccessRecord(input, environment, readers);
 }
 function checkAccessRecord(input: unknown, environment: string, table: Map<string, (value: unknown) => void>): void {
   if (!input || typeof input !== 'object') invalid();

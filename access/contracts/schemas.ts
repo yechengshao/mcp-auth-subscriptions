@@ -40,10 +40,11 @@ export const transactionSchema: Schema = { oneOf: [
     ];
   }),
 ] };
+// A durable identity profile must never carry the table TTL attribute (delete_after): DynamoDB would expire it.
 export const profileSchema = object({
   ...row, entity_type: constant('identity_profile'), SK: constant('PROFILE'), environment: id,
-  identity, subscriber_id: id,
-});
+  identity, subscriber_id: id, delete_after: { not: {} },
+}, ['delete_after']);
 export const refreshSchema = object({
   ...row, entity_type: constant('refresh_credential'), SK: constant('TOKEN'), environment: id,
   grant_id: id, subscriber_id: id, client_id: text, resource: text, sequence: integer,
@@ -51,41 +52,15 @@ export const refreshSchema = object({
   family_expires_at: epoch, latest_access_expires_at: epoch, delete_after: epoch,
 });
 /**
- * Read-side view of a record schema: unknown top-level fields are ignored so a
- * rolled-back release can read records written by a newer one. Known fields and
- * nested objects keep their closed checks. Writes use the strict schemas.
+ * Record schema for stored access records: unknown top-level fields are ignored
+ * and carried through unchanged; declared fields and nested objects stay checked.
+ * Writers that copy a loaded record therefore keep fields a newer release wrote.
  */
 export function tolerantRecord(schema: Schema): Schema {
   if (Array.isArray(schema.oneOf)) return { ...schema, oneOf: schema.oneOf.map(branch => tolerantRecord(branch as Schema)) };
   return schema.type === 'object' ? { ...schema, additionalProperties: true } : schema;
 }
-/**
- * Top-level names that must never be ignored on read when a record does not declare them.
- * They cover credentials and fields that route or authorize behavior.
- */
-// delete_after is the table TTL attribute: DynamoDB expires items by it even when the validator ignores it.
-const sensitiveName = /token|secret|key|verifier|password|credential|private|^raw_|local_destination|downstream|grant_id|phase|purpose|authentication_stage|subscriber_id|delete_after/i;
-/** Compiles a read-side validator: unknown benign fields pass; unknown sensitive names fail; known fields keep their checks. */
-export function compileTolerant(schema: Schema): (input: unknown) => void {
-  const branches = (Array.isArray(schema.oneOf) ? schema.oneOf : [schema]) as Schema[];
-  const compiled = branches.map(branch => ({
-    declared: new Set(Object.keys((branch.properties ?? {}) as Record<string, unknown>)),
-    validate: compile(tolerantRecord(branch)),
-  }));
-  return input => {
-    if (!input || typeof input !== 'object') throw new Error('invalid_contract');
-    const keys = Object.keys(input);
-    // Mirror oneOf: exactly one branch must accept the record, and that branch must declare every sensitive name it carries.
-    let matches = 0;
-    for (const branch of compiled) {
-      try { branch.validate(input); } catch { continue; }
-      if (keys.some(key => sensitiveName.test(key) && !branch.declared.has(key))) continue;
-      matches++;
-    }
-    if (matches !== 1) throw new Error('invalid_contract');
-  };
-}
-export const assertSessionShape = compileTolerant(sessionSchema);
-export const assertTransactionShape = compileTolerant(transactionSchema);
-export const assertProfileShape = compileTolerant(profileSchema);
-export const assertRefreshShape = compileTolerant(refreshSchema);
+export const assertSessionShape = compile(tolerantRecord(sessionSchema));
+export const assertTransactionShape = compile(tolerantRecord(transactionSchema));
+export const assertProfileShape = compile(tolerantRecord(profileSchema));
+export const assertRefreshShape = compile(tolerantRecord(refreshSchema));

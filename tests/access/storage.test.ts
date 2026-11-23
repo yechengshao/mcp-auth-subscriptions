@@ -8,8 +8,8 @@ assert.deepEqual(Object.keys(accessRecords).sort(), Object.keys(accessRecordSche
 for (const [kind, value] of Object.entries(accessRecords)) {
   test(`access ${kind}: scoped v1 key, closed fields and explicit cleanup policy`, () => {
     validateAccessRecord(value, 'test');
-    for (const changes of [{ PK: 'wrong' }, { SK: 'wrong' }, { schema_version: 2 }, { environment: 'prod' },
-      { revision: -1 }, { raw_token: 'SENTINEL_PRIVATE' }]) assert.throws(() => validateAccessRecord({ ...value, ...changes }, 'test'));
+    for (const changes of [{ PK: 'wrong' }, { SK: 'wrong' }, { environment: 'prod' },
+      { revision: -1 }]) assert.throws(() => validateAccessRecord({ ...value, ...changes }, 'test'));
     assert.throws(() => validateAccessRecord({ ...value, delete_after: now }, 'test'));
   });
 }
@@ -45,7 +45,7 @@ test('uncertain mutation generation cannot be represented as configured readines
 });
 test('schema failures never disclose candidate keys or upstream secrets', () => {
   for (const kind of ['subscriber_binding', 'upstream_attempt']) {
-    assert.throws(() => validateAccessRecord({ ...accessRecords[kind], extra: 'SENTINEL_PRIVATE' }, 'test'),
+    assert.throws(() => validateAccessRecord({ ...accessRecords[kind], revision: 'SENTINEL_PRIVATE' }, 'test'),
       error => error instanceof Error && !error.message.includes('SENTINEL_PRIVATE') && !error.stack?.includes('SENTINEL_PRIVATE'));
   }
 });
@@ -67,3 +67,24 @@ test('verified transactions retain immutable identity and cannot cross-bind sess
   const { identity: _identity, ...missingIdentity } = value;
   assert.throws(() => validateAccessRecord(missingIdentity, 'test'));
 });
+
+test('management transactions reject OAuth grant, downstream and selected-offer fields, and fix the local destination', () => {
+  const management = accessRecords.transaction as Record<string, unknown>;
+  for (const extra of [{ grant_id: 'grant_fake' }, { downstream: { client_id: 'fake' } }, { selected_offer: {} }, { local_destination: 'https://evil.invalid' }]) {
+    assert.throws(() => validateAccessRecord({ ...management, ...extra }, 'test'), /invalid_(contract|access_record)/, JSON.stringify(extra));
+  }
+});
+
+test('onboarding transactions reject a stray local destination', () => {
+  const { subscriber_id: _subscriber, identity: _identity, ...base } = accessRecords.transaction as Record<string, unknown>;
+  const onboarding: Record<string, unknown> = { ...base, purpose: 'onboarding', grant_id: 'grant_fixture',
+    downstream: { client_id: 'client_fixture', redirect_uri: 'https://client.example.invalid/callback', resource: 'https://access.example.invalid/mcp',
+      scopes: ['mcp:invoke'], code_challenge: 'A'.repeat(43), code_challenge_method: 'S256', state: 'state_fixture', issuer: 'https://access.example.invalid',
+      client_config_version: 'clients_fixture_v1' }, phase: 'pending_identity' };
+  assert.throws(() => validateAccessRecord({ ...onboarding, local_destination: '/billing' }, 'test'), /invalid_(contract|access_record)/);
+});
+
+test('identity profiles never carry a TTL attribute, because DynamoDB would expire them', () => {
+  assert.throws(() => validateAccessRecord({ ...accessRecords.identity_profile, delete_after: now + 86400 * 400 }, 'test'), /invalid_(contract|access_record)/);
+});
+

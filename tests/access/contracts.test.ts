@@ -9,14 +9,10 @@ test('shared session correlates server records and expires before delayed TTL de
   for (const value of [{ ...session, purpose: 'onboarding' }, { ...session, tx_id: 'other' },
     { ...session, environment: 'prod' }, { ...session, PK: 'raw_session_token' },
     { ...session, expires_at: now + 1801 }, { ...session, delete_after: now + 1800 },
-    { ...session, authentication_stage: 'pending_identity' }, { ...session, token: 'raw_secret' }]) assert.throws(() => check(value));
+    { ...session, authentication_stage: 'pending_identity' }]) assert.throws(() => check(value));
   assert.throws(() => check(session, transaction, now + 1800));
   assert.throws(() => check(session, transaction, now - 1));
   assert.throws(() => check(session, { ...transaction, expires_at: now + 1700 }));
-});
-test('management transactions have a fixed local destination and cannot carry OAuth grants', () => {
-  for (const extra of [{ local_destination: 'https://evil.invalid' }, { downstream: { client_id: 'fake' } },
-    { phase: 'code_issued' }, { grant_id: 'fake' }]) assert.throws(() => validateSessionContext(session, { ...transaction, ...extra }, 'test', now));
 });
 test('onboarding uses the same mechanism but requires PKCE and registered-client context', () => {
   const onboarding = { ...session, purpose: 'onboarding', grant_id: 'grant_fixture' };
@@ -52,11 +48,11 @@ test('refresh records cannot outlive paid family or erase replay evidence early'
     latest_access_expires_at: now + 3600, delete_after: now + 3600 + 86400 };
   validateRefreshRecord(value, 'test', now);
   for (const extra of [{ status: 'consumed' }, { expires_at: now + 7200 },
-    { delete_after: now + 3600 }, { token: 'raw_secret' }]) assert.throws(() => validateRefreshRecord({ ...value, ...extra }, 'test', now));
+    { delete_after: now + 3600 }]) assert.throws(() => validateRefreshRecord({ ...value, ...extra }, 'test', now));
   assert.throws(() => validateRefreshRecord(value, 'test', now + 3600));
 });
 test('validation errors do not echo injected credentials', () => {
-  assert.throws(() => validateSessionContext({ ...session, private_key: 'DO_NOT_LOG' }, transaction, 'test', now),
+  assert.throws(() => validateSessionContext({ ...session, PK: 'DO_NOT_LOG' }, transaction, 'test', now),
     error => error instanceof Error && !error.message.includes('DO_NOT_LOG'));
 });
 

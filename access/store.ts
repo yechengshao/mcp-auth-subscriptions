@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, type TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
-import { validateAccessRecord, readAccessRecord } from './contracts/storage.js';
+import { validateAccessRecord } from './contracts/storage.js';
 import { compile } from '../contracts/schema.js';
 import { entitlementSchema } from '../contracts/entitlement.js';
 import { identityPartition } from '../contracts/identity.js';
@@ -30,7 +30,7 @@ export class AccessStore implements BrowserSessionStore {
     this.key(key);
     const result = await this.telemetry.dependency('dynamodb.read', () => this.db.send(new GetCommand({ TableName: this.table, Key: key, ConsistentRead: true })));
     if (result.Item) {
-      readAccessRecord(result.Item, this.environment);
+      validateAccessRecord(result.Item, this.environment);
       if (result.Item.PK !== key.PK || result.Item.SK !== key.SK) throw new Error('access_record_mismatch');
     }
     return result.Item;
