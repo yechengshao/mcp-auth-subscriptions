@@ -183,7 +183,7 @@ operation/correlation/native AWS tracking metadata, never bearer/usage keys.
 The access signer accepts only an exact Secrets Manager secret ARN, the pinned
 version and the matching public kid supplied by deployment configuration. Store the
 operator's RSA PKCS8 private key in the secret created by `infra/access/signing.yaml`,
-as the JSON `{"version": n, "private_key_pem": "..."}`, through the secure provisioning
+as the JSON `{"version": n, "private_key_pem": "...", "public_jwk": {...}}`, through the secure provisioning
 workflow. `secretsSigningLoader` reads the `AWSCURRENT` value and checks the pinned
 version. IAM grants belong to access alone; kms:Decrypt is needed only if a
 customer-managed KMS key encrypts the secret. There is no KMS Sign API call per token.

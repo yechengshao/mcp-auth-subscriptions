@@ -258,3 +258,8 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - `infra/access/runtime.yaml` takes `SigningSecretArn` and grants the access runtime `secretsmanager:GetSecretValue` on that secret only. The authorizer has no access to it.
 - `access/signing.ts` reads `AWSCURRENT` through `secretsSigningLoader`, checks the version, and still verifies the public half against the configured JWK.
 - Not yet done: generating the RSA key and creating the stack, the runtime deploy, and the signing config (`secretArn`) in `SigningConfigJson`. These need your approval and the key generation step.
+
+## Signing secret holds the public key too (2026-11-23)
+
+- The secret JSON is now `{"version", "private_key_pem", "public_jwk"}`. The loader rejects the secret unless its `public_jwk` matches the configured `kid`, `n` and `e`, so a stale or swapped public key cannot be served.
+- Contracts and the implementation doc describe the new format. `tests/access/signing.test.ts` covers the matching and mismatching cases. Suite: 284 passing.

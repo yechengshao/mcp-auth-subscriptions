@@ -48,10 +48,18 @@ test('key rotation retains old public keys while each configured private key mat
 test('signing-loader reads only the pinned secret at AWSCURRENT and never logs key material', async () => {
   const logs: string[] = []; const commands: unknown[] = [];
   const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: line => logs.push(line) });
-  const secrets = { send: async (command: any) => { commands.push(command.input); return { SecretString: JSON.stringify({ version: 1, private_key_pem: fixture.pem }) }; } };
+  const secrets = { send: async (command: any) => { commands.push(command.input); return { SecretString: JSON.stringify({ version: 1, private_key_pem: fixture.pem, public_jwk: fixture.publicJwk }) }; } };
   await createSigningKeyCache(secretsSigningLoader(configuration, telemetry, secrets as any), configuration).get();
   assert.deepEqual(commands, [{ SecretId: configuration.secretArn, VersionStage: 'AWSCURRENT' }]);
   assert.equal(logs.join('').includes(fixture.pem), false);
+});
+
+test('signing-loader refuses a secret whose stored public key differs from the configured one', async () => {
+  const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: () => undefined });
+  const other = { ...fixture.publicJwk, n: 'A'.repeat(fixture.publicJwk.n!.length) };
+  const secrets = { send: async () => ({ SecretString: JSON.stringify({ version: 1, private_key_pem: fixture.pem, public_jwk: other }) }) };
+  await assert.rejects(createSigningKeyCache(secretsSigningLoader(configuration, telemetry, secrets as any), configuration).get(),
+    error => error instanceof Error && error.message === 'signing_key_unavailable');
 });
 test('a key retrieval crossing paid expiry cannot produce a service token', async () => {
   let clock = now;

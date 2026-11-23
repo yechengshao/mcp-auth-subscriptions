@@ -43,8 +43,9 @@ export function createSigningKeyCache(loader: PrivateKeyLoader, config: SigningC
   };
 }
 /**
- * Reads the current secret value. The secret JSON is {"version": <int>, "private_key_pem": "<PKCS8 PEM>"}.
- * The version must match the configured one, and the key cache still checks the public half against the configured JWK.
+ * Reads the current secret value. The secret JSON is
+ * {"version": <int>, "private_key_pem": "<PKCS8 PEM>", "public_jwk": {"kty","kid","alg","use","n","e"}}.
+ * The version and public JWK must match the configured ones, and the key cache still checks the private key's public half.
  */
 export function secretsSigningLoader(config: SigningConfiguration, telemetry: Telemetry, secrets = new SecretsManagerClient({
   maxAttempts: 1, requestHandler: { connectionTimeout: 1000, requestTimeout: 3000 },
@@ -54,8 +55,10 @@ export function secretsSigningLoader(config: SigningConfiguration, telemetry: Te
     try {
       const result = await telemetry.dependency('secrets.signing_key', () => secrets.send(
         new GetSecretValueCommand({ SecretId: fixed.secretArn, VersionStage: 'AWSCURRENT' }), { abortSignal: signal }));
-      const parsed = JSON.parse(result.SecretString ?? '') as { version?: unknown; private_key_pem?: unknown };
-      if (parsed.version !== fixed.version || typeof parsed.private_key_pem !== 'string') throw new Error('signing_key_unavailable');
+      const parsed = JSON.parse(result.SecretString ?? '') as { version?: unknown; private_key_pem?: unknown; public_jwk?: JWK };
+      const stored = parsed.public_jwk, expected = fixed.publicJwk;
+      if (parsed.version !== fixed.version || typeof parsed.private_key_pem !== 'string' || !stored ||
+          stored.kid !== expected.kid || stored.n !== expected.n || stored.e !== expected.e) throw new Error('signing_key_unavailable');
       return { value: parsed.private_key_pem, version: fixed.version };
     } catch { throw new Error('signing_key_unavailable'); }
   };
