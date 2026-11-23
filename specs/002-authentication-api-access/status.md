@@ -196,3 +196,9 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Crash before the intent save: `tests/access/onboarding.test.ts` shows the transaction stays at `identity_verified`, no provider call happens, and a retry completes once.
 - Already covered and rechecked: lost billing response after the intent save, concurrent checkout and resume, lease takeover by a stalled owner, and revision races (`tests/access/race.test.ts`). Browser closure is covered by stateless resume: every step reloads persisted state.
 - Local evidence only. Live DynamoDB, Stripe and billing behavior remain `not_run`.
+
+## T018 closure (2026-11-23)
+
+- Onboarding and management use cases sit behind the thin HTTP handlers. Local tests cover the payment-plus-binding gate (an entitlement is authoritative only before binding), resume only after binding readiness, mismatched owners, and the management upgrade, downgrade and refund paths delegated to billing.
+- Billing implements every operation access calls (`listPlans`, `createCheckout`, `getOrder`, `quoteUpgrade`, `confirmUpgrade`).
+- Local evidence only: the live billing invocation, Stripe and Cognito behavior remain `not_run`.
