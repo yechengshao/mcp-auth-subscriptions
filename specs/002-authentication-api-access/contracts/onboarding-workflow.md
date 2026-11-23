@@ -42,7 +42,7 @@ Keep the 30-minute absolute continuation, 60-second code, access/refresh lifetim
 
 Log only opaque correlation, phase/revision, release and sanitized failure categories; exclude cookies, OAuth state/codes/verifiers, bearer/refresh tokens, native keys and full provider payloads. Coordinator owns sessions/signing and exact billing invocation; bounded access HTTP provisioning manages binding transitions and native-key operations; the access role cannot read Stripe secrets. No access role writes billing or holds Stripe credentials.
 
-Record schema/config/handler release versions with durable work. Keep record changes additive until a breaking change is planned: new fields are optional and nothing is removed or changed in meaning. Records that fail validation fail closed with a repair path. Retain identity/billing/grant/work data across deployments and scoped cleanup; cancellation applies only to owned transactions.
+Keep record changes additive until a breaking change is planned: new fields are optional and nothing is removed or changed in meaning. A breaking change requires a written migration plan before it ships: a migration script, run before the new code deploys, kept until the affected records expire. Records that fail validation fail closed, are never rewritten in place, and are repaired only through that migration path. Retain identity/billing/grant/work data across deployments and scoped cleanup; cancellation applies only to owned transactions.
 
 ## Acceptance and sources
 

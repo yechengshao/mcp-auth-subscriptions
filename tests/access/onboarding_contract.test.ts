@@ -1,10 +1,20 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { AccessStore } from '../../access/store.js';
 import { Telemetry } from '../../observability/telemetry.js';
 import { environment, now } from '../fixtures/contracts.js';
 
 const telemetry = new Telemetry({ service: 'access', environment, release: 'onboarding_contract_fixture' }, { sink: () => undefined });
+
+test('onboarding contract keeps record changes additive, fails closed and requires a migration plan for breaking changes', () => {
+  const contract = readFileSync('specs/002-authentication-api-access/contracts/onboarding-workflow.md', 'utf8');
+  for (const requirement of ['additive until a breaking change is planned', 'new fields are optional',
+    'written migration plan before it ships', 'run before the new code deploys', 'fail closed', 'never rewritten in place']) {
+    assert.ok(contract.includes(requirement), requirement);
+  }
+  assert.equal(contract.includes('release versions with durable work'), false);
+});
 
 test('Cognito cancellation atomically revokes the browser session, consumes PKCE state and persists a valid cancelled phase', async () => {
   const commands: any[] = [];
