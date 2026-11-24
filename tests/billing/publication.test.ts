@@ -62,3 +62,14 @@ test('billing deploy inputs supply every required template parameter', () => {
     if (def.Default === undefined) assert.ok(supplied.has(name), `${name} is required but not supplied`);
   }
 });
+
+test('billing publish workflow pushes one ARM64 image without attestations and smoke-tests the pushed digest', () => {
+  const workflow = readFileSync('.github/workflows/publish-billing-image.yml', 'utf8');
+  assert.ok(workflow.includes('platforms: linux/arm64'));
+  assert.ok(workflow.includes('provenance: false') && workflow.includes('sbom: false'));
+  const smoke = workflow.slice(workflow.indexOf('- name: Smoke test the pushed ARM64 image'), workflow.indexOf('- name: Write immutable release evidence'));
+  assert.ok(smoke.includes('--platform linux/arm64'));
+  assert.ok(smoke.includes('${{ steps.build.outputs.digest }}'));
+  assert.ok(smoke.includes("import('file:///var/task/dist/billing/handler.js')"));
+  assert.ok(smoke.includes('process.exit(1)'));
+});
