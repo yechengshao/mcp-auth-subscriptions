@@ -10,8 +10,11 @@
     "AuthorizerAliasArn": { "Type": "String", "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*" },
     "ResourceMetadataUrl": { "Type": "String", "AllowedPattern": "^https://[^\\s]+$", "Description": "Exact HTTPS URL advertised in the WWW-Authenticate challenge." },
     "IssuerPathPrefix": { "Type": "String", "AllowedPattern": "^[a-z0-9-]{1,64}$", "Description": "Path component of the issuer URL; the path-suffixed discovery routes use it." },
-    "LogRetentionDays": { "Type": "Number", "AllowedValues": [7, 14, 30, 60, 90], "Default": 30 },
+    "AccessLogGroupArn": { "Type": "String", "Default": "", "AllowedPattern": "^(arn:aws:logs:[a-z0-9-]+:[0-9]{12}:log-group:[^:*]+)?$", "Description": "Empty on the first pass. Set to the stage access log group created by infra/observability after this stack exists." },
     "TracingEnabled": { "Type": "String", "AllowedValues": ["true", "false"], "Default": "false" }
+  },
+  "Conditions": {
+    "HasAccessLog": { "Fn::Not": [{ "Fn::Equals": [{ "Ref": "AccessLogGroupArn" }, ""] }] }
   },
   "Resources": {
     "RestApi": {
@@ -86,12 +89,6 @@
         }
       }
     },
-    "AccessLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain",
-      "Properties": { "LogGroupName": { "Fn::Sub": "/aws/apigateway/mcp-access-${StageName}" }, "RetentionInDays": { "Ref": "LogRetentionDays" } }
-    },
     "ResBillingRoot": { "Type": "AWS::ApiGateway::Resource", "Properties": { "RestApiId": { "Ref": "RestApi" }, "ParentId": { "Fn::GetAtt": ["RestApi", "RootResourceId"] }, "PathPart": "billing" } },
     "ResBillingPlans": { "Type": "AWS::ApiGateway::Resource", "Properties": { "RestApiId": { "Ref": "RestApi" }, "ParentId": { "Ref": "ResBillingRoot" }, "PathPart": "plans" } },
     "ResBillingCheckout": { "Type": "AWS::ApiGateway::Resource", "Properties": { "RestApiId": { "Ref": "RestApi" }, "ParentId": { "Ref": "ResBillingRoot" }, "PathPart": "checkout" } },
@@ -163,10 +160,10 @@
         "DeploymentId": { "Ref": "Deployment" },
         "StageName": { "Ref": "StageName" },
         "TracingEnabled": { "Ref": "TracingEnabled" },
-        "AccessLogSetting": {
-          "DestinationArn": { "Fn::GetAtt": ["AccessLogGroup", "Arn"] },
+        "AccessLogSetting": { "Fn::If": ["HasAccessLog", {
+          "DestinationArn": { "Ref": "AccessLogGroupArn" },
           "Format": "{\"requestId\":\"$context.requestId\",\"path\":\"$context.path\",\"status\":\"$context.status\",\"integrationStatus\":\"$context.integrationStatus\",\"errorType\":\"$context.error.responseType\",\"latencyMs\":\"$context.responseLatency\"}"
-        },
+        }, { "Ref": "AWS::NoValue" } ] },
         "MethodSettings": [{ "ResourcePath": "/*", "HttpMethod": "*", "LoggingLevel": "ERROR", "DataTraceEnabled": false, "MetricsEnabled": false }]
       }
     }

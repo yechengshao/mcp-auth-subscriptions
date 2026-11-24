@@ -284,3 +284,10 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Privacy review: no `console` calls in `access/` or `authorizer/`. The usage key and signing material are only read by the token and binding code, and the redaction and log-shape tests cover their telemetry.
 - Suites: `npm run check` passes with 301 tests; cfn-lint passes on `infra/access/*.yaml`.
 - Live checks remain separate and `not_run`: GitHub execution of the workflow, real OAuth and code exchange, refresh, subscriber isolation, REST metering, recovery, and release identity (see the operator guide status table and T013).
+
+## Correction: log groups belong to observability (2026-11-24)
+
+- The earlier retention change (CI and DAG section) created `/aws/lambda/<FunctionName>` log groups in `infra/access/runtime.yaml` and `infra/access/authorizer.yaml`, and a gateway access log group in `gateway.yaml`. That duplicated groups that `infra/observability/template.ts` already owns, with the same names and environment-based retention (14 days in production, 3 otherwise). A deploy would have failed with "already exists".
+- Removed the duplicates. The access runtime, authorizer and gateway create no log groups. Observability remains the single owner of the access, authorizer and billing function groups and the gateway access and execution groups.
+- `gateway.yaml` takes `AccessLogGroupArn` (empty by default). The stage uses access logging only when it is set. Two-pass order: deploy the gateway without it, deploy observability with the gateway's `RestApiId`, then update the gateway with the observability access log group ARN.
+- `tests/access/access_contract.test.ts` asserts that these templates create no log groups and that the stage access log is conditional on the parameter. Suite: 301 passing; cfn-lint passes.
