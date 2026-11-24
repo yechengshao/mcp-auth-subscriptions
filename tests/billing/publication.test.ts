@@ -19,7 +19,7 @@ test('billing publication role is restricted to the named GitHub environment and
   const statements = role.Properties.Policies[0].PolicyDocument.Statement;
   assert.deepEqual(statements[0], { Effect: 'Allow', Action: 'ecr:GetAuthorizationToken', Resource: '*' });
   assert.deepEqual(statements[1].Resource, { 'Fn::GetAtt': ['BillingRepository', 'Arn'] });
-  assert.deepEqual(statements[1].Action, ['ecr:BatchCheckLayerAvailability', 'ecr:CompleteLayerUpload', 'ecr:InitiateLayerUpload', 'ecr:PutImage', 'ecr:UploadLayerPart']);
+  assert.deepEqual(statements[1].Action, ['ecr:BatchCheckLayerAvailability', 'ecr:BatchGetImage', 'ecr:CompleteLayerUpload', 'ecr:GetDownloadUrlForLayer', 'ecr:InitiateLayerUpload', 'ecr:PutImage', 'ecr:UploadLayerPart']);
   assert.equal(JSON.stringify(template).includes('lambda:UpdateFunctionCode'), false);
   assert.equal(JSON.stringify(template).includes('dynamodb:'), false);
   assert.equal(JSON.stringify(template).includes('s3:'), false);
