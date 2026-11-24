@@ -15,6 +15,8 @@ COPY authorizer ./authorizer
 COPY security ./security
 COPY observability ./observability
 COPY infra ./infra
+COPY scripts ./scripts
+COPY .github ./.github
 COPY tests ./tests
 COPY specs ./specs
 RUN npm run check
