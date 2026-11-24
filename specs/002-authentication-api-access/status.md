@@ -291,3 +291,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Removed the duplicates. The access runtime, authorizer and gateway create no log groups. Observability remains the single owner of the access, authorizer and billing function groups and the gateway access and execution groups.
 - `gateway.yaml` takes `AccessLogGroupArn` (empty by default). The stage uses access logging only when it is set. Two-pass order: deploy the gateway without it, deploy observability with the gateway's `RestApiId`, then update the gateway with the observability access log group ARN.
 - `tests/access/access_contract.test.ts` asserts that these templates create no log groups and that the stage access log is conditional on the parameter. Suite: 301 passing; cfn-lint passes.
+
+## Progress sync (2026-11-24)
+
+- Task count: 24 of 25 checked in `tasks.md`. T013 (live billing recovery, reconnect, cutover and rollback) stays open. It needs live Stripe test-mode, deployed stacks and explicit approval.
+- Earlier entries in this file that say "three fully checked" or "stays unchecked" describe those dates. They are superseded by this count.
+- Billing side: B001–B013 are checked. Access depends on billing packaging (B010) and publication (B011), both done, and on the billing integration fixtures (B012), also done.
+- Deployments: none run in this sync. The status table in `authentication-api-access.md` is the current record of performed and pending steps.
+

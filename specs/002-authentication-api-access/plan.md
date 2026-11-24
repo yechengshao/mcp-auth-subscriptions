@@ -1,6 +1,6 @@
 # Plan 002: Authentication and API Access
 
-**Updated**: 2026-11-10 · **Status**: Core Node.js Access flows implemented locally; 22 tasks remain unchecked until their contract, dependency, packaging and acceptance criteria are complete. [Spec](spec.md) · [Tasks](tasks.md)
+**Updated**: 2026-11-24 · **Status**: Local Node.js Access flows implemented; 24 of 25 tasks checked. T013 (live billing recovery, reconnect and cutover) remains open until live prerequisites and approval exist. [Spec](spec.md) · [Tasks](tasks.md)
 
 ## Architecture
 

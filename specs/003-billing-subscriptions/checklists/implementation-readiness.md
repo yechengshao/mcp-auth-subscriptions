@@ -26,7 +26,7 @@ The [local contract foundation](../../../billing/contracts/README.md) implements
 - [x] B001: machine-validating schemas and valid/invalid fixtures for catalog, paid terms, upgrade quotes, billing records/envelopes and queue references.
 - [ ] T001/T014/T022: boundary tests and access-schema/atomic-update fixtures using the access storage contract, not an invented alternate model.
 - [x] B003: tested paid-term calculations, minor-unit credit rounding and upgrade-eligibility policy; ambiguous taxes/fees/refund-credit valuation routes to support, not an unverified charge.
-- [ ] Pin compatible Node/TypeScript/Stripe versions and install isolated lockfile-backed packages; development is local, non-provisioning and uses generated test credentials.
+- [x] Pin compatible Node/TypeScript/Stripe versions and install isolated lockfile-backed packages (2026-11-24: exact versions in package.json, lockfiles checked in CI); development is local, non-provisioning and uses generated test credentials.
 - [ ] Enforce quoted catalog/source revisions, stable effect identity, exact ownership/expiry/replay guards and no duplicate payment/key/credit effects in meaningful failing/passing tests.
 - [ ] Validate both task dependency graphs and actual implemented prerequisite artifacts before proceeding to consumers; mocks do not finalize a missing contract or satisfy live checks.
 

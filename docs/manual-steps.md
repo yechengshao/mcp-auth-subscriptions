@@ -15,7 +15,7 @@ Update the status column as each one is finished. Nothing here has been run by C
 | 8 | Create the usage plans and REST stage mappings listed in the catalog | API Gateway, after approval | Usage plan IDs, stage names | Pending |
 | 9 | Re-authenticate the AWS connection (or provide CLI access) so Claude can read stack outputs and run checks | Claude Code / AWS connector | None | Pending |
 | 10 | Give explicit approval for each live action: Stripe test-mode calls and each stack deploy | Chat | Approval message | Pending |
-| 11 | Google OAuth client and Cognito setup for sign-in | Google Cloud console, AWS | Confirmed client ID (no secret) | Check status in `specs/002-authentication-api-access/status.md` |
+| 11 | Google OAuth client and Cognito setup for sign-in | Google Cloud console, AWS | Confirmed client ID (no secret) | Done for the Cognito stack `mcp-access-auth` (CREATE_COMPLETE, per `authentication-api-access.md`); callback and logout URLs for real hosts still pending |
 | 12 | GitHub `billing-publish` environment variables and `BILLING_PUBLISH_ROLE_ARN` secret | GitHub repository settings | None | Done per earlier publish runs |
 
 ## Rules for these steps

@@ -1,5 +1,5 @@
 ---
-description: "Pending REST access, Cognito/OAuth coordination and native subscriber usage-plan work"
+description: "24 of 25 access tasks checked; T013 live billing recovery, reconnect and cutover acceptance remains open pending live prerequisites"
 ---
 
 # Tasks: Authentication and API Access

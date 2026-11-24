@@ -1,6 +1,6 @@
 # Tasks 003: Billing and Subscriptions
 
-**Updated**: 2026-11-09 · **Status**: B001–B010 implemented, with B010 ARM64 image published by run 45482349557; publication bootstrap/integration/live gates pending. [Plan](plan.md) · [Spec](spec.md) · [Physical interface](contracts/storage-operations.md)
+**Updated**: 2026-11-24 · **Status**: B001–B013 implemented locally; B010 ARM64 image published by run 45482349557; B014 (live Stripe, queue and deployed replay) open and blocked on live authorization and prerequisites. [Plan](plan.md) · [Spec](spec.md) · [Physical interface](contracts/storage-operations.md)
 
 Use isolated `billing/`, `tests/billing/`, `infra/billing/` and selected scripts/workflows; TypeScript source and tests compile before execution. Local-only scope excludes provisioning, publication, webhook registration and charges. Missing selected dependencies/checks fail rather than silently skip. Task dependencies below are local unless explicitly prefixed access/service.
 
