@@ -73,3 +73,24 @@ test('billing publish workflow pushes one ARM64 image without attestations and s
   assert.ok(smoke.includes("import('file:///var/task/dist/billing/handler.js')"));
   assert.ok(smoke.includes('process.exit(1)'));
 });
+
+test('billing and access publish paths share one configuration: attestations off, hidden evidence uploaded, same inputs, base pins and ARM64 smoke test', () => {
+  const billing = readFileSync('.github/workflows/publish-billing-image.yml', 'utf8');
+  const access = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
+  for (const [name, workflow] of [['billing', billing], ['access', access]] as const) {
+    assert.ok(workflow.includes('provenance: false') && workflow.includes('sbom: false'), `${name} attestations`);
+    assert.ok(workflow.includes('platforms: linux/arm64'), `${name} platform`);
+    assert.ok(workflow.includes('include-hidden-files: true'), `${name} evidence upload`);
+    assert.ok(workflow.includes('NODE_BUILD_IMAGE=${{ vars.NODE_BUILD_IMAGE }}'), `${name} node build arg`);
+    assert.ok(workflow.includes('LAMBDA_RUNTIME_IMAGE=${{ vars.LAMBDA_RUNTIME_IMAGE }}'), `${name} lambda build arg`);
+    assert.ok(/nodejs:24-arm64@sha256:\[a-f0-9\]\{64\}\$/.test(workflow), `${name} base pin is the arm64 platform digest`);
+    assert.ok(workflow.includes('--entrypoint /var/lang/bin/node'), `${name} smoke entrypoint`);
+    assert.ok(workflow.includes('- name: Smoke test the pushed ARM64 image'), `${name} smoke step`);
+  }
+  assert.ok(/\^billing-\[/.test(billing) && /\^access-\[/.test(access), 'release tags require the component prefix');
+  for (const file of ['Dockerfile.billing', 'access/Dockerfile']) {
+    const source = readFileSync(file, 'utf8');
+    assert.match(source, /^ARG NODE_BUILD_IMAGE$/m, file);
+    assert.match(source, /^ARG LAMBDA_RUNTIME_IMAGE$/m, file);
+  }
+});

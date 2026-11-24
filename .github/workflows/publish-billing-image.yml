@@ -38,10 +38,10 @@ jobs:
           const values = [process.env.RELEASE_TAG, process.env.REPOSITORY_URI, process.env.NODE_BUILD_IMAGE,
             process.env.LAMBDA_RUNTIME_IMAGE, process.env.AWS_REGION, process.env.PUBLISH_ROLE_ARN];
           if (values.some(value => !value)) throw new Error('missing_billing_publication_configuration');
-          if (!/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(process.env.RELEASE_TAG)) throw new Error('invalid_release_tag');
+          if (!/^billing-[A-Za-z0-9_][A-Za-z0-9_.-]{0,100}$/.test(process.env.RELEASE_TAG)) throw new Error('invalid_release_tag');
           if (!/^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com\/[a-z0-9._/-]+$/.test(process.env.REPOSITORY_URI)) throw new Error('invalid_ecr_repository');
           if (!/^node:24-bookworm-slim@sha256:[a-f0-9]{64}$/.test(process.env.NODE_BUILD_IMAGE) ||
-              !/^public\.ecr\.aws\/lambda\/nodejs:24@sha256:[a-f0-9]{64}$/.test(process.env.LAMBDA_RUNTIME_IMAGE)) throw new Error('mutable_build_image');
+              !/^public\.ecr\.aws\/lambda\/nodejs:24-arm64@sha256:[a-f0-9]{64}$/.test(process.env.LAMBDA_RUNTIME_IMAGE)) throw new Error('mutable_build_image');
           if (!/^[a-z0-9-]+$/.test(process.env.AWS_REGION) ||
               !/^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9_+=,.@/-]+$/.test(process.env.PUBLISH_ROLE_ARN)) throw new Error('invalid_aws_publication_target');
           NODE
@@ -64,8 +64,8 @@ jobs:
           sbom: false
           tags: ${{ vars.BILLING_ECR_REPOSITORY_URI }}:${{ inputs.release_tag }}
           build-args: |
-            BUILD_IMAGE=${{ vars.NODE_BUILD_IMAGE }}
-            LAMBDA_IMAGE=${{ vars.LAMBDA_RUNTIME_IMAGE }}
+            NODE_BUILD_IMAGE=${{ vars.NODE_BUILD_IMAGE }}
+            LAMBDA_RUNTIME_IMAGE=${{ vars.LAMBDA_RUNTIME_IMAGE }}
       - name: Smoke test the pushed ARM64 image
         env:
           IMAGE: ${{ vars.BILLING_ECR_REPOSITORY_URI }}@${{ steps.build.outputs.digest }}

@@ -137,7 +137,7 @@ test('billing runtime remains isolated from the authorizer JWT package', () => {
   assert.equal(lock.packages['node_modules/jose'], undefined);
   const source = readFileSync('Dockerfile.billing', 'utf8');
   assert.ok(source.includes('COPY --from=dependencies /app/node_modules'));
-  const runtime = source.split('FROM ${LAMBDA_IMAGE}')[1]!;
+  const runtime = source.split('FROM ${LAMBDA_RUNTIME_IMAGE}')[1]!;
   assert.equal(runtime.includes('dist/security'), false);
   assert.ok(runtime.includes('dist/contracts'), 'billing runtime must include its shared contract modules');
 });
