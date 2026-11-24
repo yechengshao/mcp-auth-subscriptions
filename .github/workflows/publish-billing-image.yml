@@ -77,6 +77,8 @@ jobs:
           REPOSITORY_URI: ${{ vars.BILLING_ECR_REPOSITORY_URI }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
           SOURCE_COMMIT: ${{ github.sha }}
+          NODE_BUILD_IMAGE: ${{ vars.NODE_BUILD_IMAGE }}
+          LAMBDA_RUNTIME_IMAGE: ${{ vars.LAMBDA_RUNTIME_IMAGE }}
         run: |
           node --input-type=module <<'NODE'
           import { createHash } from 'node:crypto';
@@ -91,6 +93,10 @@ jobs:
             release_tag: process.env.RELEASE_TAG,
             source_commit: process.env.SOURCE_COMMIT,
             image_uri: `${process.env.REPOSITORY_URI}@${digest}`,
+            base_images: {
+              node_build: process.env.NODE_BUILD_IMAGE,
+              lambda_runtime: process.env.LAMBDA_RUNTIME_IMAGE
+            },
             root_lock_sha256: sha('package-lock.json'),
             billing_lock_sha256: sha('billing/package-lock.json'),
             dockerfile_sha256: sha('Dockerfile.billing'),

@@ -74,6 +74,16 @@ test('billing publish workflow pushes one ARM64 image without attestations and s
   assert.ok(smoke.includes('process.exit(1)'));
 });
 
+test('billing release evidence records source, lock, Dockerfile, template, base image and pushed digest identity', () => {
+  const workflow = readFileSync('.github/workflows/publish-billing-image.yml', 'utf8');
+  const evidence = workflow.slice(workflow.indexOf('- name: Write immutable release evidence'), workflow.indexOf('- uses: actions/upload-artifact@v4'));
+  for (const field of ['source_commit', 'image_uri', 'base_images', 'node_build', 'lambda_runtime', 'root_lock_sha256', 'billing_lock_sha256', 'dockerfile_sha256', 'runtime_template_sha256']) {
+    assert.ok(evidence.includes(field), `evidence field ${field}`);
+  }
+  assert.ok(evidence.includes('NODE_BUILD_IMAGE: ${{ vars.NODE_BUILD_IMAGE }}'));
+  assert.ok(evidence.includes('LAMBDA_RUNTIME_IMAGE: ${{ vars.LAMBDA_RUNTIME_IMAGE }}'));
+});
+
 test('billing and access publish paths share one configuration: attestations off, hidden evidence uploaded, same inputs, base pins and ARM64 smoke test', () => {
   const billing = readFileSync('.github/workflows/publish-billing-image.yml', 'utf8');
   const access = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
