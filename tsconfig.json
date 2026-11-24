@@ -20,6 +20,7 @@
     "observability/**/*.ts",
     "infra/**/*.ts",
     "authorizer/**/*.ts",
-    "security/**/*.ts"
+    "security/**/*.ts",
+    "scripts/**/*.ts"
   ]
 }

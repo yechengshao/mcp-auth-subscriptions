@@ -27,6 +27,14 @@ late payment, expiry, signed webhook duplicates, partial SQS batches, upgrade
 credit consumption, safe errors and native tracking. They do not contact AWS or
 Stripe. Never put production secrets into fixture files or command arguments.
 
+Run `npm run verify:billing` for the local evidence report. It runs the billing,
+observability and access suites once and prints JSON with the current-run counts,
+the status of each required evidence test (passed, failed, missing or skipped) and
+the live checks, which are always `not_run` here. Output contains only fixed test
+names and counts. Last local run (2026-11-24): 313 tests pass; 15 of 15 required
+evidence tests pass; 4 live checks are `not_run`. The CI jobs `billing` and `full`
+run the same checks on GitHub.
+
 ## 2. Prepare AWS and the approved catalog
 
 Choose one account, region, environment and function name. Deploy
