@@ -5,7 +5,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 # Tasks: Authentication and API Access
 
 **Spec**: [spec](spec.md) · [plan](plan.md) · [client contract](contracts/client-onboarding.md) · [REST contract](contracts/rest-gateway.md) · [migration history](../../../tradingview-mcp/specs/scope-migration.md)
-**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 19 of 25 checked (T001–T004, T006, T007, T008, T014–T020, T021–T025). All current verification is local; live and provider checks are `not_run`.
+**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 21 of 25 checked (T001–T004, T006–T010, T014–T020, T021–T025). All current verification is local; live and provider checks are `not_run`.
 
 ## Foundations and authorizer
 
@@ -23,8 +23,8 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 ## Publication and evidence
 
 - [x] T008 Add manual, OIDC-protected publication workflows that build the authorizer ZIP and access image once, upload them with checksum and digest evidence, and grant no deployment or billing rights. Files: `.github/workflows/publish-authorizer-zip.yml`, `.github/workflows/publish-access-image.yml`, `tests/access/access_publication.test.ts`. Depends: T004, T019, T021.
-- [ ] T009 Write then implement separate local and read-only live verification for discovery, OAuth, refresh, privacy, subscriber isolation, REST plans, release identities and recovery outcomes, without asserting hard quotas. Files: `scripts/verify_access.ts`, `tests/access/access_verifier.test.ts`. Depends: T007, T008, T020, T025.
-- [ ] T010 Document the bootstrap, registered-host PKCE and payment flow, token and revocation bounds, billing recovery, compatible rollback, and REST cutover, marking every unperformed cloud or provider step. Files: `docs/authentication-api-access.md`, `specs/002-authentication-api-access/quickstart.md`. Depends: T006, T007, T008, T009.
+- [x] T009 Write then implement separate local and read-only live verification for discovery, OAuth, refresh, privacy, subscriber isolation, REST plans, release identities and recovery outcomes, without asserting hard quotas. Files: `scripts/verify_access.ts`, `tests/access/access_verifier.test.ts`. Depends: T007, T008, T020, T025.
+- [x] T010 Document the bootstrap, registered-host PKCE and payment flow, token and revocation bounds, billing recovery, compatible rollback, and REST cutover, marking every unperformed cloud or provider step. Files: `docs/authentication-api-access.md`, `specs/002-authentication-api-access/quickstart.md`. Depends: T006, T007, T008, T009.
 - [ ] T011 Add a required isolated CI workflow that typechecks, builds and runs the access and authorizer suites, and fails when selected dependencies or checks are missing. Files: `.github/workflows/test-access.yml`, `tests/access/`, `access/package.json`, `authorizer/package.json`. Depends: T008, T009.
 - [ ] T012 Run the expanded local and native suites with the DAG, permission, retention and privacy review, and document pending live checks separately from earlier service tests. Files: `tests/access/`, `specs/002-authentication-api-access/tasks.md`. Depends: T010, T011.
 - [ ] T013 Validate live billing recovery, reconnect, subscriber plans, cutover and rollback with real prerequisites; local runs leave this `not_run` and move no real charges. Files: `docs/authentication-api-access.md`, `/tmp/tradingview-access-evidence/live.json`. Depends: T012, spec-003 payment acceptance, spec-001 REST acceptance.

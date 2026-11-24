@@ -28,3 +28,7 @@ Before live readiness, execute the [expired-subscription/reconnect acceptance ch
 Begin schema-first development using the shared [implementation-readiness checklist](../003-billing-subscriptions/checklists/implementation-readiness.md); reviewed planning boxes do not mark implementation or live tasks complete.
 
 Use the shared [browser session contract](contracts/browser-sessions.md) for onboarding and direct `/billing` management: same cookie/store/30-minute deadline; reauthenticate through Cognito on expiry, never pass the AI client's MCP token to the browser.
+
+## Operator guide and read-only verification
+
+The operator guide [docs/authentication-api-access.md](../../docs/authentication-api-access.md) describes bootstrap order, token and revocation bounds, recovery, REST cutover and the status of every cloud and provider step. After deployment, run the read-only verifier `scripts/verify_access.ts` against the stage URL before changing any client configuration.
