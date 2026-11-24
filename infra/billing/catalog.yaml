@@ -1,0 +1,36 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Nonsecret billing plan catalog (String) in Parameter Store. Supply the approved catalog JSON at deploy time; secrets never belong here.",
+  "Parameters": {
+    "CatalogParameterName": {
+      "Type": "String",
+      "AllowedPattern": "^/[A-Za-z0-9_./-]{1,200}$",
+      "Description": "Must equal the runtime's CatalogParameterName output and BILLING_CATALOG_PARAMETER."
+    },
+    "CatalogJson": {
+      "Type": "String",
+      "MinLength": 2,
+      "MaxLength": 4096,
+      "NoEcho": false,
+      "Description": "Approved catalog document (see specs/003-billing-subscriptions/contracts/plan-catalog.md). Standard tier limit is 4096 characters."
+    }
+  },
+  "Resources": {
+    "CatalogParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": { "Ref": "CatalogParameterName" },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": { "Ref": "CatalogJson" },
+        "Description": "Billing plan catalog; increment catalog_version and redeploy to change content."
+      }
+    }
+  },
+  "Outputs": {
+    "CatalogName": { "Value": { "Ref": "CatalogParameter" } },
+    "CatalogParameterArn": {
+      "Value": { "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${CatalogParameterName}" }
+    }
+  }
+}
