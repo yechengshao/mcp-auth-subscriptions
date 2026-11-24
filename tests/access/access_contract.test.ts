@@ -126,3 +126,36 @@ test('signing key template creates one retained RSA 2048 signing key in KMS with
   assert.equal(text.includes('AWS::SSM::Parameter'), false);
   assert.equal(text.includes('secretsmanager'), false);
 });
+
+test('REST gateway: paid MCP and health are the only API-key methods, every route uses the intended alias, and HTTP API fields stay out', () => {
+  const text = readFileSync('infra/access/gateway.yaml', 'utf8');
+  const template = JSON.parse(text);
+  for (const forbidden of ['ProtocolType', 'PayloadFormatVersion', 'AutoDeploy', 'AWS::Lambda::Url', 'FunctionUrl', 'UsagePlan']) assert.equal(text.includes(forbidden), false);
+  const methods = Object.entries(template.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::ApiGateway::Method') as [string, any][];
+  assert.equal(methods.length, 26);
+  const paid = methods.filter(([, value]) => value.Properties.AuthorizationType === 'CUSTOM').map(([name]) => name).sort();
+  assert.deepEqual(paid, ['MHealth', 'MMcp']);
+  for (const [name, value] of methods) {
+    const properties = value.Properties;
+    if (paid.includes(name)) { assert.equal(properties.ApiKeyRequired, true); assert.deepEqual(properties.AuthorizerId, { Ref: 'Authorizer' }); }
+    else assert.equal(properties.ApiKeyRequired, undefined);
+    assert.equal(properties.Integration.Type, 'AWS_PROXY');
+    assert.equal(properties.Integration.TimeoutInMillis, 29000);
+    assert.equal(properties.Integration.IntegrationHttpMethod, 'POST');
+  }
+  const aliasOf = (name: string) => JSON.stringify(template.Resources[name].Properties.Integration.Uri);
+  assert.ok(aliasOf('MMcp').includes('${ServiceAliasArn}') && aliasOf('MHealth').includes('${ServiceAliasArn}'));
+  assert.ok(aliasOf('MStripeWebhook').includes('${BillingWebhookAliasArn}'));
+  for (const [name] of methods.filter(([name]) => !['MMcp', 'MHealth', 'MStripeWebhook'].includes(name))) assert.ok(aliasOf(name).includes('${AccessAliasArn}'), name);
+  assert.deepEqual(template.Resources.Authorizer.Properties.Type, 'REQUEST');
+  assert.equal(template.Resources.Authorizer.Properties.AuthorizerResultTtlInSeconds, 0);
+  assert.equal(template.Resources.Authorizer.Properties.IdentitySource, 'method.request.header.Authorization');
+  for (const name of ['AuthorizerInvokePermission', 'ServiceInvokePermission', 'AccessInvokePermission', 'BillingWebhookInvokePermission']) {
+    assert.equal(template.Resources[name].Properties.Principal, 'apigateway.amazonaws.com');
+    assert.deepEqual(template.Resources[name].Properties.SourceAccount, { Ref: 'AWS::AccountId' });
+  }
+  assert.equal(template.Resources.Stage.Properties.MethodSettings[0].DataTraceEnabled, false);
+  assert.equal(template.Resources.Stage.Properties.MethodSettings[0].LoggingLevel, 'ERROR');
+  assert.deepEqual([...template.Resources.Deployment.DependsOn].sort(), methods.map(([name]) => name).sort());
+  assert.equal(template.Resources.GatewayUnauthorizedResponse.Properties.StatusCode, '401');
+});

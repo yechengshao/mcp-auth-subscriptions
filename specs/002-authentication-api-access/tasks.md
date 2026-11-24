@@ -5,7 +5,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 # Tasks: Authentication and API Access
 
 **Spec**: [spec](spec.md) · [plan](plan.md) · [client contract](contracts/client-onboarding.md) · [REST contract](contracts/rest-gateway.md) · [migration history](../../../tradingview-mcp/specs/scope-migration.md)
-**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 18 of 25 checked (T001–T004, T006, T008, T014–T020, T021–T025). All current verification is local; live and provider checks are `not_run`.
+**Status and coverage**: [status.md](status.md) holds dated progress, local evidence and the per-task requirement map. Checkbox states here are authoritative: 19 of 25 checked (T001–T004, T006, T007, T008, T014–T020, T021–T025). All current verification is local; live and provider checks are `not_run`.
 
 ## Foundations and authorizer
 
@@ -18,7 +18,7 @@ description: "Pending REST access, Cognito/OAuth coordination and native subscri
 
 - [ ] T005 Implement retained Cognito reuse, PKCE callback configuration, signing-key JWKS, the single AccessState table, and Node.js ARM64 authorizer and access functions with no billing-write grants. Files: `infra/access/auth.yaml`, `infra/access/authorizer.yaml`, `infra/access/release-authorizer.ts`, `tests/access/access_contract.test.ts`. Depends: T004, T015, T017, T019.
 - [x] T006 Write migration fixtures, then implement a read-only cutover manifest for distinct legacy HTTP and REST targets that rejects conflicting resources and makes no automatic changes. Files: `scripts/prepare_gateway_cutover.ts`, `tests/access/gateway_cutover.test.ts`. Depends: T001.
-- [ ] T007 Write then implement the phased REST gateway: REQUEST authorizer, CUSTOM paid methods, public discovery and OAuth routes, exact alias integrations, a 29-second proxy, stage logs and tier plans, with no HTTP payload-format fields. Files: `infra/access/gateway.yaml`, `tests/access/access_contract.test.ts`. Depends: T005, T006, T018, T024, and the spec-001 T052 alias contract.
+- [x] T007 Write then implement the phased REST gateway: REQUEST authorizer, CUSTOM paid methods, public discovery and OAuth routes, exact alias integrations, a 29-second proxy, stage logs and tier plans, with no HTTP payload-format fields. Files: `infra/access/gateway.yaml`, `tests/access/access_contract.test.ts`. Depends: T005, T006, T018, T024, and the spec-001 T052 alias contract.
 
 ## Publication and evidence
 
