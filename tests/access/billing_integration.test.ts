@@ -121,7 +121,7 @@ function world() {
   async function deliver(eventId: string, body: string, signedWith = webhookSecret) {
     const header = Stripe.webhooks.generateTestHeaderString({ payload: body, secret: signedWith,
       timestamp: Math.floor(Date.now() / 1000) });
-    return billingHandler({ httpMethod: 'POST', path: '/billing/webhook', isBase64Encoded: false,
+    return billingHandler({ httpMethod: 'POST', path: '/webhooks/stripe', isBase64Encoded: false,
       headers: { 'content-type': 'application/json', 'stripe-signature': header }, body } as never, { awsRequestId: eventId } as never) as Promise<{ statusCode: number }>;
   }
   const checkoutEvent = (eventId: string, sessionId: string, livemode = false) => JSON.stringify({

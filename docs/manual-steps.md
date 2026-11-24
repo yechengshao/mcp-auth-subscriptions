@@ -10,7 +10,7 @@ Update the status column as each one is finished. Nothing here has been run by C
 | 3 | Copy the test secret key (`sk_test_`) and store it as a SecureString at `STRIPE_KEY_PARAMETER` | AWS console or CLI, on your machine | Parameter name only | Pending |
 | 4 | Deploy `infra/billing/catalog.yaml` with the approved catalog JSON as the `CatalogJson` parameter | CloudFormation (after approval) | Stack name | Pending |
 | 5 | Deploy the billing storage and runtime stacks, record their outputs | CloudFormation (after approval) | Stack outputs, with ARNs | Pending |
-| 6 | Create the Stripe webhook endpoint at `<deployed API URL>/billing/webhook` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired` | Stripe Dashboard, after step 5 | None | Pending |
+| 6 | Create the Stripe webhook endpoint at `<deployed API URL>/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired` | Stripe Dashboard, after step 5 | None | Pending |
 | 7 | Copy the endpoint signing secret (`whsec_`) and store it as a SecureString at `STRIPE_WEBHOOK_SECRET_PARAMETER` | AWS console or CLI, on your machine | Parameter name only | Pending |
 | 8 | Create the usage plans and REST stage mappings listed in the catalog | API Gateway, after approval | Usage plan IDs, stage names | Pending |
 | 9 | Re-authenticate the AWS connection (or provide CLI access) so Claude can read stack outputs and run checks | Claude Code / AWS connector | None | Pending |

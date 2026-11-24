@@ -109,7 +109,7 @@ aws cloudformation deploy \
 
 ## 5. Stripe webhook, after step 11
 
-1. In Stripe test mode, create a webhook endpoint at `<stage URL>/billing/webhook`.
+1. In Stripe test mode, create a webhook endpoint at `<stage URL>/webhooks/stripe`.
 2. Subscribe to `checkout.session.completed`, `checkout.session.async_payment_succeeded`
    and `checkout.session.expired`.
 3. Store the signing secret as a SecureString at the webhook parameter name.

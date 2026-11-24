@@ -6,7 +6,7 @@ import type { HttpEvent, HttpResult, InvocationContext } from '../observability/
 export function createBillingHttpAdapter(webhook: (event: HttpEvent & Record<string, any>, context: InvocationContext) => Promise<HttpResult>) {
   const invocation = new AsyncLocalStorage<{ event: HttpEvent & Record<string, any>; context: InvocationContext }>();
   const app = express(); app.disable('x-powered-by');
-  app.post('/billing/webhook', express.raw({ type: () => true, limit: '1mb', inflate: false }), async (request, response) => {
+  app.post('/webhooks/stripe', express.raw({ type: () => true, limit: '1mb', inflate: false }), async (request, response) => {
     const current = invocation.getStore();
     if (!current || !Buffer.isBuffer(request.body)) { response.status(400).end(); return; }
     const result = await webhook({ ...current.event, body: request.body.toString('base64'), isBase64Encoded: true }, current.context);

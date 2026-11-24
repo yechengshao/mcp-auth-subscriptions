@@ -32,7 +32,7 @@ function setup() {
   };
   const deliver = (body: string, eventId = 'evt_fixture_1') => {
     const header = Stripe.webhooks.generateTestHeaderString({ payload: body, secret: webhookSecret, timestamp: Math.floor(Date.now() / 1000) });
-    return handler({ httpMethod: 'POST', path: '/billing/webhook', isBase64Encoded: false,
+    return handler({ httpMethod: 'POST', path: '/webhooks/stripe', isBase64Encoded: false,
       headers: { 'stripe-signature': header }, body, requestContext: { requestId: eventId } } as never, {} as never) as Promise<{ statusCode: number }>;
   };
   const paidEvent = (eventId: string, sessionId: string) => JSON.stringify({

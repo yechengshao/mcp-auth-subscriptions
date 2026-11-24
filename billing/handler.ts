@@ -54,7 +54,7 @@ export function composeBillingHandler(config: HandlerConfig, service: BillingSer
     },
   }, telemetry);
   const webhook = withBillingHttpTelemetry(telemetry, 'billing.webhook', async (event: HttpEvent & Record<string, any>) => {
-    if (event.httpMethod !== 'POST' || event.path !== '/billing/webhook' || typeof event.body !== 'string' || Buffer.byteLength(event.body) > 1500000) return { statusCode: 400 };
+    if (event.httpMethod !== 'POST' || event.path !== '/webhooks/stripe' || typeof event.body !== 'string' || Buffer.byteLength(event.body) > 1500000) return { statusCode: 400 };
     let trusted: Record<string, any>;
     let digest: string;
     const secret = await webhookSecret();

@@ -238,7 +238,7 @@ test('webhook handling persists minimal event evidence and deduplicates signed d
   const body = JSON.stringify({ id: 'evt_delivery', livemode: false, type: 'checkout.session.completed', data: { object: { id: 'cs_fixture', email: 'PRIVATE_SENTINEL' } } });
   const timestamp = Math.floor(Date.now() / 1000);
   const signature = `t=${timestamp},v1=${createHmac('sha256', 'whsec_fixture').update(`${timestamp}.${body}`).digest('hex')}`;
-  const event = { httpMethod: 'POST', path: '/billing/webhook', headers: { 'stripe-signature': signature }, body };
+  const event = { httpMethod: 'POST', path: '/webhooks/stripe', headers: { 'stripe-signature': signature }, body };
   for (let delivery = 0; delivery < 10; delivery++) {
     const incoming = delivery % 2 ? { ...event, body: Buffer.from(body).toString('base64'), isBase64Encoded: true } : event;
     assert.equal((await app(incoming, {}) as any).statusCode, 200);

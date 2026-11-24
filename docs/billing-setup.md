@@ -195,7 +195,7 @@ change to those settings requires updating both IaC and budgets. Values bound
 work, not guarantee payments complete within a deadline. No retention cleanup is
 performed automatically. Current replay uses shard 0 with bounded pages and a persisted fenced cursor; monitor backlog and validate fair pagination with real AWS load before scaling beyond this test profile.
 
-Integrate only `POST /billing/webhook` with billing's HTTP handler using API
+Integrate only `POST /webhooks/stripe` with billing's HTTP handler using API
 Gateway Lambda proxy integration. Preserve raw body bytes, isBase64Encoded and
 Stripe-Signature; do not JSON-parse/re-serialize the body in a mapping template.
 Grant API Gateway InvokeFunction only for that method/route and billing alias.
