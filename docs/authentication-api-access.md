@@ -172,7 +172,8 @@ deployments, including the failure cases.
 | Signing key stack `mcp-access-signing` | Performed (`CREATE_COMPLETE`); key ARN recorded |
 | Public JWK in `SigningConfigJson` and `PublicJwksJson` | Derived; not yet deployed to any runtime |
 | Storage stack for access tables | Not performed |
-| Billing storage, runtime and alias | Not performed (spec 003 tasks B010–B011 open) |
+| Billing publication stack and image `billing-2026-11-24.4` | Performed (publish run 45482349557) |
+| Billing storage, runtime and alias | Not performed; needs approval |
 | Access runtime stack | Not performed; needs approval |
 | Authorizer stack | Not performed; needs approval |
 | REST gateway stack | Not performed; template written and validated locally |

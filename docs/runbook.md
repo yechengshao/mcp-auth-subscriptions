@@ -72,6 +72,16 @@ Notes on the order:
 - Deploy `infra/billing/publication.yaml` and publish the billing image before step 7.
   The image must be in ECR with an immutable digest.
 - Billing must have its live alias before access can invoke it (step 9).
+- Before step 5, check the approved catalog file. It must pass the shape and
+  sellability checks for your exact scope. It must contain no placeholders:
+
+  ```sh
+  npm run build
+  node dist/scripts/check_catalog.js <catalog.json> <environment> <aws_account_id> <region> <stripe_account>
+  ```
+
+  Start from `infra/billing/catalog.draft.json` and replace every `REPLACE_` value.
+  The checker prints fixed codes only, so it is safe to share its output.
 - For `gateway.yaml`, deploy twice if you enable access logs: the first pass
   without `AccessLogGroupArn`, the second with it (see the access setup guide).
 

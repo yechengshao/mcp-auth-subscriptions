@@ -7,9 +7,11 @@ pinned API version `2025-02-24.acacia`; no monitoring SDK or collector is needed
 
 This guide prepares a **test-mode environment**. It does not claim that the whole
 access/billing specification is finished. See the remaining gates at the end.
-No AWS deployment, Stripe registration, payment, or image publication was run by
-the implementation work. The final Lambda image/ARM64 execution is unverified:
-this cloud workspace blocks `public.ecr.aws`; the Node Docker build stage passed.
+Current status: the billing publication stack (ECR repository and publisher role,
+`mcp-billing-publication`) is deployed, and publish run 45482349557 on `main` built,
+smoke-tested and pushed the ARM64 image `billing-2026-11-24.4`. Not yet done: Stripe
+registration and test payments, deployment of the billing runtime, and the live
+webhook. The live steps need explicit approval; see `docs/manual-steps.md`.
 
 ## 1. Validate locally
 
@@ -123,8 +125,8 @@ ARN in the `BILLING_PUBLISH_ROLE_ARN` secret. Then manually dispatch **Publish
 Billing Lambda image** from `main` with a new immutable release tag. The job
 runs the tests, builds and pushes once, and saves an artifact with the source
 commit, both lockfile hashes, runtime-template hash and ECR image digest. The
-workflow is defined but has not been run, and no ECR repository or role has been
-created.
+workflow has run successfully (run 45482349557, release `billing-2026-11-24.4`). The
+ECR repository and publisher role exist in stack `mcp-billing-publication`.
 
 For a local ARM64 package build without publishing, run:
 
@@ -237,7 +239,8 @@ Run these in your test environment and record evidence separately from local tes
 
 Remaining specification gates are tracked in `specs/003-billing-subscriptions/tasks.md`:
 live replay checkpoint/pagination behavior at scale, broader fault/redrive
-acceptance, deploying and exercising the independent OIDC publication path, access/OAuth/session/usage-key integration
+acceptance, verifying the release-evidence base-image fields on the next publish run,
+access/OAuth/session/usage-key integration
 and live ARM64/AWS/Stripe/host acceptance. The access Lambda and JWT authorizer
 are not implemented by these billing adapters. Do not treat this as completion of
 all specs or enable production charging solely because local fixtures pass. The locally tested dependency versions are pinned in package-lock.json; live compatibility with the selected older Stripe API/webhook version still needs the test-mode checks above.

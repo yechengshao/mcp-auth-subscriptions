@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "catalog_version": "REPLACE_WITH_RELEASE_ID",
+  "environment": "test",
+  "aws_account_id": "000000000000",
+  "region": "ca-central-1",
+  "stripe_account": "acct_REPLACE_ME",
+  "plans": {
+    "REPLACE_PLAN_ID": {
+      "tier_order": 1,
+      "display": { "name": "REPLACE_PLAN_NAME", "description": "REPLACE_PLAN_DESCRIPTION" },
+      "enabled_for_purchase": false,
+      "actions": ["purchase", "renewal"],
+      "usage_mapping": { "usage_plan_id": "REPLACE_USAGE_PLAN_ID", "rest_api_id": "REPLACE_REST_API_ID", "stage": "test" },
+      "duration_options": {
+        "REPLACE_DURATION_ID": {
+          "enabled_for_purchase": false,
+          "service_term": { "unit": "month", "count": 1, "time_semantics": "utc_calendar_clamp" },
+          "amount_minor": 1,
+          "currency": "cad",
+          "product_id": "prod_REPLACE_ME",
+          "price_id": "price_REPLACE_ME",
+          "mode": "payment",
+          "label": "REPLACE_DURATION_LABEL"
+        }
+      }
+    }
+  }
+}

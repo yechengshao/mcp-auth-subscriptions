@@ -83,8 +83,9 @@ ZIP** from `main` with a new release label. Each workflow runs the required
 checks and produces evidence with its source commit and immutable digest or S3
 object version. A ZIP upload uses a unique workflow-attempt key and the version ID
 returned by S3, so the Lambda renderer can pin the precise object. These workflows
-are prepared but have not been run. They do not deploy an Access Lambda, activate
-an authorizer version, or change API Gateway.
+were run earlier for the access image and authorizer ZIP (see the status table in
+`authentication-api-access.md`). They do not deploy an Access Lambda, activate an
+authorizer version, or change API Gateway.
 
 ## Authorizer configuration for later deployment
 
