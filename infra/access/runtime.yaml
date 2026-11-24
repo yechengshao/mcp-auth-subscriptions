@@ -11,8 +11,7 @@
     "EntitlementTableArn": { "Type": "String", "AllowedPattern": "arn:aws:dynamodb:[a-z0-9-]+:[0-9]{12}:table/[A-Za-z0-9_.-]+" },
     "TelemetryPolicyArn": { "Type": "String" },
     "BillingAliasArn": { "Type": "String", "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*" },
-    "SigningSecretArn": { "Type": "String", "AllowedPattern": "arn:aws:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+" },
-    "SigningKmsKeyArn": { "Type": "String", "Default": "" },
+    "SigningKeyArn": { "Type": "String", "AllowedPattern": "arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" },
     "AccessConfigJson": { "Type": "String", "MinLength": 2, "MaxLength": 3000, "NoEcho": false },
     "PublicJwksJson": { "Type": "String", "MinLength": 2, "MaxLength": 3000, "NoEcho": false },
     "SigningConfigJson": { "Type": "String", "MinLength": 2, "MaxLength": 1500, "NoEcho": false },
@@ -21,9 +20,6 @@
     "ReleaseId": { "Type": "String", "AllowedPattern": "[A-Za-z0-9_.-]{1,96}" },
     "TracingMode": { "Type": "String", "AllowedValues": ["Active", "PassThrough"], "Default": "PassThrough" },
     "ReservedConcurrency": { "Type": "Number", "MinValue": 1, "MaxValue": 100, "Default": 5 }
-  },
-  "Conditions": {
-    "CustomSigningKey": { "Fn::Not": [{ "Fn::Equals": [{ "Ref": "SigningKmsKeyArn" }, ""] }] }
   },
   "Resources": {
     "Role": {
@@ -35,8 +31,8 @@
           { "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:ConditionCheckItem"], "Resource": { "Ref": "StateTableArn" } },
           { "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:ConditionCheckItem"], "Resource": { "Ref": "EntitlementTableArn" } },
           { "Effect": "Allow", "Action": "lambda:InvokeFunction", "Resource": { "Ref": "BillingAliasArn" } },
-          { "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": { "Ref": "SigningSecretArn" } },
-          { "Fn::If": ["CustomSigningKey", { "Effect": "Allow", "Action": "kms:Decrypt", "Resource": { "Ref": "SigningKmsKeyArn" }, "Condition": { "StringEquals": { "kms:ViaService": { "Fn::Sub": "secretsmanager.${AWS::Region}.amazonaws.com" } } } }, { "Ref": "AWS::NoValue" }] },
+          { "Effect": "Allow", "Action": "kms:Sign", "Resource": { "Ref": "SigningKeyArn" }, "Condition": { "StringEquals": { "kms:SigningAlgorithm": "RSASSA_PKCS1_V1_5_SHA_256" } } },
+          { "Effect": "Allow", "Action": "kms:GetPublicKey", "Resource": { "Ref": "SigningKeyArn" } },
           { "Effect": "Allow", "Action": "apigateway:POST", "Resource": { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/apikeys" } },
           { "Effect": "Allow", "Action": "apigateway:GET", "Resource": [
             { "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/apikeys" },

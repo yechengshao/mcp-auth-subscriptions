@@ -263,3 +263,13 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 
 - The secret JSON is now `{"version", "private_key_pem", "public_jwk"}`. The loader rejects the secret unless its `public_jwk` matches the configured `kid`, `n` and `e`, so a stale or swapped public key cannot be served.
 - Contracts and the implementation doc describe the new format. `tests/access/signing.test.ts` covers the matching and mismatching cases. Suite: 284 passing.
+
+## Signing key moved to AWS KMS (2026-11-24)
+
+- Decision: the access JWT signing key is an RSA 2048 `SIGN_VERIFY` AWS KMS key, not a Secrets Manager secret or an SSM parameter. KMS generates and keeps the private key, so no operator generates, uploads or sees key material, and no manual console step is needed.
+- `infra/access/signing.yaml` creates the retained key `AWS::KMS::Key` and alias `alias/mcp-access-signing`, and outputs `SigningKeyArn`.
+- `infra/access/runtime.yaml` takes `SigningKeyArn`. It grants the access runtime `kms:Sign` (conditioned on `RSASSA_PKCS1_V1_5_SHA_256`) and `kms:GetPublicKey` on that key only. Secrets Manager permissions and the optional KMS decrypt path are removed.
+- `access/signing.ts` signs with `kmsSigningBackend`: it sends a SHA-256 digest of the JWS signing input with `MessageType: DIGEST`, and checks the public key from `GetPublicKey` against the configured JWK before signing. Telemetry dependency `kms.signing` replaces `secrets.signing_key`. `@aws-sdk/client-secrets-manager` is replaced by `@aws-sdk/client-kms` at 3.1164.0.
+- The signing config is now `{keyArn, kid, publicJwk}`. The public JWK comes from the key's `GetPublicKey` output, checked by the runtime at signing time. The `version` field is removed, since rotation means a new key and kid.
+- Contracts (`authorization.md`, `managed-infrastructure.md`, `observability.md`) and `docs/access-implementation.md` describe KMS. Suite: 285 passing.
+- Not yet done: deploying `signing.yaml`, deriving the public JWK from KMS and entering it in `SigningConfigJson`, the runtime deploy and the authorizer/JWKS wiring. These need your approval.

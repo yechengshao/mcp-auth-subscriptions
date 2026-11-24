@@ -1,69 +1,109 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { constants, createHash, createPrivateKey, createPublicKey, privateEncrypt } from 'node:crypto';
 import { jwtVerify } from 'jose';
-import { createSigningKeyCache, createServiceTokenSigner, secretsSigningLoader } from '../../access/signing.js';
+import { createSigningKeyCache, createServiceTokenSigner, kmsSigningBackend, type SigningBackend } from '../../access/signing.js';
 import { publicKeySet, TrustedJwks, remoteJwks } from '../../security/jwks.js';
 import { Telemetry } from '../../observability/telemetry.js';
 import { claims, identityFixture, now, trust } from './support/identity_fixture.js';
 const fixture = await identityFixture();
-const configuration = { secretArn: 'arn:aws:secretsmanager:us-east-1:000000000000:secret:test/signing-AbCdEf', version: 1, kid: 'fixture_key', publicJwk: fixture.publicJwk };
-test('local RS256 signer and trusted public verifier agree; cold/warm/concurrent requests share one key fetch', async () => {
-  let reads = 0;
-  const cache = createSigningKeyCache(async () => { reads++; return { value: fixture.pem, version: 1 }; }, configuration);
+const configuration = { keyArn: 'arn:aws:kms:us-east-1:000000000000:key/11111111-2222-3333-4444-555555555555', kid: 'fixture_key', publicJwk: fixture.publicJwk };
+const DIGEST_INFO_SHA256 = Buffer.from('3031300d060960864801650304020105000420', 'hex');
+const spki = (pem: string) => createPublicKey(createPrivateKey(pem)).export({ type: 'spki', format: 'der' }) as Buffer;
+/** Stands in for KMS: signs a SHA-256 digest with RSASSA-PKCS1-v1_5 using the fixture key. */
+function fakeKms(pem: string, changes: Partial<SigningBackend> = {}): SigningBackend {
+  return {
+    publicKeyDer: async () => spki(pem),
+    signDigest: async digest => privateEncrypt({ key: pem, padding: constants.RSA_PKCS1_PADDING }, Buffer.concat([DIGEST_INFO_SHA256, Buffer.from(digest)])),
+    ...changes,
+  };
+}
+test('KMS-backed RS256 signer and trusted public verifier agree; cold/warm/concurrent requests share one public-key check', async () => {
+  let checks = 0, digests = 0;
+  const backend = fakeKms(fixture.pem, {
+    publicKeyDer: async () => { checks++; return spki(fixture.pem); },
+    signDigest: async digest => { digests++; return fakeKms(fixture.pem).signDigest(digest, new AbortController().signal); },
+  });
+  const cache = createSigningKeyCache(backend, configuration);
   const sign = createServiceTokenSigner(trust, cache, () => now);
   const tokens = await Promise.all(Array.from({ length: 10 }, () => sign(claims)));
-  assert.equal(reads, 1); assert.equal((await cache.get()).extractable, false);
+  assert.equal(checks, 1); assert.equal(digests, 10);
   for (const token of tokens) {
     const result = await jwtVerify(token, fixture.publicKey, { issuer: trust.issuer, audience: trust.resource, currentDate: new Date(now * 1000) });
     assert.equal(result.payload.usageIdentifierKey, claims.usageIdentifierKey);
     assert.equal(result.protectedHeader.typ, 'at+jwt');
+    assert.equal(result.protectedHeader.kid, 'fixture_key');
   }
 });
-test('expired signing cache fails closed on outage and recovers without using stale private keys', async () => {
-  let time = 0, online = true, reads = 0;
-  const cache = createSigningKeyCache(async () => { reads++; if (!online) throw new Error('PRIVATE_PROVIDER_SENTINEL'); return { value: fixture.pem, version: 1 }; }, configuration,
-    { now: () => time, maxAgeMs: 100 });
-  await cache.get(); online = false; time = 100;
-  await assert.rejects(cache.get(), /^Error: signing_key_unavailable$/);
-  online = true; time = 101; await cache.get(); assert.equal(reads, 3);
+test('the signer sends only a SHA-256 digest of the JWS signing input to KMS', async () => {
+  const digests: Buffer[] = [];
+  const cache = createSigningKeyCache(fakeKms(fixture.pem, {
+    signDigest: async digest => { digests.push(Buffer.from(digest)); return fakeKms(fixture.pem).signDigest(digest, new AbortController().signal); },
+  }), configuration);
+  const token = await createServiceTokenSigner(trust, cache, () => now)(claims);
+  const [header, payload, signature] = token.split('.');
+  assert.deepEqual(digests, [createHash('sha256').update(`${header}.${payload}`).digest()]);
+  assert.equal(Buffer.from(signature!, 'base64url').length, 256);
 });
-test('private/public mismatch, wrong version, malformed key and private JWKS material fail closed', async () => {
+test('expired public-key verification fails closed on outage and recovers without trusting stale results', async () => {
+  let time = 0, online = true, reads = 0;
+  const cache = createSigningKeyCache(fakeKms(fixture.pem, {
+    publicKeyDer: async () => { reads++; if (!online) throw new Error('KMS_PROVIDER_SENTINEL'); return spki(fixture.pem); },
+  }), configuration, { now: () => time, maxAgeMs: 100 });
+  await cache.verified(); online = false; time = 100;
+  await assert.rejects(cache.verified(), /^Error: signing_key_unavailable$/);
+  online = true; time = 101; await cache.verified(); assert.equal(reads, 3);
+});
+test('a KMS key that differs from the configured public key, malformed DER and private JWKS material fail closed', async () => {
   const other = await identityFixture();
-  for (const value of [{ value: other.pem, version: 1 }, { value: fixture.pem, version: 2 }, { value: 'PRIVATE_BAD_PEM_SENTINEL', version: 1 }]) {
-    const cache = createSigningKeyCache(async () => value, configuration);
-    await assert.rejects(cache.get(), /^Error: signing_key_unavailable$/);
+  for (const der of [spki(other.pem), Buffer.from([1, 2, 3])]) {
+    const cache = createSigningKeyCache(fakeKms(fixture.pem, { publicKeyDer: async () => der }), configuration);
+    await assert.rejects(cache.verified(), /^Error: signing_key_unavailable$/);
   }
   await assert.rejects(publicKeySet({ keys: [{ ...fixture.publicJwk, d: 'PRIVATE_JWK_SENTINEL' }] }));
   await assert.rejects(publicKeySet({ keys: [fixture.publicJwk, fixture.publicJwk] }));
 });
-test('key rotation retains old public keys while each configured private key matches its pinned kid/version', async () => {
+test('a configuration whose KMS key ARN or kid is malformed is refused before any call', async () => {
+  for (const bad of [{ ...configuration, keyArn: 'arn:aws:kms:us-east-1:000000000000:alias/mcp-access-signing' },
+    { ...configuration, keyArn: 'arn:aws:secretsmanager:us-east-1:000000000000:secret:test/signing-AbCdEf' },
+    { ...configuration, kid: 'other_key' }]) {
+    assert.throws(() => createSigningKeyCache(fakeKms(fixture.pem), bad), /invalid_signing_configuration/);
+  }
+});
+test('key rotation retains old public keys while each configured KMS key matches its pinned kid', async () => {
   const next = await identityFixture('next_key');
   const verifier = await publicKeySet({ keys: [fixture.publicJwk, next.publicJwk] });
   for (const [source, kid] of [[fixture, 'fixture_key'], [next, 'next_key']] as const) {
-    const cache = createSigningKeyCache(async () => ({ value: source.pem, version: 1 }), { ...configuration, kid, publicJwk: source.publicJwk });
+    const cache = createSigningKeyCache(fakeKms(source.pem), { ...configuration, kid, publicJwk: source.publicJwk });
     const token = await createServiceTokenSigner(trust, cache, () => now)(claims);
     assert.equal((await jwtVerify(token, verifier.get(kid)!, { currentDate: new Date(now * 1000) })).payload.sub, claims.sub);
   }
 });
-test('signing-loader reads only the pinned secret at AWSCURRENT and never logs key material', async () => {
-  const logs: string[] = []; const commands: unknown[] = [];
+test('KMS adapter calls only GetPublicKey and Sign on the pinned key and never logs key material', async () => {
+  const logs: string[] = []; const commands: { name: string; input: Record<string, unknown> }[] = [];
   const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: line => logs.push(line) });
-  const secrets = { send: async (command: any) => { commands.push(command.input); return { SecretString: JSON.stringify({ version: 1, private_key_pem: fixture.pem, public_jwk: fixture.publicJwk }) }; } };
-  await createSigningKeyCache(secretsSigningLoader(configuration, telemetry, secrets as any), configuration).get();
-  assert.deepEqual(commands, [{ SecretId: configuration.secretArn, VersionStage: 'AWSCURRENT' }]);
-  assert.equal(logs.join('').includes(fixture.pem), false);
+  const kms = { send: async (command: any) => {
+    commands.push({ name: command.constructor.name, input: command.input });
+    if (command.constructor.name === 'GetPublicKeyCommand') return { PublicKey: spki(fixture.pem) };
+    return { Signature: fakeKms(fixture.pem).signDigest(command.input.Message, new AbortController().signal) };
+  } };
+  const cache = createSigningKeyCache(kmsSigningBackend(configuration, telemetry, kms as any), configuration);
+  await createServiceTokenSigner(trust, cache, () => now)(claims);
+  assert.deepEqual(commands.map(command => command.name), ['GetPublicKeyCommand', 'SignCommand']);
+  assert.deepEqual(commands[0]!.input, { KeyId: configuration.keyArn });
+  assert.equal(commands[1]!.input.KeyId, configuration.keyArn);
+  assert.equal(commands[1]!.input.MessageType, 'DIGEST');
+  assert.equal(commands[1]!.input.SigningAlgorithm, 'RSASSA_PKCS1_V1_5_SHA_256');
+  assert.equal((commands[1]!.input.Message as Uint8Array).length, 32);
+  const output = logs.join('');
+  assert.equal(output.includes(fixture.pem), false);
+  assert.equal(output.includes(claims.usageIdentifierKey), false);
 });
-
-test('signing-loader refuses a secret whose stored public key differs from the configured one', async () => {
-  const telemetry = new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: () => undefined });
-  const other = { ...fixture.publicJwk, n: 'A'.repeat(fixture.publicJwk.n!.length) };
-  const secrets = { send: async () => ({ SecretString: JSON.stringify({ version: 1, private_key_pem: fixture.pem, public_jwk: other }) }) };
-  await assert.rejects(createSigningKeyCache(secretsSigningLoader(configuration, telemetry, secrets as any), configuration).get(),
-    error => error instanceof Error && error.message === 'signing_key_unavailable');
-});
-test('a key retrieval crossing paid expiry cannot produce a service token', async () => {
+test('a key check crossing paid expiry cannot produce a service token', async () => {
   let clock = now;
-  const cache = createSigningKeyCache(async () => { clock = now + 1; return { value: fixture.pem, version: 1 }; }, configuration);
+  const cache = createSigningKeyCache(fakeKms(fixture.pem, {
+    publicKeyDer: async () => { clock = now + 1; return spki(fixture.pem); },
+  }), configuration);
   const signer = createServiceTokenSigner(trust, cache, () => clock);
   await assert.rejects(signer({ ...claims, exp: now + 1, subscription_valid_until: now + 1 }), /invalid_access_token/);
 });
@@ -84,21 +124,22 @@ test('expired JWKS cache cannot verify with stale keys while its source is unava
   await cache.get('fixture_key'); online = false; time = 100;
   await assert.rejects(cache.get('fixture_key'));
 });
-test('hung private-key retrieval aborts after three seconds rather than leaving an invocation open', async () => {
+test('hung KMS call aborts after three seconds rather than leaving an invocation open', async () => {
   let aborted = false, reads = 0;
-  const cache = createSigningKeyCache(signal => {
-    reads++; signal.addEventListener('abort', () => { aborted = true; }); return new Promise(() => undefined);
-  }, configuration);
-  const results = await Promise.allSettled([cache.get(), cache.get()]);
-  assert.equal(reads, 1); assert.equal(aborted, true);
-  assert.equal(results.every(result => result.status === 'rejected' && result.reason.message === 'signing_key_unavailable'), true);
+  const cache = createSigningKeyCache(fakeKms(fixture.pem, {
+    signDigest: (_digest, signal) => { reads++; signal.addEventListener('abort', () => { aborted = true; }); return new Promise(() => undefined); },
+  }), configuration);
+  const sign = createServiceTokenSigner(trust, cache, () => now);
+  const results = await Promise.allSettled([sign(claims), sign(claims)]);
+  assert.equal(reads, 2); assert.equal(aborted, true);
+  assert.equal(results.every(result => result.status === 'rejected' && result.reason.message === 'token_signing_failed'), true);
 });
 test('invalid cache clocks never extend signing-key or public-key trust', async () => {
   let time = 0;
-  const privateCache = createSigningKeyCache(async () => ({ value: fixture.pem, version: 1 }), configuration, { now: () => time });
+  const keyCache = createSigningKeyCache(fakeKms(fixture.pem), configuration, { now: () => time });
   const publicCache = new TrustedJwks(async () => fixture.jwks, () => time);
-  await privateCache.get(); await publicCache.get('fixture_key'); time = NaN;
-  await assert.rejects(privateCache.get(), /signing_key_unavailable/);
+  await keyCache.verified(); await publicCache.get('fixture_key'); time = NaN;
+  await assert.rejects(keyCache.verified(), /signing_key_unavailable/);
   await assert.rejects(publicCache.get('fixture_key'), /trusted_jwks_unavailable/);
 });
 test('trusted JWKS HTTP reader cancels oversized responses without buffering the whole body', async () => {

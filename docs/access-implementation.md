@@ -14,7 +14,7 @@ ZIP uploaded as a versioned S3 object; the access HTTP runtime remains image-bas
 | authorizer/handler.ts | Direct REST REQUEST Lambda; exact ARN, JWT signature/claims/scope and usage-key response |
 | security/service-token.ts | Shared closed service-token claims and lifetime/subscription bounds |
 | security/jwks.ts | Public-only RSA JWKS validation, bounded fixed-source cache and unknown-kid refresh |
-| access/signing.ts | Exact-version Parameter Store loader, parsed private-key cache and local RS256 signing |
+| access/signing.ts | KMS-backed RS256 signing (digest-only `kms:Sign`) with a cached public-key verification check |
 | access/store.ts | Strong access/entitlement reads, access-only conditional transactions and profile race recovery |
 | access/usage_bindings.ts | Port-driven subscriber key provisioning, plan association/migration, revision checks and uncertain-effect recovery |
 | access/adapters/api-gateway.ts | Native API Gateway SDK adapter with one-attempt mutations and exact read-back only for recovery/conflict cases |
@@ -23,7 +23,7 @@ ZIP uploaded as a versioned S3 object; the access HTTP runtime remains image-bas
 | access/onboarding.ts | Idempotent plan/checkout continuation, payment status, activation and original callback resume |
 | access/management.ts | Owner-scoped subscription management, server-priced upgrade quotes, upgrade confirmation, support-only financial requests and post-payment binding activation |
 | access/http/ | Thin Express inbound adapters for OAuth, session, onboarding and billing browser routes |
-| access/handler.ts | Lambda composition root wiring DynamoDB, Cognito, Secrets Manager signing, billing alias and API Gateway ports |
+| access/handler.ts | Lambda composition root wiring DynamoDB, Cognito, KMS signing, billing alias and API Gateway ports |
 | infra/access/auth.yaml | Retained Cognito create-mode pool, admin-only enrollment, public code-flow client and fixed callbacks |
 | infra/access/storage.yaml | Retained on-demand AccessState, selective TTL and exact item-action policy |
 | infra/access/authorizer.yaml | Managed-runtime ARM64 ZIP authorizer/version/alias and telemetry-only role; no gateway or public invoke grant |
@@ -180,18 +180,20 @@ operation/correlation/native AWS tracking metadata, never bearer/usage keys.
 
 ## Signing and state adapters
 
-The access signer accepts only an exact Secrets Manager secret ARN, the pinned
-version and the matching public kid supplied by deployment configuration. Store the
-operator's RSA PKCS8 private key in the secret created by `infra/access/signing.yaml`,
-as the JSON `{"version": n, "private_key_pem": "...", "public_jwk": {...}}`, through the secure provisioning
-workflow. `secretsSigningLoader` reads the `AWSCURRENT` value and checks the pinned
-version. IAM grants belong to access alone; kms:Decrypt is needed only if a
-customer-managed KMS key encrypts the secret. There is no KMS Sign API call per token.
+The access signer accepts only an exact KMS key ARN, the matching public kid and the
+public JWK supplied by deployment configuration. `infra/access/signing.yaml` creates a
+retained RSA 2048 `SIGN_VERIFY` key with alias `alias/mcp-access-signing`; no operator
+generates or handles private key material. `kmsSigningBackend` calls `GetPublicKey`
+to verify the configured public JWK and `Sign` (`RSASSA_PKCS1_V1_5_SHA_256`,
+`MessageType` `DIGEST`) for each token, sending only a SHA-256 digest of the JWS
+signing input. IAM grants belong to access alone: `kms:Sign` (conditioned on the
+algorithm) and `kms:GetPublicKey` on the exact key ARN.
 
-Only parsed non-extractable key material is cached, in execution-environment
-memory, for at most 300 seconds. Concurrent loads share one three-second attempt.
-A cache refresh failure stops signing; it never silently signs with an expired
-cache or a mismatched key/version. Public-key publishing must not call this loader.
+Only the public-key verification result is cached, in execution-environment memory,
+for at most 300 seconds. Concurrent checks share one three-second attempt, and each
+KMS call has the same deadline. A cache refresh failure stops signing; it never
+silently signs after a mismatched or expired check. Public-key publishing uses the
+configured public JWK and does not call KMS.
 Signing is **not** proof of paid eligibility: `AccessTokens` validates code/grant,
 entitlement and configured binding, then commits consumption/rotation with current
 revision guards before releasing credentials. Do not consume a credential just to
@@ -229,7 +231,7 @@ still pending.
 The runtime composes discovery metadata, Cognito login/callback, shared browser
 sessions, token/revocation handlers and onboarding controllers through the
 `OAuthExtension`. HTTP modules remain thin adapters over session, token and
-onboarding use cases; DynamoDB, Cognito, Secrets Manager, billing Lambda and API Gateway are
+onboarding use cases; DynamoDB, Cognito, KMS, billing Lambda and API Gateway are
 outbound adapters selected at startup. The status poll is a same-origin,
 CSRF-protected `POST`; the browser return never trusts Stripe query parameters and
 uses a top-level resume `POST` before the 303 to the registered AI callback.

@@ -20,7 +20,7 @@ The table is diagnostic coverage, not a requirement for a paid custom metric/ala
 |---|---|
 | REST gateway | Count, latency/integration latency, 4xx/5xx, throttling; separate expected authentication denial/429 from integration/authorizer failures |
 | Each Lambda | Errors, throttles, duration percentiles, concurrency and timeout-near-limit; structured cold-start observations where supported |
-| Access application | Login/code/refresh outcomes, unexpected signing/Secrets Manager failures, provisioning latency/pending age/retry exhaustion and failed readiness |
+| Access application | Login/code/refresh outcomes, unexpected signing/KMS failures, provisioning latency/pending age/retry exhaustion and failed readiness |
 | Billing application | Signature rejection, webhook commit failures/latency, duplicate-event outcomes, Stripe dependency failures/latency, reconciliation pending age and lease conflicts |
 | Billing SQS/Pipe/replay | Visible backlog, oldest message age, DLQ messages, failed/dropped Pipe deliveries, DLQ/redrive, replay failures and durable due-work age; do not claim immediate SQS enqueue-age visibility during its delay |
 | DynamoDB | Read/write throttles, system errors, latency and conditional/transaction conflicts categorized as expected race versus exhausted failure |

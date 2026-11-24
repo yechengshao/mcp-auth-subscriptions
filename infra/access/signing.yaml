@@ -1,36 +1,47 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Access JWT signing key in Secrets Manager. The private key is generated outside CloudFormation and supplied as a NoEcho parameter; only the access runtime role may read it.",
+  "Description": "Access JWT signing key: a retained RSA 2048 KMS key for RS256 signing. The private key never leaves KMS. Runtime grants (kms:Sign, kms:GetPublicKey on this key only) live in infra/access/runtime.yaml.",
   "Parameters": {
-    "SigningSecretName": {
+    "SigningKeyAlias": {
       "Type": "String",
-      "Default": "mcp-access/signing-key",
-      "AllowedPattern": "^[A-Za-z0-9/_+=.@-]{1,200}$"
-    },
-    "SigningKeyJson": {
-      "Type": "String",
-      "NoEcho": true,
-      "MinLength": 2,
-      "MaxLength": 4000,
-      "Description": "JSON object {\"version\": <integer>, \"private_key_pem\": \"<PKCS8 RSA PEM>\", \"public_jwk\": {\"kty\": \"RSA\", \"kid\": \"...\", \"alg\": \"RS256\", \"use\": \"sig\", \"n\": \"...\", \"e\": \"AQAB\"}}. Generated outside CloudFormation; never written to templates or chat."
+      "Default": "alias/mcp-access-signing",
+      "AllowedPattern": "^alias/[A-Za-z0-9/_-]{1,250}$"
     }
   },
   "Resources": {
-    "SigningSecret": {
-      "Type": "AWS::SecretsManager::Secret",
+    "SigningKey": {
+      "Type": "AWS::KMS::Key",
       "DeletionPolicy": "Retain",
       "UpdateReplacePolicy": "Retain",
       "Properties": {
-        "Name": { "Ref": "SigningSecretName" },
-        "Description": "Private RSA signing key for access service tokens. Read only by the access runtime role.",
-        "SecretString": { "Ref": "SigningKeyJson" }
+        "Description": "RS256 signing key for access service tokens. Sign and GetPublicKey are granted to the access runtime role only.",
+        "KeySpec": "RSA_2048",
+        "KeyUsage": "SIGN_VERIFY",
+        "Enabled": true,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Sid": "AccountAdministrationDelegatesToIam",
+            "Effect": "Allow",
+            "Principal": { "AWS": { "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root" } },
+            "Action": "kms:*",
+            "Resource": "*"
+          }]
+        }
+      }
+    },
+    "SigningKeyAliasResource": {
+      "Type": "AWS::KMS::Alias",
+      "Properties": {
+        "AliasName": { "Ref": "SigningKeyAlias" },
+        "TargetKeyId": { "Ref": "SigningKey" }
       }
     }
   },
   "Outputs": {
-    "SigningSecretArn": {
-      "Description": "Pass to infra/access/runtime.yaml as SigningSecretArn.",
-      "Value": { "Ref": "SigningSecret" }
+    "SigningKeyArn": {
+      "Description": "Pass to infra/access/runtime.yaml as SigningKeyArn and as keyArn in SigningConfigJson.",
+      "Value": { "Fn::GetAtt": ["SigningKey", "Arn"] }
     }
   }
 }

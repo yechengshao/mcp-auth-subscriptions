@@ -52,8 +52,13 @@ test('access HTTP runtime is digest-pinned, traced, and constrained to its three
   assert.deepEqual(entitlement?.Action, ['dynamodb:GetItem','dynamodb:ConditionCheckItem']);
   assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'lambda:InvokeFunction' &&
     JSON.stringify(value.Resource) === JSON.stringify({ Ref: 'BillingAliasArn' })));
-  assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'secretsmanager:GetSecretValue' &&
-    JSON.stringify(value.Resource) === JSON.stringify({ Ref: 'SigningSecretArn' })));
+  const sign = statements.find((value: Record<string, unknown>) => value.Action === 'kms:Sign');
+  const publicKey = statements.find((value: Record<string, unknown>) => value.Action === 'kms:GetPublicKey');
+  assert.deepEqual(sign?.Resource, { Ref: 'SigningKeyArn' });
+  assert.deepEqual(sign?.Condition, { StringEquals: { 'kms:SigningAlgorithm': 'RSASSA_PKCS1_V1_5_SHA_256' } });
+  assert.deepEqual(publicKey?.Resource, { Ref: 'SigningKeyArn' });
+  assert.equal(JSON.stringify(template).includes('secretsmanager'), false);
+  assert.equal(JSON.stringify(template).includes('SigningKmsKeyArn'), false);
   const functionProperties = template.Resources.Function.Properties;
   assert.equal(functionProperties.PackageType, 'Image');
   assert.deepEqual(functionProperties.Architectures, ['arm64']);
@@ -105,15 +110,19 @@ test('access provisioning retries and budgets are finite and bounded', async () 
   }
 });
 
-test('signing key template keeps one retained Secrets Manager secret fed by a NoEcho parameter', () => {
+test('signing key template creates one retained RSA 2048 signing key in KMS with no key material parameters', () => {
   const template = JSON.parse(readFileSync('infra/access/signing.yaml', 'utf8'));
-  assert.equal(template.Parameters.SigningKeyJson.NoEcho, true);
-  assert.equal(template.Parameters.SigningKeyJson.Default, undefined);
-  const secret = template.Resources.SigningSecret;
-  assert.equal(secret.Type, 'AWS::SecretsManager::Secret');
-  assert.equal(secret.DeletionPolicy, 'Retain');
-  assert.equal(secret.UpdateReplacePolicy, 'Retain');
-  assert.deepEqual(secret.Properties.SecretString, { Ref: 'SigningKeyJson' });
-  assert.deepEqual(template.Outputs.SigningSecretArn.Value, { Ref: 'SigningSecret' });
-  assert.equal(JSON.stringify(template).includes('AWS::SSM::Parameter'), false);
+  assert.equal(template.Parameters.SigningKeyJson, undefined);
+  const key = template.Resources.SigningKey;
+  assert.equal(key.Type, 'AWS::KMS::Key');
+  assert.equal(key.DeletionPolicy, 'Retain');
+  assert.equal(key.UpdateReplacePolicy, 'Retain');
+  assert.equal(key.Properties.KeySpec, 'RSA_2048');
+  assert.equal(key.Properties.KeyUsage, 'SIGN_VERIFY');
+  assert.deepEqual(key.Properties.KeyPolicy.Statement.map((value: Record<string, unknown>) => value.Action), ['kms:*']);
+  assert.equal(template.Resources.SigningKeyAliasResource.Type, 'AWS::KMS::Alias');
+  assert.deepEqual(template.Outputs.SigningKeyArn.Value, { 'Fn::GetAtt': ['SigningKey', 'Arn'] });
+  const text = JSON.stringify(template);
+  assert.equal(text.includes('AWS::SSM::Parameter'), false);
+  assert.equal(text.includes('secretsmanager'), false);
 });
