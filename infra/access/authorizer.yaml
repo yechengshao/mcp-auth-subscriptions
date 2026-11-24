@@ -15,6 +15,11 @@
       "Type": "String",
       "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,63}"
     },
+    "LogRetentionDays": {
+      "Type": "Number",
+      "AllowedValues": [3, 7, 14, 30, 60, 90],
+      "Default": 14
+    },
     "ArtifactBucket": {
       "Type": "String",
       "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
@@ -83,7 +88,17 @@
         ]
       }
     },
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/${FunctionName}" },
+        "RetentionInDays": { "Ref": "LogRetentionDays" }
+      }
+    },
     "Function": {
+      "DependsOn": "LogGroup",
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "FunctionName": {

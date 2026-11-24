@@ -11,6 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test --test-isolation=none dist/tests/access/*.test.js dist/tests/billing/*.test.js dist/tests/observability/*.test.js",
     "check": "npm run typecheck && npm test",
+    "test:access": "npm run build && node --test --test-isolation=none dist/tests/access/*.test.js",
+    "check:access": "npm run typecheck && npm run test:access",
     "render:observability": "npm run build && node dist/infra/observability/render.js",
     "render:billing-runtime": "npm run build && node dist/infra/billing/release.js",
     "render:authorizer": "npm run build && node dist/infra/access/release-authorizer.js",

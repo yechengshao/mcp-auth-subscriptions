@@ -273,3 +273,14 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - The signing config is now `{keyArn, kid, publicJwk}`. The public JWK comes from the key's `GetPublicKey` output, checked by the runtime at signing time. The `version` field is removed, since rotation means a new key and kid.
 - Contracts (`authorization.md`, `managed-infrastructure.md`, `observability.md`) and `docs/access-implementation.md` describe KMS. Suite: 285 passing.
 - Not yet done: deploying `signing.yaml`, deriving the public JWK from KMS and entering it in `SigningConfigJson`, the runtime deploy and the authorizer/JWKS wiring. These need your approval.
+
+## CI isolation, task DAG and review (2026-11-24)
+
+- `.github/workflows/test-access.yml` has an isolated `access` job: it requires both lockfiles, runs `npm run check:access` (typecheck plus the access suites), builds the authorizer package, tests the ZIP and lints `infra/access/*.yaml`. A `full` job keeps the complete check with billing and observability. Not yet run on GitHub.
+- `tests/access/ci_workflow.test.ts` fails if the access job loses its lockfile guard, its suite run, or its packaging order.
+- `tests/access/task_dag.test.ts` fails if a checked task depends on an unchecked task in this list, if a local dependency is missing, or if the list has a cycle. The check found T007 and T024 depending on T005. T005 is now checked: its templates, tables, authorizer and access functions and no-billing-write grants exist and are tested. Its deploy is not part of its task text and is tracked in the operator guide and T013.
+- Permission review: the only broad grants in `infra/access` are the KMS key-policy root delegation (`kms:*`, which hands key administration to IAM) and `ecr:GetAuthorizationToken` on `*`, which AWS only supports on `*`. Runtime and gateway grants are scoped to exact ARNs and conditions.
+- Retention review: the gap found was that neither the access runtime nor the authorizer Lambda created an explicit log group, so Lambda would create one with no expiry. Both templates now create a retained `/aws/lambda/<FunctionName>` group with `RetentionInDays` from a parameter (default 14), and the function depends on it. The gateway access-log group is also finite. Tested in `access_contract.test.ts`.
+- Privacy review: no `console` calls in `access/` or `authorizer/`. The usage key and signing material are only read by the token and binding code, and the redaction and log-shape tests cover their telemetry.
+- Suites: `npm run check` passes with 301 tests; cfn-lint passes on `infra/access/*.yaml`.
+- Live checks remain separate and `not_run`: GitHub execution of the workflow, real OAuth and code exchange, refresh, subscriber isolation, REST metering, recovery, and release identity (see the operator guide status table and T013).

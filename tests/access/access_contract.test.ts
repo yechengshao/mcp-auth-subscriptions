@@ -32,7 +32,7 @@ test('Cognito create-mode template retains a self-registering public code-flow c
 });
 test('prepared authorizer function has only the telemetry role and no public or service invoke surface', () => {
   const template = JSON.parse(readFileSync('infra/access/authorizer.yaml', 'utf8'));
-  assert.equal(Object.keys(template.Resources).length, 4);
+  assert.deepEqual(Object.keys(template.Resources).sort(), ['Alias', 'Function', 'LogGroup', 'Role', 'Version']);
   assert.deepEqual(template.Resources.Role.Properties.ManagedPolicyArns, [{ Ref: 'TelemetryPolicyArn' }]);
   assert.deepEqual(template.Resources.Function.Properties.Architectures, ['arm64']);
   const variables = Object.keys(template.Resources.Function.Properties.Environment.Variables);
@@ -158,4 +158,19 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
   assert.equal(template.Resources.Stage.Properties.MethodSettings[0].LoggingLevel, 'ERROR');
   assert.deepEqual([...template.Resources.Deployment.DependsOn].sort(), methods.map(([name]) => name).sort());
   assert.equal(template.Resources.GatewayUnauthorizedResponse.Properties.StatusCode, '401');
+});
+
+test('access Lambda functions each own a retained log group with finite retention, created before the function', () => {
+  for (const [file, functionName] of [['infra/access/runtime.yaml', 'Function'], ['infra/access/authorizer.yaml', 'Function']] as const) {
+    const template = JSON.parse(readFileSync(file, 'utf8'));
+    const group = template.Resources.LogGroup;
+    assert.equal(group.Type, 'AWS::Logs::LogGroup', file);
+    assert.equal(group.DeletionPolicy, 'Retain', file);
+    assert.deepEqual(group.Properties.LogGroupName, { 'Fn::Sub': '/aws/lambda/${FunctionName}' }, file);
+    assert.deepEqual(group.Properties.RetentionInDays, { Ref: 'LogRetentionDays' }, file);
+    const retention = template.Parameters.LogRetentionDays;
+    assert.equal(retention.Type, 'Number', file);
+    assert.equal(retention.AllowedValues.includes(0), false, file);
+    assert.equal(template.Resources[functionName].DependsOn, 'LogGroup', file);
+  }
 });
