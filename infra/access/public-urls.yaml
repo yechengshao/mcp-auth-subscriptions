@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Public issuer and MCP resource URLs for the access runtime, published to Parameter Store. Placeholders are UNSET until the real domain is known; the runtime refuses to start on a non-HTTPS value, so UNSET fails closed. Update by redeploying this stack with the real URLs.
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - development
+      - test
+      - production
+    Default: test
+  IssuerUrl:
+    Type: String
+    Default: UNSET
+    AllowedPattern: '^(UNSET|https://[^\s]{1,2000})$'
+    Description: Public HTTPS base URL that issues access tokens (the coordinator's issuer). UNSET until the domain is known.
+  ResourceUrl:
+    Type: String
+    Default: UNSET
+    AllowedPattern: '^(UNSET|https://[^\s]{1,2000}/mcp)$'
+    Description: Public HTTPS URL of the protected MCP resource, ending in /mcp. UNSET until the domain is known.
+Resources:
+  IssuerUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/issuer-url'
+      Type: String
+      Tier: Standard
+      Value: !Ref IssuerUrl
+      Description: Public access issuer URL read by the access runtime.
+  ResourceUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/resource-url'
+      Type: String
+      Tier: Standard
+      Value: !Ref ResourceUrl
+      Description: Public MCP resource URL read by the access runtime.
+Outputs:
+  IssuerUrlParameterName:
+    Value: !Ref IssuerUrlParameter
+  ResourceUrlParameterName:
+    Value: !Ref ResourceUrlParameter

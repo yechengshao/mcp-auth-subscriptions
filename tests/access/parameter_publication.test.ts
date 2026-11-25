@@ -94,6 +94,15 @@ test('the Cognito settings are published by the auth stack and read by the acces
   assert.equal(JSON.stringify(runtime.Parameters.AccessConfigJson).includes('cognito'), false);
 });
 
+test('public issuer and resource URLs are published as placeholders from a template, updated by redeploy not by hand', () => {
+  const template = readFileSync('infra/access/public-urls.yaml', 'utf8');
+  assert.match(template, /IssuerUrl:\n\s+Type: String\n\s+Default: UNSET/);
+  assert.match(template, /ResourceUrl:\n\s+Type: String\n\s+Default: UNSET/);
+  assert.match(template, /Name: !Sub '\/mcp\/\$\{Environment\}\/access\/issuer-url'/);
+  assert.match(template, /Name: !Sub '\/mcp\/\$\{Environment\}\/access\/resource-url'/);
+  assert.match(template, /AllowedPattern: '\^\(UNSET\|https:/);
+});
+
 test('gateway publishes its REST API ID and stage so billing can match plan mappings to this deployment', () => {
   const gateway = load('infra/access/gateway.yaml');
   assert.deepEqual(parameterOf(gateway, 'RestApiStageParameter').Name, { 'Fn::Sub': '/mcp/${Environment}/access-api/stage' });
