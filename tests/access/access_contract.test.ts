@@ -130,7 +130,11 @@ test('signing key template creates one retained RSA 2048 signing key in KMS with
 test('REST gateway: paid MCP and health are the only API-key methods, every route uses the intended alias, and HTTP API fields stay out', () => {
   const text = readFileSync('infra/access/gateway.yaml', 'utf8');
   const template = JSON.parse(text);
-  for (const forbidden of ['ProtocolType', 'PayloadFormatVersion', 'AutoDeploy', 'AWS::Lambda::Url', 'FunctionUrl', 'UsagePlan']) assert.equal(text.includes(forbidden), false);
+  for (const forbidden of ['ProtocolType', 'PayloadFormatVersion', 'AutoDeploy', 'AWS::Lambda::Url', 'FunctionUrl']) assert.equal(text.includes(forbidden), false);
+  const plans = Object.entries(template.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::ApiGateway::UsagePlan') as [string, any][];
+  assert.equal(plans.length, 1, 'exactly one usage plan, owned by the gateway stack');
+  assert.deepEqual(plans[0]![1].Properties.ApiStages, [{ ApiId: { Ref: 'RestApi' }, Stage: { Ref: 'StageName' } }]);
+  assert.equal(template.Outputs.BasicUsagePlanId.Value.Ref, plans[0]![0]);
   const methods = Object.entries(template.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::ApiGateway::Method') as [string, any][];
   assert.equal(methods.length, 26);
   const paid = methods.filter(([, value]) => value.Properties.AuthorizationType === 'CUSTOM').map(([name]) => name).sort();

@@ -52,7 +52,10 @@ sequence. The order that matters for dependencies is:
    the trusted `JwksUri` (`/jwks.json` on the access service).
 7. **Gateway.** Deploy `infra/access/gateway.yaml` with the service, access,
    billing webhook and authorizer alias ARNs, the metadata URL, and the stage name.
-   Native usage plans come from access provisioning, not from this template.
+   The gateway stack also creates the basic usage plan on the API stage and outputs
+   `BasicUsagePlanId` for the catalog. Access provisioning only attaches API keys to
+   that plan; it never creates usage plans. Throttle and quota must be added to the plan
+   from the approved catalog before selling.
 
 Each template is validated by `cfn-lint` in CI before deployment. Deploy inputs come
 from the publication workflows, never from local shells.

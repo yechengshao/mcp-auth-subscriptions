@@ -153,6 +153,15 @@
       "DependsOn": ["MLogin", "MAuthorize", "MCognitoCallback", "MOnboarding", "MOnboardingStatus", "MOnboardingResume", "MBilling", "MBillingPlans", "MBillingCheckout", "MBillingOrder", "MBillingReturn", "MBillingStatus", "MBillingManage", "MBillingPortal", "MLogout", "MRevoke", "MToken", "MJwks", "MWkProtectedResource", "MWkAuthServer", "MWkAuthServerPrefix", "MWkOpenId", "MWkOpenIdPrefix", "MStripeWebhook", "MMcp", "MHealth"],
       "Properties": { "RestApiId": { "Ref": "RestApi" }, "Description": { "Ref": "ReleaseId" } }
     },
+    "BasicUsagePlan": {
+      "Type": "AWS::ApiGateway::UsagePlan",
+      "DependsOn": ["Stage"],
+      "Properties": {
+        "UsagePlanName": { "Fn::Sub": "mcp-access-${StageName}-basic" },
+        "Description": "Paid API-key usage plan for the basic catalog entry. Throttle and quota are not set here; add them from the approved catalog before selling.",
+        "ApiStages": [{ "ApiId": { "Ref": "RestApi" }, "Stage": { "Ref": "StageName" } }]
+      }
+    },
     "Stage": {
       "Type": "AWS::ApiGateway::Stage",
       "Properties": {
@@ -171,6 +180,7 @@
   "Outputs": {
     "RestApiId": { "Value": { "Ref": "RestApi" } },
     "InvokeUrl": { "Value": { "Fn::Sub": "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}" } },
-    "McpUrl": { "Value": { "Fn::Sub": "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/mcp" } }
+    "McpUrl": { "Value": { "Fn::Sub": "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/mcp" } },
+    "BasicUsagePlanId": { "Value": { "Ref": "BasicUsagePlan" } }
   }
 }
