@@ -178,7 +178,7 @@ deployments, including the failure cases.
 | Billing storage stack `mcp-billing-storage` (tables, policies, stream) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Observability stack `mcp-observability-test` (log groups, telemetry policies, X-Ray sampling rule; alarms and dashboard off) | Performed (`CREATE_COMPLETE`, 2026-11-25). Gateway log groups use placeholder REST API ID `pending`; update with the real ID after the gateway is deployed |
 | Billing publication stack and image `billing-2026-11-24.4` | Performed (publish run 45482349557) |
-| Billing storage, runtime and alias | Not performed; needs approval |
+| Billing runtime stack `mcp-billing-test` (live alias `mcp-billing-test:live`, queue, DLQ, Pipe, replay; delivery disabled; no reserved concurrency) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Access runtime stack | Not performed; needs approval |
 | Authorizer stack | Not performed; needs approval |
 | REST gateway stack | Not performed; template written and validated locally |
