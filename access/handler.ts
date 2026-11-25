@@ -13,6 +13,7 @@ import { createOAuthExtension } from './http/oauth-extension.js';
 import { AccessTokens } from './tokens.js';
 import { createServiceTokenSigner, createSigningKeyCache, kmsSigningBackend, type SigningConfiguration } from './signing.js';
 import { BillingAliasInvoker } from './adapters/billing.js';
+import { createBillingAliasResolver } from './billing-alias.js';
 import { createUsageBindingProvisioner, type AccessProvisioningConfiguration } from './provisioning.js';
 import { Onboarding } from './onboarding.js';
 import { Management } from './management.js';
@@ -33,7 +34,7 @@ function configuredJson(environmentName: string, pathName: string): unknown {
 }
 function assertRuntimeEnvironmentSize(source: Record<string, string | undefined>) {
   const keys = ['MCP_SERVICE', 'MCP_ENVIRONMENT', 'MCP_RELEASE', 'ACCESS_STATE_TABLE', 'BILLING_ENTITLEMENTS_TABLE',
-    'ACCESS_AWS_ACCOUNT_ID', 'ACCESS_BILLING_LAMBDA_ALIAS_ARN', 'ACCESS_CONFIG_JSON', 'ACCESS_PUBLIC_JWKS_JSON',
+    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_CONFIG_JSON', 'ACCESS_PUBLIC_JWKS_JSON',
     'ACCESS_SIGNING_CONFIG_JSON', 'ACCESS_PROVISIONING_CONFIG_JSON', 'ACCESS_TOKEN_TTL_SECONDS'];
   const size = keys.reduce((total, key) => total + Buffer.byteLength(key) + Buffer.byteLength(source[key] ?? '') + 2, 0);
   if (size > 3800) throw new Error('invalid_access_configuration');
@@ -65,8 +66,8 @@ export async function handler(event: unknown, context: InvocationContext) {
       const state = process.env.ACCESS_STATE_TABLE, entitlements = process.env.BILLING_ENTITLEMENTS_TABLE;
       const signingConfigured = process.env.ACCESS_SIGNING_CONFIG_JSON !== undefined || process.env.ACCESS_SIGNING_CONFIG_PATH !== undefined;
       const provisioningConfigured = process.env.ACCESS_PROVISIONING_CONFIG_JSON !== undefined || process.env.ACCESS_PROVISIONING_CONFIG_PATH !== undefined;
-      const billingAliasArn = process.env.ACCESS_BILLING_LAMBDA_ALIAS_ARN, accountId = process.env.ACCESS_AWS_ACCOUNT_ID;
-      if (!state || !entitlements || !signingConfigured || !provisioningConfigured || !billingAliasArn || !accountId) {
+      const accountId = process.env.ACCESS_AWS_ACCOUNT_ID, billingAliasParameter = process.env.BILLING_ALIAS_PARAMETER_NAME;
+      if (!state || !entitlements || !signingConfigured || !provisioningConfigured || !accountId || !billingAliasParameter) {
         throw new Error('invalid_access_configuration');
       }
       const config = validateAccessConfiguration(configuredJson('ACCESS_CONFIG_JSON', 'ACCESS_CONFIG_PATH') as AccessConfiguration);
@@ -83,6 +84,7 @@ export async function handler(event: unknown, context: InvocationContext) {
         ...trust, accessTtlSeconds: Number(process.env.ACCESS_TOKEN_TTL_SECONDS ?? '3600'),
         restApiId: provisioning.target.rest_api_id, stage: provisioning.target.stage,
       }, telemetry);
+      const billingAliasArn = await createBillingAliasResolver(billingAliasParameter, accountId)();
       const billing = new BillingAliasInvoker(telemetry, { environment: config.environment, accountId, aliasArn: billingAliasArn });
       const provisioner = createUsageBindingProvisioner(store, telemetry, provisioning);
       const onboarding = new Onboarding(store, billing, provisioner, telemetry);

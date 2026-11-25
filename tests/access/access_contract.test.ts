@@ -53,7 +53,10 @@ test('access HTTP runtime is digest-pinned, traced, and constrained to its three
   assert.deepEqual(state?.Action, ['dynamodb:GetItem','dynamodb:PutItem','dynamodb:ConditionCheckItem']);
   assert.deepEqual(entitlement?.Action, ['dynamodb:GetItem','dynamodb:ConditionCheckItem']);
   assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'lambda:InvokeFunction' &&
-    JSON.stringify(value.Resource) === JSON.stringify({ Ref: 'BillingAliasArn' })));
+    JSON.stringify(value.Resource) === JSON.stringify({ 'Fn::Sub': 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:mcp-billing-${Environment}:live' })));
+  assert.ok(statements.some((value: Record<string, unknown>) => value.Action === 'ssm:GetParameter' &&
+    JSON.stringify(value.Resource) === JSON.stringify({ 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/billing/alias-arn' })));
+  assert.equal(JSON.stringify(template).includes('BillingAliasArn'), false);
   const sign = statements.find((value: Record<string, unknown>) => value.Action === 'kms:Sign');
   const publicKey = statements.find((value: Record<string, unknown>) => value.Action === 'kms:GetPublicKey');
   assert.deepEqual(sign?.Resource, { Ref: 'SigningKeyArn' });

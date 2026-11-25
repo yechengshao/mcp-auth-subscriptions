@@ -36,10 +36,6 @@
     "TelemetryPolicyArn": {
       "Type": "String"
     },
-    "BillingAliasArn": {
-      "Type": "String",
-      "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*"
-    },
     "SigningKeyArn": {
       "Type": "String",
       "AllowedPattern": "arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -139,7 +135,14 @@
                   "Effect": "Allow",
                   "Action": "lambda:InvokeFunction",
                   "Resource": {
-                    "Ref": "BillingAliasArn"
+                    "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:mcp-billing-${Environment}:live"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/billing/alias-arn"
                   }
                 },
                 {
@@ -244,20 +247,10 @@
               "Ref": "EntitlementTableName"
             },
             "ACCESS_AWS_ACCOUNT_ID": {
-              "Fn::Select": [
-                4,
-                {
-                  "Fn::Split": [
-                    ":",
-                    {
-                      "Ref": "BillingAliasArn"
-                    }
-                  ]
-                }
-              ]
+              "Ref": "AWS::AccountId"
             },
-            "ACCESS_BILLING_LAMBDA_ALIAS_ARN": {
-              "Ref": "BillingAliasArn"
+            "BILLING_ALIAS_PARAMETER_NAME": {
+              "Fn::Sub": "/mcp/${Environment}/billing/alias-arn"
             },
             "ACCESS_CONFIG_JSON": {
               "Ref": "AccessConfigJson"
