@@ -82,6 +82,18 @@ test('access runtime reads the REST API ID from SSM at runtime instead of taking
   assert.equal(JSON.stringify(runtime).includes('"Ref":"RestApiId"'), false);
 });
 
+test('the Cognito settings are published by the auth stack and read by the access runtime, not passed in AccessConfigJson', () => {
+  const auth = readFileSync('infra/access/auth.yaml', 'utf8');
+  assert.match(auth, /Environment:\n\s+Type: String\n\s+AllowedValues:\n\s+- development\n\s+- test\n\s+- production/);
+  assert.match(auth, /CognitoIssuerParameter:[\s\S]*?Name: !Sub '\/mcp\/\$\{Environment\}\/access\/cognito-issuer'/);
+  assert.match(auth, /CognitoClientIdParameter:[\s\S]*?Value: !Ref PublicOAuthClient/);
+  assert.match(auth, /CognitoCallbackParameter:[\s\S]*?Value: !Ref CoordinatorCallbackUri/);
+  const runtime = load('infra/access/runtime.yaml');
+  const vars = runtime.Resources.Function.Properties.Environment.Variables;
+  assert.deepEqual(vars.ACCESS_COGNITO_DOMAIN_PARAMETER, { 'Fn::Sub': '/mcp/${Environment}/access/cognito-domain' });
+  assert.equal(JSON.stringify(runtime.Parameters.AccessConfigJson).includes('cognito'), false);
+});
+
 test('gateway publishes its REST API ID and stage so billing can match plan mappings to this deployment', () => {
   const gateway = load('infra/access/gateway.yaml');
   assert.deepEqual(parameterOf(gateway, 'RestApiStageParameter').Name, { 'Fn::Sub': '/mcp/${Environment}/access-api/stage' });

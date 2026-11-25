@@ -163,6 +163,18 @@
                     },
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access-api/stage"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/cognito-issuer"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/cognito-client-id"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/cognito-domain"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/cognito-callback-uri"
                     }
                   ]
                 },
@@ -259,6 +271,18 @@
             },
             "ACCESS_SIGNING_KEY_ARN_PARAMETER": {
               "Fn::Sub": "/mcp/${Environment}/access/signing-key-arn"
+            },
+            "ACCESS_COGNITO_ISSUER_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/cognito-issuer"
+            },
+            "ACCESS_COGNITO_CLIENT_ID_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/cognito-client-id"
+            },
+            "ACCESS_COGNITO_DOMAIN_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/cognito-domain"
+            },
+            "ACCESS_COGNITO_CALLBACK_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/cognito-callback-uri"
             },
             "ACCESS_STAGE_PARAMETER": {
               "Fn::Sub": "/mcp/${Environment}/access-api/stage"

@@ -35,6 +35,8 @@ sequence. The order that matters for dependencies is:
 1. **Identity.** Deploy `infra/access/auth.yaml` with the registered callback and
    logout URLs for the coordinator. The Google client secret is a `NoEcho` deploy
    input, never a template value.
+   It also publishes the Cognito issuer, client ID, hosted domain and callback URI to
+   `/mcp/<env>/access/cognito-*`, which the access runtime reads at startup.
 2. **Signing key.** Deploy `infra/access/signing.yaml`. Read `SigningKeyArn` from
    its output. The stack publishes only the key ARN, to
    `/mcp/<env>/access/signing-key-arn`. No public key is stored or entered by hand:
@@ -44,7 +46,8 @@ sequence. The order that matters for dependencies is:
 4. **Billing alias.** Deploy billing with its live alias. Access cannot invoke it
    until the alias exists.
 5. **Access runtime.** Deploy `infra/access/runtime.yaml` with `SigningKeyArn`, the
-   billing alias ARN, the table ARNs, `AccessConfigJson`.
+   billing alias ARN, the table ARNs, `AccessConfigJson` (clients and the coordinator's own
+   settings; Cognito values come from SSM, not this JSON).
    The signing key comes from the SSM parameter `/mcp/<env>/access/signing-key-arn`
    at runtime, so the runtime takes no public JWK input. The REST API ID comes from
    `/mcp/<env>/access-api/rest-api-id`, which the gateway stack publishes, so the

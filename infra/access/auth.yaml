@@ -1,6 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Create-mode Cognito hosted-login pool and public S256 OAuth client for Access. Existing pools require a read-only compatibility review before reuse.
 Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - development
+      - test
+      - production
+    Default: test
   UserPoolName:
     Type: String
     MinLength: 1
@@ -99,6 +106,39 @@ Resources:
         email: email
         email_verified: email_verified
         username: sub
+  CognitoIssuerParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/cognito-issuer'
+      Type: String
+      Tier: Standard
+      Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+      Description: Cognito user pool issuer read by the access runtime.
+  CognitoClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/cognito-client-id'
+      Type: String
+      Tier: Standard
+      Value: !Ref PublicOAuthClient
+      Description: Public Cognito OAuth client ID (not secret).
+  CognitoDomainParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/cognito-domain'
+      Type: String
+      Tier: Standard
+      Value: !Sub 'https://${DomainPrefix}.auth.${AWS::Region}.amazoncognito.com'
+      Description: Cognito hosted login domain read by the access runtime.
+  CognitoCallbackParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/cognito-callback-uri'
+      Type: String
+      Tier: Standard
+      Value: !Ref CoordinatorCallbackUri
+      Description: Coordinator callback URI registered with the Cognito client.
+
 Outputs:
   UserPoolId:
     Value: !Ref UserPool
