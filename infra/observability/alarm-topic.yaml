@@ -2,6 +2,11 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "SNS topic for billing and access alarms with one email subscription. The address is a deploy input; AWS sends a confirmation email that must be clicked before alarms are delivered.",
   "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": ["development", "test", "production"],
+      "Default": "test"
+    },
     "TopicName": {
       "Type": "String",
       "AllowedPattern": "^[A-Za-z0-9_-]{1,200}$",
@@ -29,11 +34,24 @@
         "Protocol": "email",
         "Endpoint": { "Ref": "AlarmEmail" }
       }
+    },
+    "AlarmTopicArnParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": { "Fn::Sub": "/mcp/${Environment}/alarms/topic-arn" },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": { "Ref": "AlarmTopic" },
+        "Description": "Alarm notification topic ARN."
+      }
     }
   },
   "Outputs": {
     "AlarmTopicArn": {
       "Value": { "Ref": "AlarmTopic" }
+    },
+    "AlarmTopicArnParameterName": {
+      "Value": { "Ref": "AlarmTopicArnParameter" }
     }
   }
 }

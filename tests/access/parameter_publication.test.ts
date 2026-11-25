@@ -29,6 +29,13 @@ test('billing storage publishes table names and stream ARN for later consumers, 
   assert.deepEqual(parameterOf(storage, 'StateStreamArnParameter').Value, { 'Fn::GetAtt': ['BillingState', 'StreamArn'] });
 });
 
+test('alarm topic publishes its ARN under the shared convention', () => {
+  const alarms = load('infra/observability/alarm-topic.yaml');
+  assert.deepEqual(alarms.Parameters.Environment.AllowedValues, ['development', 'test', 'production']);
+  assert.deepEqual(parameterOf(alarms, 'AlarmTopicArnParameter').Name, { 'Fn::Sub': '/mcp/${Environment}/alarms/topic-arn' });
+  assert.deepEqual(parameterOf(alarms, 'AlarmTopicArnParameter').Value, { Ref: 'AlarmTopic' });
+});
+
 test('access storage and signing publish their table name and signing key ARN under the shared convention', () => {
   const signing = load('infra/access/signing.yaml');
   assert.deepEqual(signing.Parameters.Environment.AllowedValues, ['development', 'test', 'production']);
