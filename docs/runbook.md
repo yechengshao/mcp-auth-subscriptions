@@ -17,6 +17,14 @@ account-specific values: fill those in from your own account.
 - Every live action needs explicit approval. Record each approval, the stack name and
   the outputs in your deployment log.
 
+## 0a. Parameter naming
+
+Stacks that produce a value other stacks need publish it as an SSM String parameter
+named `/mcp/<environment>/<component>/<name>`, for example `/mcp/test/billing/alias-arn`.
+Consumers read the parameter by name instead of receiving the value at deploy time.
+Parameters are created by the same template that owns the resource, so they change
+with it. Only non-secret values belong here; secrets stay in SecureString parameters.
+
 ## 1. Inputs to collect
 
 Replace these values per account. Nothing here is copied from this project.

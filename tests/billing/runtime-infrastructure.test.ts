@@ -63,3 +63,12 @@ test('billing runtime grants no invoke permission to the access role; access cal
   const permissions = Object.values(template.Resources).filter((value: any) => value.Type === 'AWS::Lambda::Permission');
   assert.deepEqual(permissions.map((value: any) => value.Properties.Principal), ['events.amazonaws.com']);
 });
+
+test('billing runtime publishes its live alias ARN under the shared /mcp/<environment>/<component>/<name> convention', () => {
+  const template = JSON.parse(readFileSync('infra/billing/runtime.yaml', 'utf8'));
+  const parameter = template.Resources.AliasParameter;
+  assert.equal(parameter.Type, 'AWS::SSM::Parameter');
+  assert.deepEqual(parameter.Properties.Name, { 'Fn::Sub': '/mcp/${Environment}/billing/alias-arn' });
+  assert.deepEqual(parameter.Properties.Value, { Ref: 'Alias' });
+  assert.equal(parameter.Properties.Type, 'String');
+});

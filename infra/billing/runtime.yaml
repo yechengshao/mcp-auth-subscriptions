@@ -619,6 +619,20 @@
           ]
         }
       }
+    },
+    "AliasParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/billing/alias-arn"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "Alias"
+        },
+        "Description": "Billing live alias ARN. Consumers read this parameter instead of receiving the ARN at deploy time."
+      }
     }
   },
   "Outputs": {
@@ -691,6 +705,11 @@
     "BillingPipeName": {
       "Value": {
         "Fn::Sub": "${FunctionName}-reconcile"
+      }
+    },
+    "BillingAliasParameterName": {
+      "Value": {
+        "Fn::Sub": "/mcp/${Environment}/billing/alias-arn"
       }
     }
   }
