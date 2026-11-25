@@ -85,7 +85,8 @@ test('access Lambda image uses the managed runtime, production install and exclu
   assert.match(dockerfile, /\/app\/dist\/billing\/contracts/);
   assert.doesNotMatch(dockerfile, /\/app\/dist \.\/dist/);
   assert.match(dockerfile, /dist\/access\/handler\.handler/);
-  assert.match(readFileSync('infra/access/runtime.yaml', 'utf8'), /@sha256:\[a-f0-9\]/);
+  // The image URI is read from SSM at deploy time; the workflow only writes a digest-pinned URI there.
+  assert.match(readFileSync('infra/access/runtime.yaml', 'utf8'), /"Type": "AWS::SSM::Parameter::Value<String>"/);
   assert.match(readFileSync('access/Dockerfile.dockerignore', 'utf8'), /node_modules/);
 });
 test('access templates use no cross-stack imports, so stack outputs reach other stacks only as parameters', () => {

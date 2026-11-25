@@ -97,6 +97,12 @@ jobs:
           mkdirSync('.artifacts', { recursive: true });
           writeFileSync(`.artifacts/access-release-${process.env.RELEASE_TAG}.json`, `${JSON.stringify(evidence, null, 2)}\n`);
           NODE
+      - name: Publish the tested image URI to SSM
+        env:
+          IMAGE_URI: ${{ vars.ACCESS_ECR_REPOSITORY_URI }}@${{ steps.build.outputs.digest }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/access/image-uri" --type String --value "$IMAGE_URI" --overwrite
       - uses: actions/upload-artifact@v4
         with:
           name: access-release-${{ inputs.release_tag }}

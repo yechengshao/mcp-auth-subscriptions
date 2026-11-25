@@ -16,8 +16,9 @@
       "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,47}"
     },
     "ImageUri": {
-      "Type": "String",
-      "AllowedPattern": "[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9_./-]+@sha256:[a-f0-9]{64}"
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/image-uri",
+      "Description": "SSM parameter holding the tested access image URI (published by the publish workflow)."
     },
     "StateTableName": {
       "Type": "String"

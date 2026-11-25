@@ -102,3 +102,26 @@ test('access image is pushed as one ARM64 manifest without attestation manifests
   const workflow = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
   assert.match(workflow, /platforms: linux\/arm64\n\s+push: true\n\s+provenance: false\n\s+sbom: false/);
 });
+
+test('the access publisher may write only the tested image URI parameter, after the smoke test passes', () => {
+  const statements = template.Resources.AccessPublisherRole.Properties.Policies[0].PolicyDocument.Statement;
+  assert.deepEqual(statements[2], {
+    Effect: 'Allow', Action: 'ssm:PutParameter',
+    Resource: { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/image-uri' },
+  });
+  const parameter = template.Resources.AccessImageUriParameter;
+  assert.equal(parameter.Type, 'AWS::SSM::Parameter');
+  assert.deepEqual(parameter.Properties.Name, { 'Fn::Sub': '/mcp/${Environment}/access/image-uri' });
+  assert.equal(parameter.Properties.Value, 'unpublished');
+  const workflow = readFileSync('.github/workflows/publish-access-image.yml', 'utf8');
+  const smoke = workflow.indexOf('docker run --rm --platform linux/arm64');
+  const write = workflow.indexOf('aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/access/image-uri" --type String --value "$IMAGE_URI" --overwrite');
+  const upload = workflow.indexOf('uses: actions/upload-artifact@v4');
+  assert.ok(smoke > 0 && write > smoke && upload > write, 'smoke test, then SSM write, then upload');
+});
+
+test('the access runtime reads its image URI from SSM at deploy time', () => {
+  const runtime = JSON.parse(readFileSync('infra/access/runtime.yaml', 'utf8'));
+  assert.equal(runtime.Parameters.ImageUri.Type, 'AWS::SSM::Parameter::Value<String>');
+  assert.equal(runtime.Parameters.ImageUri.Default, '/mcp/test/access/image-uri');
+});
