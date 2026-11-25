@@ -307,3 +307,12 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Observability still owns the access, authorizer and billing function log groups, the API Gateway execution log group, the telemetry policies, alarms and dashboard. Runtime and authorizer templates still create no log groups.
 - Not yet deployed. The `/aws/apigateway/pending/test/access` group created by the earlier observability deploy must be removed manually after observability is redeployed (it is no longer declared, and `Retain` keeps it).
 - Suite: 330 passing (Node 24); `cfn-lint` passes on `gateway.yaml` and the regenerated observability template.
+
+## Signing public key derived at runtime from the ARN (2026-11-25)
+
+- `infra/access/signing.yaml` publishes only the key ARN (`/mcp/<env>/access/signing-key-arn`). CloudFormation has no native attribute for a KMS public key, so no public key is stored in SSM and no custom resource is used.
+- The access runtime reads that ARN with `ssm:GetParameter` (Standard String, so no `kms:Decrypt`), calls `kms:GetPublicKey` on it, and converts the SubjectPublicKeyInfo to a JWK with `jose`. The `kid` is derived from the public key, so it is stable for a given key.
+- The JWK is cached in execution-environment memory keyed by ARN. A cache miss (cold start or a changed ARN) fetches and caches; later requests use the cached JWK with no AWS call. Failed fetches are not cached.
+- `infra/access/runtime.yaml` now grants `ssm:GetParameter` on the signing-key-arn parameter and sets `ACCESS_SIGNING_KEY_ARN_PARAMETER`.
+- Superseded: the pinned `publicJwk` in `SigningConfigJson`, the `PublicJwksJson` runtime input, and the 300-second KMS re-check. The code change to `access/signing.ts`, `access/handler.ts`, `access/app.ts` and their tests is still pending; the runtime template still accepts `PublicJwksJson` and `SigningConfigJson` until that change lands.
+- Not deployed. Runtime deploy needs your approval.

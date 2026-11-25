@@ -181,20 +181,22 @@ operation/correlation/native AWS tracking metadata, never bearer/usage keys.
 
 ## Signing and state adapters
 
-The access signer accepts only an exact KMS key ARN, the matching public kid and the
-public JWK supplied by deployment configuration. `infra/access/signing.yaml` creates a
-retained RSA 2048 `SIGN_VERIFY` key with alias `alias/mcp-access-signing`; no operator
-generates or handles private key material. `kmsSigningBackend` calls `GetPublicKey`
-to verify the configured public JWK and `Sign` (`RSASSA_PKCS1_V1_5_SHA_256`,
-`MessageType` `DIGEST`) for each token, sending only a SHA-256 digest of the JWS
+The access signer accepts only an exact KMS key ARN. `infra/access/signing.yaml` creates a
+retained RSA 2048 `SIGN_VERIFY` key with alias `alias/mcp-access-signing` and publishes
+its ARN to `/mcp/<env>/access/signing-key-arn`; no operator generates or handles private
+key material. At runtime the access service reads that ARN, calls `GetPublicKey` on it,
+derives the public JWK and a stable `kid`, and caches the JWK in execution-environment
+memory keyed by ARN (no time-based refresh; a changed ARN is a cache miss). A failed
+fetch is not cached and fails the request. `Sign` (`RSASSA_PKCS1_V1_5_SHA_256`,
+`MessageType` `DIGEST`) runs for each token, sending only a SHA-256 digest of the JWS
 signing input. IAM grants belong to access alone: `kms:Sign` (conditioned on the
-algorithm) and `kms:GetPublicKey` on the exact key ARN.
+algorithm), `kms:GetPublicKey` on the exact key ARN, and `ssm:GetParameter` on
+`/mcp/<env>/access/signing-key-arn`. The parameter is a Standard String, so no
+`kms:Decrypt` is needed.
 
-Only the public-key verification result is cached, in execution-environment memory,
-for at most 300 seconds. Concurrent checks share one three-second attempt, and each
-KMS call has the same deadline. A cache refresh failure stops signing; it never
-silently signs after a mismatched or expired check. Public-key publishing uses the
-configured public JWK and does not call KMS.
+Concurrent public-key fetches share one three-second attempt, and each KMS call has the
+same deadline. A failed fetch stops signing and publishing; it never signs with a stale
+or unverified key. Public-key publishing uses the JWK derived from the same ARN.
 Signing is **not** proof of paid eligibility: `AccessTokens` validates code/grant,
 entitlement and configured binding, then commits consumption/rotation with current
 revision guards before releasing credentials. Do not consume a credential just to

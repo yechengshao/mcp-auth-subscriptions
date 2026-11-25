@@ -85,7 +85,7 @@ every output, including ARNs.
 |---|---|---|---|
 | 1 | `infra/access/auth.yaml` | Cognito and identity | User pool and client IDs, issuer |
 | 2 | `infra/access/signing.yaml` | KMS RS256 signing key | `SigningKeyArn`, `kid` |
-| 3 | Derive the public JWK from `SigningKeyArn` | Public key (not secret) | `publicJwk` for `SigningConfigJson` and `PublicJwksJson` |
+| 3 | Read `SigningKeyArn` from the signing stack output (or `/mcp/<env>/access/signing-key-arn`) | Key ARN (not secret) | Nothing to enter; the runtime derives the public JWK from the ARN |
 | 4 | `infra/billing/storage.yaml` | Billing and entitlement tables | `BillingStateName`, `BillingEntitlementsName`, `BillingStreamArn`, `BillingStoragePolicyArn`, `BillingStreamReadPolicyArn` |
 | 5 | `infra/billing/catalog.yaml` | Nonsecret catalog parameter | `CatalogName`, `CatalogParameterArn` |
 | 6 | `infra/observability/template.json` | Log groups, alarms, dashboard | `BillingTelemetryPolicyArn`, `LambdaTracingMode` |

@@ -58,6 +58,19 @@ test('access runtime and authorizer set no reserved concurrency until the accoun
   }
 });
 
+test('access runtime reads the signing key ARN from SSM and derives the public JWK from KMS, with no stored public key', () => {
+  const runtime = load('infra/access/runtime.yaml');
+  const statements = runtime.Resources.Role.Properties.Policies[0].PolicyDocument.Statement;
+  const ssmRead = statements.find((s: any) => s.Action === 'ssm:GetParameter' &&
+    JSON.stringify(s.Resource).includes('/access/signing-key-arn'));
+  assert.deepEqual(ssmRead.Resource, { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/signing-key-arn' });
+  assert.ok(statements.some((s: any) => s.Action === 'kms:GetPublicKey' && s.Resource.Ref === 'SigningKeyArn'));
+  assert.deepEqual(runtime.Resources.Function.Properties.Environment.Variables.ACCESS_SIGNING_KEY_ARN_PARAMETER,
+    { 'Fn::Sub': '/mcp/${Environment}/access/signing-key-arn' });
+  const signing = load('infra/access/signing.yaml');
+  assert.equal(Object.values<any>(signing.Resources).some(r => r.Type === 'AWS::SSM::Parameter' && JSON.stringify(r).includes('PublicKey')), false);
+});
+
 test('gateway resolves producer aliases from SSM at deploy time instead of taking ARNs', () => {
   const gateway = load('infra/access/gateway.yaml');
   const expected: Record<string, string> = {

@@ -167,6 +167,13 @@
                 },
                 {
                   "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/signing-key-arn"
+                  }
+                },
+                {
+                  "Effect": "Allow",
                   "Action": "apigateway:POST",
                   "Resource": {
                     "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/apikeys"
@@ -264,6 +271,9 @@
             },
             "ACCESS_PROVISIONING_CONFIG_JSON": {
               "Ref": "ProvisioningConfigJson"
+            },
+            "ACCESS_SIGNING_KEY_ARN_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/signing-key-arn"
             },
             "ACCESS_TOKEN_TTL_SECONDS": {
               "Ref": "TokenTtlSeconds"

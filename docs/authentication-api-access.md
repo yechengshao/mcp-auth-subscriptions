@@ -36,18 +36,18 @@ sequence. The order that matters for dependencies is:
    logout URLs for the coordinator. The Google client secret is a `NoEcho` deploy
    input, never a template value.
 2. **Signing key.** Deploy `infra/access/signing.yaml`. Read `SigningKeyArn` from
-   its output. Derive the public JWK with `aws kms get-public-key --key-id <arn>`
-   and convert the DER SubjectPublicKeyInfo to a JWK. The public key is not secret,
-   and the runtime pins it.
+   its output. The stack publishes only the key ARN, to
+   `/mcp/<env>/access/signing-key-arn`. No public key is stored or entered by hand:
+   the runtime reads the ARN, calls `kms:GetPublicKey`, and derives the JWK itself.
 3. **Storage.** Deploy `infra/access/storage.yaml` (access tables) and the billing
    storage that the entitlement table lives in.
 4. **Billing alias.** Deploy billing with its live alias. Access cannot invoke it
    until the alias exists.
 5. **Access runtime.** Deploy `infra/access/runtime.yaml` with `SigningKeyArn`, the
-   billing alias ARN, the table ARNs, and the four JSON inputs:
-   `AccessConfigJson`, `PublicJwksJson`, `SigningConfigJson` (`keyArn`, `kid`,
-   `publicJwk`), and `ProvisioningConfigJson`. The runtime refuses to start without
-   the signing and billing configuration.
+   billing alias ARN, the table ARNs, `AccessConfigJson` and `ProvisioningConfigJson`.
+   The signing key comes from the SSM parameter `/mcp/<env>/access/signing-key-arn`
+   at runtime, so the runtime takes no public JWK input. The runtime refuses to start
+   without the signing and billing configuration.
 6. **Authorizer.** Deploy `infra/access/authorizer.yaml` from the published ZIP with
    the trusted `JwksUri` (`/jwks.json` on the access service).
 7. **Gateway.** Deploy `infra/access/gateway.yaml` with the service, access,
@@ -64,12 +64,18 @@ from the publication workflows, never from local shells.
 
 - The coordinator signs RS256 JWTs with `kms:Sign` over a SHA-256 digest of the JWS
   signing input. The private key never leaves KMS.
-- Before each signing, the coordinator checks `kms:GetPublicKey` against the pinned
-  `publicJwk` and fails closed on mismatch. The check is cached for at most 300 seconds.
-- Rotation: create a new key stack, publish its public JWK alongside the old one in
-  `PublicJwksJson`, then switch `SigningConfigJson` to the new `keyArn` and `kid`.
-  Keep the old public key published until every token it signed has expired (one hour
-  plus the permitted clock skew).
+- The runtime reads the key ARN from `/mcp/<env>/access/signing-key-arn`, then calls
+  `kms:GetPublicKey` on that ARN and converts the SubjectPublicKeyInfo to a JWK.
+  The public key is cached in execution-environment memory, keyed by ARN. A cache
+  miss (cold start or changed ARN) fetches and caches; later requests use the cached
+  JWK with no AWS call. Failed fetches are not cached.
+- The `kid` is derived from the public key, so the same key always has the same `kid`.
+- Signing and the published JWKS use the same ARN, so they cannot diverge within one
+  deployment. The `kms:GetPublicKey` check before signing is the cached one above.
+- Rotation: create a new key stack, switch `/mcp/<env>/access/signing-key-arn` (or the
+  stack that writes it) to the new ARN, and redeploy the runtime. Publish the old and
+  new JWKs side by side during the overlap, and keep the old public key published until
+  every token it signed has expired (one hour plus the permitted clock skew).
 - Rollback: switch the configuration back. The retained KMS key remains usable, so
   unexpired tokens stay verifiable.
 
@@ -173,7 +179,7 @@ deployments, including the failure cases.
 | Access image publication (ECR, immutable, scanned) | Performed earlier, with accepted base-image findings |
 | Authorizer ZIP publication | Performed earlier |
 | Signing key stack `mcp-access-signing` | Performed (`CREATE_COMPLETE`); key ARN recorded |
-| Public JWK in `SigningConfigJson` and `PublicJwksJson` | Derived; not yet deployed to any runtime |
+| Public JWK | Not configured; derived at runtime from the ARN in `/mcp/<env>/access/signing-key-arn` (cached by ARN) |
 | Storage stack for access tables `mcp-access-storage` | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Billing storage stack `mcp-billing-storage` (tables, policies, stream) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Observability stack `mcp-observability-test` (log groups, telemetry policies, X-Ray sampling rule; alarms and dashboard off) | Performed (`CREATE_COMPLETE`, 2026-11-25). Gateway log groups use placeholder REST API ID `pending`; update with the real ID after the gateway is deployed |
