@@ -1317,6 +1317,20 @@
         },
         "Description": "REST API ID for observability and the access gateway log group."
       }
+    },
+    "RestApiStageParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/access-api/stage"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "StageName"
+        },
+        "Description": "Deployed gateway stage name. Billing reads it to match plan mappings to this deployment."
+      }
     }
   },
   "Outputs": {

@@ -153,7 +153,7 @@ Procedure, per billing plan:
 Rules after publication:
 - Never edit the metadata of a price that has been used for a quote or purchase. To change a mapping, create a new price with the new metadata, set the old price to inactive, and leave it in place for existing orders.
 - Deactivate a plan by setting its `enabled_for_purchase` to `false`. Existing subscriptions keep their snapshot.
-- The billing runtime takes the stage as the `RestApiStage` deploy input; it must equal the gateway stage. The REST API ID is read from SSM.
+- The billing runtime reads the REST API ID and the stage from `/mcp/<env>/access-api/rest-api-id` and `/mcp/<env>/access-api/stage`, which the gateway stack publishes. No stage input is needed.
 - Keep a record of each price ID, its plan and duration, and the approval, in the manual-steps table.
 
 ## 4. Verify after each stack

@@ -54,23 +54,31 @@ export class BillingStore implements BillingRepository {
   }
 }
 const restApiParameterPattern = /^\/mcp\/(development|test|production)\/access-api\/rest-api-id$/;
-/** Reads the REST API ID the gateway stack publishes; stage is a deploy input. Five-minute cache, failures never cached. */
-export function parameterRestApiTarget(name: string | undefined, stage: string, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
-  if (!name || !restApiParameterPattern.test(name) || !/^[A-Za-z0-9_-]{1,128}$/.test(stage)) throw new Error('invalid_rest_api_target_configuration');
-  let cached: { restApiId: string; expiresAt: number } | undefined;
-  let pending: Promise<string> | undefined;
-  const restApiId = (): Promise<string> => {
-    if (cached && cached.expiresAt > now()) return Promise.resolve(cached.restApiId);
+const stageParameterPattern = /^\/mcp\/(development|test|production)\/access-api\/stage$/;
+/** Reads the deployed REST API ID and stage the gateway stack publishes. Five-minute cache; failures are never cached. */
+export function parameterRestApiTarget(restApiName: string | undefined, stageName: string | undefined,
+  ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
+  if (!restApiName || !restApiParameterPattern.test(restApiName) || !stageName || !stageParameterPattern.test(stageName)) {
+    throw new Error('invalid_rest_api_target_configuration');
+  }
+  let cached: { target: { rest_api_id: string; stage: string }; expiresAt: number } | undefined;
+  let pending: Promise<{ rest_api_id: string; stage: string }> | undefined;
+  const read = async (name: string): Promise<string> => {
+    const response = await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: false }));
+    const value = response.Parameter?.Value;
+    if (!value || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new Error('invalid_rest_api_target');
+    return value;
+  };
+  return async (): Promise<{ rest_api_id: string; stage: string }> => {
+    if (cached && cached.expiresAt > now()) return cached.target;
     pending ??= (async () => {
-      const response = await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: false }));
-      const value = response.Parameter?.Value;
-      if (!value || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new Error('invalid_rest_api_target');
-      cached = { restApiId: value, expiresAt: now() + 300_000 };
-      return value;
+      const [rest_api_id, stage] = await Promise.all([read(restApiName), read(stageName)]);
+      const target = { rest_api_id, stage };
+      cached = { target, expiresAt: now() + 300_000 };
+      return target;
     })().finally(() => { pending = undefined; });
     return pending;
   };
-  return async (): Promise<{ rest_api_id: string; stage: string }> => ({ rest_api_id: await restApiId(), stage });
 }
 export function parameterSecret(name: string, telemetry: Telemetry, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
   let cached: string | undefined, until = 0;

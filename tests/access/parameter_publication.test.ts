@@ -81,6 +81,12 @@ test('access runtime reads the REST API ID from SSM at runtime instead of taking
   assert.equal(JSON.stringify(runtime).includes('"Ref":"RestApiId"'), false);
 });
 
+test('gateway publishes its REST API ID and stage so billing can match plan mappings to this deployment', () => {
+  const gateway = load('infra/access/gateway.yaml');
+  assert.deepEqual(parameterOf(gateway, 'RestApiStageParameter').Name, { 'Fn::Sub': '/mcp/${Environment}/access-api/stage' });
+  assert.deepEqual(parameterOf(gateway, 'RestApiStageParameter').Value, { Ref: 'StageName' });
+});
+
 test('gateway resolves producer aliases from SSM at deploy time instead of taking ARNs', () => {
   const gateway = load('infra/access/gateway.yaml');
   const expected: Record<string, string> = {

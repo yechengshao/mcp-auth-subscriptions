@@ -16,7 +16,7 @@ import type { InvocationContext, HttpEvent } from '../observability/adapters.js'
 export interface HandlerConfig {
   environment: string; scope: { environment: string; aws_account_id: string; region: string; stripe_account: string };
   stateTable: string; entitlementTable: string; stripeKeyParameter: string; webhookSecretParameter: string;
-  restApiParameter: string; restStage: string;
+  restApiParameter: string; stageParameter: string;
   queueUrl: string; queueArn: string; replayRuleArn: string; successUrl: string; cancelUrl: string; supportEmail: string;
   live: boolean; budgets: RuntimeBudgets;
 }
@@ -39,7 +39,7 @@ export function runtimeConfig(source: NodeJS.ProcessEnv): HandlerConfig {
   if (queueUrl !== expectedQueueUrl) throw new Error('billing_queue_url_mismatch');
   return { environment, scope: { environment, aws_account_id: account, region, stripe_account: required(source, 'STRIPE_ACCOUNT_ID') },
     stateTable: required(source, 'BILLING_STATE_TABLE'), entitlementTable: required(source, 'BILLING_ENTITLEMENTS_TABLE'),
-    stripeKeyParameter: required(source, 'STRIPE_KEY_PARAMETER'), restApiParameter: required(source, 'BILLING_REST_API_PARAMETER'), restStage: required(source, 'BILLING_REST_STAGE'),
+    stripeKeyParameter: required(source, 'STRIPE_KEY_PARAMETER'), restApiParameter: required(source, 'BILLING_REST_API_PARAMETER'), stageParameter: required(source, 'BILLING_STAGE_PARAMETER'),
     webhookSecretParameter: required(source, 'STRIPE_WEBHOOK_SECRET_PARAMETER'), queueUrl, queueArn,
     replayRuleArn, successUrl: required(source, 'BILLING_SUCCESS_URL'), cancelUrl: required(source, 'BILLING_CANCEL_URL'),
     supportEmail: required(source, 'BILLING_SUPPORT_EMAIL'), live: source.STRIPE_LIVE === 'true', budgets: budgets as RuntimeBudgets };
@@ -111,7 +111,7 @@ export async function handler(event: unknown, context: InvocationContext) {
         account: config.scope.stripe_account, live: config.live, successUrl: config.successUrl, cancelUrl: config.cancelUrl, maxPages: config.budgets.max_pages,
       }, telemetry);
       // Stripe is the authority for plans, prices and usage-plan mapping; the catalog is derived from it per cache window.
-      const deployedTarget = parameterRestApiTarget(config.restApiParameter, config.restStage);
+      const deployedTarget = parameterRestApiTarget(config.restApiParameter, config.stageParameter);
       const catalog = createCatalogCache(async () => {
         const target = await deployedTarget();
         const release = stripeCatalogRelease(await stripe.catalogObjects(config.budgets.max_pages), config.scope, config.live, target);
