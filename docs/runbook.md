@@ -41,6 +41,7 @@ Published parameters (`<env>` is `test` for now):
 
 | `/mcp/<env>/access/state-table-name` | `infra/access/storage.yaml` | Live (`mcp-access-storage`) |
 | `/mcp/<env>/access/signing-key-arn` | `infra/access/signing.yaml` | Live (`mcp-access-signing`) |
+| `/mcp/<env>/alarms/topic-arn` | `infra/observability/alarm-topic.yaml` | Live (`mcp-alarms-test`) |
 
 Not yet published: alarm topic and observability policy ARNs.
 
