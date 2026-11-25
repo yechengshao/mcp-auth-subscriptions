@@ -16,6 +16,7 @@ Update the status column as each one is finished. Nothing here has been run by C
 | 9 | Re-authenticate the AWS connection (or provide CLI access) so Claude can read stack outputs and run checks | Claude Code / AWS connector | None | Pending |
 | 10 | Give explicit approval for each live action: Stripe test-mode calls and each stack deploy | Chat | Approval message | Pending |
 | 11 | Google OAuth client and Cognito setup for sign-in | Google Cloud console, AWS | Confirmed client ID (no secret) | Done for the Cognito stack `mcp-access-auth` (CREATE_COMPLETE, per `authentication-api-access.md`); callback and logout URLs for real hosts still pending |
+| 13 | Confirm the alarm email subscription: open the AWS confirmation email sent to the alarm address and click the link | Email inbox | None | Pending (stack `mcp-alarms-test` created 2026-11-25, topic `arn:aws:sns:ca-central-1:503098479806:mcp-alarms-test`) |
 | 12 | GitHub `billing-publish` environment variables and `BILLING_PUBLISH_ROLE_ARN` secret | GitHub repository settings | None | Done per earlier publish runs |
 
 ## Rules for these steps
