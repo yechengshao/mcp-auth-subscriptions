@@ -39,7 +39,10 @@ Published parameters (`<env>` is `test` for now):
 | `/mcp/<env>/authorizer/alias-arn` | `infra/access/authorizer.yaml` | Template ready; not deployed |
 | `/mcp/<env>/access-api/usage-plan-id` | `infra/access/gateway.yaml` | Template ready; not deployed |
 
-Not yet published: access storage, signing key, alarm topic and observability policy ARNs.
+| `/mcp/<env>/access/state-table-name` | `infra/access/storage.yaml` | Live (`mcp-access-storage`) |
+| `/mcp/<env>/access/signing-key-arn` | `infra/access/signing.yaml` | Live (`mcp-access-signing`) |
+
+Not yet published: alarm topic and observability policy ARNs.
 
 ## 1. Inputs to collect
 
