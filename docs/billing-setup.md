@@ -161,9 +161,9 @@ Retaining old versions supports rollback and also requires deliberate cleanup.
 
 Supply the parameters declared in `runtime.yaml`: storage/monitoring outputs,
 parameter names/ARNs, Stripe account, HTTPS return URLs, support email, image and
-release identifier. AccessRoleArn is the exact trusted access coordinator role;
-no public Function URL is created. The access role also needs exact-alias
-InvokeFunction and projection-read permissions from the access infrastructure
+release identifier. The runtime grants no invoke permission to any role; no public
+Function URL is created. The access role's own IAM policy allows InvokeFunction on the
+billing alias only, and projection-read permissions come from the access infrastructure
 contract. Never expose native billing operations directly as browser JSON APIs.
 
 Start with StripeLive=false and EnableDelivery=false. The template creates one

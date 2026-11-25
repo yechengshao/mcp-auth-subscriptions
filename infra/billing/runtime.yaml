@@ -67,10 +67,6 @@
     "CancelUrl": {
       "Type": "String"
     },
-    "AccessRoleArn": {
-      "Type": "String",
-      "AllowedPattern": "arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9_+=,.@/-]+"
-    },
     "StripeLive": {
       "Type": "String",
       "AllowedValues": [
@@ -384,18 +380,6 @@
       },
       "DeletionPolicy": "Retain",
       "UpdateReplacePolicy": "Retain"
-    },
-    "AccessInvokePermission": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "Alias"
-        },
-        "Principal": {
-          "Ref": "AccessRoleArn"
-        }
-      }
     },
     "Mapping": {
       "Type": "AWS::Lambda::EventSourceMapping",

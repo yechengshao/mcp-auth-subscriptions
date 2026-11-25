@@ -56,3 +56,10 @@ test('runtime configuration rejects budget/IaC drift and cross-account sources',
   assert.throws(() => runtimeConfig({ ...source, BILLING_QUEUE_ARN: 'arn:aws:sqs:us-east-1:111111111111:billing' }));
   assert.throws(() => runtimeConfig({ ...source, STRIPE_LIVE: 'maybe' }));
 });
+
+test('billing runtime grants no invoke permission to the access role; access calls billing through its own IAM policy', () => {
+  const template = JSON.parse(readFileSync('infra/billing/runtime.yaml', 'utf8'));
+  assert.equal(template.Parameters.AccessRoleArn, undefined);
+  const permissions = Object.values(template.Resources).filter((value: any) => value.Type === 'AWS::Lambda::Permission');
+  assert.deepEqual(permissions.map((value: any) => value.Properties.Principal), ['events.amazonaws.com']);
+});
