@@ -176,6 +176,7 @@ deployments, including the failure cases.
 | Public JWK in `SigningConfigJson` and `PublicJwksJson` | Derived; not yet deployed to any runtime |
 | Storage stack for access tables `mcp-access-storage` | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Billing storage stack `mcp-billing-storage` (tables, policies, stream) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
+| Observability stack `mcp-observability-test` (log groups, telemetry policies, X-Ray sampling rule; alarms and dashboard off) | Performed (`CREATE_COMPLETE`, 2026-11-25). Gateway log groups use placeholder REST API ID `pending`; update with the real ID after the gateway is deployed |
 | Billing publication stack and image `billing-2026-11-24.4` | Performed (publish run 45482349557) |
 | Billing storage, runtime and alias | Not performed; needs approval |
 | Access runtime stack | Not performed; needs approval |
