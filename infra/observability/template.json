@@ -61,8 +61,8 @@
       "AllowedPattern": "^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+$"
     },
     "RestApiId": {
-      "Type": "String",
-      "AllowedPattern": "^[a-z0-9]+$"
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access-api/rest-api-id"
     },
     "RestApiName": {
       "Type": "String",
@@ -371,35 +371,6 @@
             }
           ]
         }
-      }
-    },
-    "GatewayLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Sub": "/aws/apigateway/${RestApiId}/${StageName}/access"
-        },
-        "RetentionInDays": {
-          "Fn::If": [
-            "Production",
-            14,
-            3
-          ]
-        },
-        "Tags": [
-          {
-            "Key": "Project",
-            "Value": "mcp-auth-subscriptions"
-          },
-          {
-            "Key": "Environment",
-            "Value": {
-              "Ref": "Environment"
-            }
-          }
-        ]
       }
     },
     "GatewayTelemetryPolicy": {
@@ -1172,14 +1143,6 @@
     "BillingTelemetryPolicyArn": {
       "Value": {
         "Ref": "BillingTelemetryPolicy"
-      }
-    },
-    "GatewayLogGroupArn": {
-      "Value": {
-        "Fn::GetAtt": [
-          "GatewayLogGroup",
-          "Arn"
-        ]
       }
     },
     "GatewayTelemetryPolicyArn": {

@@ -41,12 +41,6 @@
       "AllowedPattern": "^[a-z0-9-]{1,64}$",
       "Description": "Path component of the issuer URL; the path-suffixed discovery routes use it."
     },
-    "AccessLogGroupArn": {
-      "Type": "String",
-      "Default": "",
-      "AllowedPattern": "^(arn:aws:logs:[a-z0-9-]+:[0-9]{12}:log-group:[^:*]+)?$",
-      "Description": "Empty on the first pass. Set to the stage access log group created by infra/observability after this stack exists."
-    },
     "TracingEnabled": {
       "Type": "String",
       "AllowedValues": [
@@ -63,20 +57,6 @@
         "production"
       ],
       "Default": "test"
-    }
-  },
-  "Conditions": {
-    "HasAccessLog": {
-      "Fn::Not": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "AccessLogGroupArn"
-            },
-            ""
-          ]
-        }
-      ]
     }
   },
   "Resources": {
@@ -1268,18 +1248,13 @@
           "Ref": "TracingEnabled"
         },
         "AccessLogSetting": {
-          "Fn::If": [
-            "HasAccessLog",
-            {
-              "DestinationArn": {
-                "Ref": "AccessLogGroupArn"
-              },
-              "Format": "{\"requestId\":\"$context.requestId\",\"path\":\"$context.path\",\"status\":\"$context.status\",\"integrationStatus\":\"$context.integrationStatus\",\"errorType\":\"$context.error.responseType\",\"latencyMs\":\"$context.responseLatency\"}"
-            },
-            {
-              "Ref": "AWS::NoValue"
-            }
-          ]
+          "DestinationArn": {
+            "Fn::GetAtt": [
+              "AccessLogGroup",
+              "Arn"
+            ]
+          },
+          "Format": "{\"requestId\":\"$context.requestId\",\"path\":\"$context.path\",\"status\":\"$context.status\",\"integrationStatus\":\"$context.integrationStatus\",\"errorType\":\"$context.error.responseType\",\"latencyMs\":\"$context.responseLatency\"}"
         },
         "MethodSettings": [
           {
@@ -1304,6 +1279,43 @@
           "Ref": "BasicUsagePlan"
         },
         "Description": "Basic usage plan ID for the catalog. Read by the catalog check and purchase path."
+      }
+    },
+    "AccessLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/apigateway/${RestApi}/${StageName}/access"
+        },
+        "RetentionInDays": 14,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "RestApiIdParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/access-api/rest-api-id"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "RestApi"
+        },
+        "Description": "REST API ID for observability and the access gateway log group."
       }
     }
   },

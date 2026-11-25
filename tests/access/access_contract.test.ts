@@ -174,12 +174,17 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
   assert.equal(template.Resources.GatewayUnauthorizedResponse.Properties.StatusCode, '401');
 });
 
-test('log groups for access functions and the gateway stage are owned by infra/observability, never duplicated here', () => {
-  for (const file of ['infra/access/runtime.yaml', 'infra/access/authorizer.yaml', 'infra/access/gateway.yaml']) {
+test('access functions keep their log groups in observability; the gateway owns only its access log group and publishes the REST API ID', () => {
+  for (const file of ['infra/access/runtime.yaml', 'infra/access/authorizer.yaml']) {
     const template = JSON.parse(readFileSync(file, 'utf8'));
     assert.equal(Object.values(template.Resources).some((value: any) => value.Type === 'AWS::Logs::LogGroup'), false, file);
   }
   const gateway = JSON.parse(readFileSync('infra/access/gateway.yaml', 'utf8'));
-  assert.deepEqual(gateway.Parameters.AccessLogGroupArn.Default, '');
-  assert.deepEqual(gateway.Resources.Stage.Properties.AccessLogSetting, { 'Fn::If': ['HasAccessLog', { DestinationArn: { Ref: 'AccessLogGroupArn' }, Format: gateway.Resources.Stage.Properties.AccessLogSetting['Fn::If'][1].Format }, { Ref: 'AWS::NoValue' }] });
+  const groups = Object.entries(gateway.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::Logs::LogGroup');
+  assert.deepEqual(groups.map(([name]) => name), ['AccessLogGroup']);
+  assert.deepEqual(gateway.Resources.AccessLogGroup.Properties.LogGroupName, { 'Fn::Sub': '/aws/apigateway/${RestApi}/${StageName}/access' });
+  assert.deepEqual(gateway.Resources.Stage.Properties.AccessLogSetting.DestinationArn, { 'Fn::GetAtt': ['AccessLogGroup', 'Arn'] });
+  assert.equal(gateway.Parameters.AccessLogGroupArn, undefined);
+  assert.deepEqual(gateway.Resources.RestApiIdParameter.Properties.Name, { 'Fn::Sub': '/mcp/${Environment}/access-api/rest-api-id' });
+  assert.deepEqual(gateway.Resources.RestApiIdParameter.Properties.Value, { Ref: 'RestApi' });
 });

@@ -23,7 +23,9 @@ test('committed template matches its typed source and monitoring resource invent
   const generated = JSON.parse(readFileSync(new URL('../../../infra/observability/template.json', import.meta.url), 'utf8'));
   assert.deepEqual(generated, template);
   const resources = Object.values(template.Resources);
-  assert.equal(resources.filter(r => r.Type === 'AWS::Logs::LogGroup').length, 5);
+  // The gateway access log group is owned by infra/access/gateway.yaml, so it is not declared here.
+  assert.equal(resources.filter(r => r.Type === 'AWS::Logs::LogGroup').length, 4);
+  assert.equal(template.Resources.GatewayLogGroup, undefined);
   assert.equal(resources.filter(r => r.Type === 'AWS::CloudWatch::Alarm').length, 10);
   assert.equal(resources.filter(r => r.Type === 'AWS::CloudWatch::Dashboard').length, 1);
   assert.equal(resources.filter(r => r.Type === 'AWS::XRay::SamplingRule').length, 1);

@@ -299,3 +299,11 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - Billing side: B001–B013 are checked. Access depends on billing packaging (B010) and publication (B011), both done, and on the billing integration fixtures (B012), also done.
 - Deployments: none run in this sync. The status table in `authentication-api-access.md` is the current record of performed and pending steps.
 
+
+## Correction: gateway owns its access log group (2026-11-25)
+
+- The gateway access log group `/aws/apigateway/<RestApiId>/<StageName>/access` moved from `infra/observability` into `infra/access/gateway.yaml`, which creates the REST API and must name the group from its own ID. The stage always uses it; `AccessLogGroupArn` and the two-pass order are removed.
+- The gateway publishes its REST API ID to `/mcp/<env>/access-api/rest-api-id`. Observability reads it at deploy time (`RestApiId` is an SSM-typed parameter), so observability deploys after the gateway and the dependency is one-way.
+- Observability still owns the access, authorizer and billing function log groups, the API Gateway execution log group, the telemetry policies, alarms and dashboard. Runtime and authorizer templates still create no log groups.
+- Not yet deployed. The `/aws/apigateway/pending/test/access` group created by the earlier observability deploy must be removed manually after observability is redeployed (it is no longer declared, and `Retain` keeps it).
+- Suite: 330 passing (Node 24); `cfn-lint` passes on `gateway.yaml` and the regenerated observability template.

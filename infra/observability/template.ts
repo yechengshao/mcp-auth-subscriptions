@@ -18,7 +18,8 @@ export function observabilityTemplate(): Json {
     EvaluationPeriods: { Type: 'Number', MinValue: 1, MaxValue: 60 },
     MissingDataPolicy: { Type: 'String', AllowedValues: ['breaching','notBreaching','ignore','missing'] },
     NotificationTopicArn: { Type: 'String', AllowedPattern: '^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+$' },
-    RestApiId: { Type: 'String', AllowedPattern: '^[a-z0-9]+$' },
+    // Published by the gateway stack (/mcp/<env>/access-api/rest-api-id); read at deploy time.
+    RestApiId: { Type: 'AWS::SSM::Parameter::Value<String>', Default: '/mcp/test/access-api/rest-api-id' },
     RestApiName: { Type: 'String', AllowedPattern: '^[A-Za-z0-9_. -]{1,128}$' },
     StageName: { Type: 'String', AllowedPattern: identifierPattern.source },
   };
@@ -34,9 +35,9 @@ export function observabilityTemplate(): Json {
   };
   const resources: Json = {};
   for (const component of [...componentNames, 'Gateway'] as const) {
-    const name = component === 'Gateway' ? sub('/aws/apigateway/${RestApiId}/${StageName}/access') : sub(`/aws/lambda/\${${component}FunctionName}`);
-    resources[`${component}LogGroup`] = { Type: 'AWS::Logs::LogGroup', DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain', Properties: {
-      LogGroupName: name, RetentionInDays: { 'Fn::If': ['Production', 14, 3] },
+    // The gateway access log group is created by infra/access/gateway.yaml, which owns the REST API.
+    if (component !== 'Gateway') resources[`${component}LogGroup`] = { Type: 'AWS::Logs::LogGroup', DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain', Properties: {
+      LogGroupName: sub(`/aws/lambda/\${${component}FunctionName}`), RetentionInDays: { 'Fn::If': ['Production', 14, 3] },
       Tags: [{ Key: 'Project', Value: 'mcp-auth-subscriptions' }, { Key: 'Environment', Value: ref('Environment') }],
     } };
     resources[`${component}TelemetryPolicy`] = { Type: 'AWS::IAM::ManagedPolicy', Properties: {
@@ -102,7 +103,7 @@ export function observabilityTemplate(): Json {
   ] })) } };
   const outputs: Json = {};
   for (const component of [...componentNames, 'Gateway']) {
-    outputs[`${component}LogGroupArn`] = { Value: { 'Fn::GetAtt': [`${component}LogGroup`, 'Arn'] } };
+    if (component !== 'Gateway') outputs[`${component}LogGroupArn`] = { Value: { 'Fn::GetAtt': [`${component}LogGroup`, 'Arn'] } };
     outputs[`${component}TelemetryPolicyArn`] = { Value: ref(`${component}TelemetryPolicy`) };
   }
   outputs.GatewayExecutionLogGroupArn = { Value: { 'Fn::GetAtt': ['GatewayExecutionLogGroup', 'Arn'] } };
