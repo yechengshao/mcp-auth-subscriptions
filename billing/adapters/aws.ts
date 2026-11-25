@@ -53,6 +53,25 @@ export class BillingStore implements BillingRepository {
     return { keys: (response.Items ?? []).map(row => ({ PK: row.PK as string, SK: row.SK as string })), next: response.LastEvaluatedKey as DueCursor | undefined };
   }
 }
+const restApiParameterPattern = /^\/mcp\/(development|test|production)\/access-api\/rest-api-id$/;
+/** Reads the REST API ID the gateway stack publishes; stage is a deploy input. Five-minute cache, failures never cached. */
+export function parameterRestApiTarget(name: string | undefined, stage: string, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
+  if (!name || !restApiParameterPattern.test(name) || !/^[A-Za-z0-9_-]{1,128}$/.test(stage)) throw new Error('invalid_rest_api_target_configuration');
+  let cached: { restApiId: string; expiresAt: number } | undefined;
+  let pending: Promise<string> | undefined;
+  const restApiId = (): Promise<string> => {
+    if (cached && cached.expiresAt > now()) return Promise.resolve(cached.restApiId);
+    pending ??= (async () => {
+      const response = await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: false }));
+      const value = response.Parameter?.Value;
+      if (!value || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new Error('invalid_rest_api_target');
+      cached = { restApiId: value, expiresAt: now() + 300_000 };
+      return value;
+    })().finally(() => { pending = undefined; });
+    return pending;
+  };
+  return async (): Promise<{ rest_api_id: string; stage: string }> => ({ rest_api_id: await restApiId(), stage });
+}
 export function parameterSecret(name: string, telemetry: Telemetry, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
   let cached: string | undefined, until = 0;
   return async () => {

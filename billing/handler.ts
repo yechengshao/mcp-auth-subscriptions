@@ -1,6 +1,6 @@
 import { createBillingHttpAdapter } from './http.js';
 import { createHash } from 'node:crypto';
-import { BillingStore, BillingQueue, parameterSecret } from './adapters/aws.js';
+import { BillingStore, BillingQueue, parameterRestApiTarget, parameterSecret } from './adapters/aws.js';
 import { stripeCatalogRelease } from './adapters/stripe-catalog.js';
 import { createCatalogCache } from './contracts/catalog-cache.js';
 import { StripeAdapter, verifyWebhook } from './adapters/stripe.js';
@@ -16,6 +16,7 @@ import type { InvocationContext, HttpEvent } from '../observability/adapters.js'
 export interface HandlerConfig {
   environment: string; scope: { environment: string; aws_account_id: string; region: string; stripe_account: string };
   stateTable: string; entitlementTable: string; stripeKeyParameter: string; webhookSecretParameter: string;
+  restApiParameter: string; restStage: string;
   queueUrl: string; queueArn: string; replayRuleArn: string; successUrl: string; cancelUrl: string; supportEmail: string;
   live: boolean; budgets: RuntimeBudgets;
 }
@@ -38,7 +39,7 @@ export function runtimeConfig(source: NodeJS.ProcessEnv): HandlerConfig {
   if (queueUrl !== expectedQueueUrl) throw new Error('billing_queue_url_mismatch');
   return { environment, scope: { environment, aws_account_id: account, region, stripe_account: required(source, 'STRIPE_ACCOUNT_ID') },
     stateTable: required(source, 'BILLING_STATE_TABLE'), entitlementTable: required(source, 'BILLING_ENTITLEMENTS_TABLE'),
-    stripeKeyParameter: required(source, 'STRIPE_KEY_PARAMETER'),
+    stripeKeyParameter: required(source, 'STRIPE_KEY_PARAMETER'), restApiParameter: required(source, 'BILLING_REST_API_PARAMETER'), restStage: required(source, 'BILLING_REST_STAGE'),
     webhookSecretParameter: required(source, 'STRIPE_WEBHOOK_SECRET_PARAMETER'), queueUrl, queueArn,
     replayRuleArn, successUrl: required(source, 'BILLING_SUCCESS_URL'), cancelUrl: required(source, 'BILLING_CANCEL_URL'),
     supportEmail: required(source, 'BILLING_SUPPORT_EMAIL'), live: source.STRIPE_LIVE === 'true', budgets: budgets as RuntimeBudgets };
@@ -110,8 +111,12 @@ export async function handler(event: unknown, context: InvocationContext) {
         account: config.scope.stripe_account, live: config.live, successUrl: config.successUrl, cancelUrl: config.cancelUrl, maxPages: config.budgets.max_pages,
       }, telemetry);
       // Stripe is the authority for plans, prices and usage-plan mapping; the catalog is derived from it per cache window.
+      const deployedTarget = parameterRestApiTarget(config.restApiParameter, config.restStage);
       const catalog = createCatalogCache(async () => {
-        const release = stripeCatalogRelease(await stripe.catalogObjects(config.budgets.max_pages), config.scope, config.live);
+        const target = await deployedTarget();
+        const release = stripeCatalogRelease(await stripe.catalogObjects(config.budgets.max_pages), config.scope, config.live, target);
+        // Sanitized: a fixed reason code per excluded object, never Stripe values or IDs.
+        for (const excluded of release.reasons) telemetry.log('summary', 'billing.listPlans', 'configuration_excluded', { error: new Error(excluded.reason) });
         return { version: release.version, value: release.value };
       }, config.scope, { max_age_ms: config.budgets.catalog_cache_seconds * 1000, fetch_timeout_ms: config.budgets.catalog_fetch_timeout_ms });
       const service = new BillingService(store, stripe, new BillingQueue(config.queueUrl, config.environment, telemetry), () => catalog.read(),

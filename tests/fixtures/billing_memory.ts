@@ -96,7 +96,7 @@ export const budgets: RuntimeBudgets = {
 
 export const handlerConfig = {
   environment, scope: { environment, aws_account_id: '000000000000', region: 'us-east-1', stripe_account: stripeAccount },
-  stateTable: 'fixture-state', entitlementTable: 'fixture-entitlements', catalogParameter: 'fixture-catalog',
+  stateTable: 'fixture-state', entitlementTable: 'fixture-entitlements', restApiParameter: '/mcp/test/access-api/rest-api-id', restStage: 'test',
   stripeKeyParameter: 'fixture-stripe-key', webhookSecretParameter: 'fixture-webhook-secret',
   queueUrl: 'https://sqs.us-east-1.amazonaws.com/000000000000/fixture-queue', queueArn: 'arn:aws:sqs:us-east-1:000000000000:fixture-queue',
   replayRuleArn: 'arn:aws:events:us-east-1:000000000000:rule/fixture-replay', successUrl: 'https://access.example.invalid/success',

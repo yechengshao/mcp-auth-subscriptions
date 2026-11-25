@@ -146,12 +146,14 @@ Procedure, per billing plan:
 3. **Keep all durations of one plan on the same usage mapping.** Every price of a plan must carry the same `usage_plan_id`, `rest_api_id` and `stage`. A plan whose prices disagree is removed from the listing.
 4. **Do not reuse a `duration_option_id` within one plan.** Two prices with the same ID cancel each other out.
 5. **Do not create objects in the other mode or environment.** A test-mode object is never listed in production, and the reverse.
-6. **Verify on the plan page.** Load the billing plan page for this environment and check: each plan appears with the right name, description and tier; each duration shows the right label, amount, currency and term; no plan is missing. The page never shows usage-plan IDs, REST API IDs or stages, so check those in the Stripe Dashboard metadata.
-7. **Enable.** Set `enabled_for_purchase` to `true` on the product and its prices only after step 6 passes. Re-check the page after enabling.
+6. **Run the read-only verifier.** With the Stripe secret key in the environment (never in chat), run `npm run verify:stripe-catalog -- <environment> <aws_account_id> <region> <stripe_account> <live> <rest_api_id> <stage>`. It prints counts and one line per excluded object with a reason code, and exits non-zero if anything is excluded or nothing is sellable. It makes only GET requests.
+7. **Verify on the plan page.** Load the billing plan page for this environment and check: each plan appears with the right name, description and tier; each duration shows the right label, amount, currency and term; no plan is missing. The page never shows usage-plan IDs, REST API IDs or stages, so check those in the Stripe Dashboard metadata.
+8. **Enable.** Set `enabled_for_purchase` to `true` on the product and its prices only after step 6 passes. Re-check the page after enabling.
 
 Rules after publication:
 - Never edit the metadata of a price that has been used for a quote or purchase. To change a mapping, create a new price with the new metadata, set the old price to inactive, and leave it in place for existing orders.
 - Deactivate a plan by setting its `enabled_for_purchase` to `false`. Existing subscriptions keep their snapshot.
+- The billing runtime takes the stage as the `RestApiStage` deploy input; it must equal the gateway stage. The REST API ID is read from SSM.
 - Keep a record of each price ID, its plan and duration, and the approval, in the manual-steps table.
 
 ## 4. Verify after each stack

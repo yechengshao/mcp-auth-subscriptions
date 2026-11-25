@@ -14,6 +14,7 @@
     "test:access": "npm run build && node --test --test-isolation=none dist/tests/access/*.test.js",
     "check:access": "npm run typecheck && npm run test:access",
     "verify:billing": "npm run build && node dist/scripts/verify_billing.js",
+    "verify:stripe-catalog": "npm run build && node dist/scripts/verify_stripe_catalog.js",
     "test:billing": "npm run build && node --test --test-isolation=none dist/tests/billing/*.test.js dist/tests/observability/*.test.js",
     "check:billing": "npm run typecheck && npm run test:billing",
     "render:observability": "npm run build && node dist/infra/observability/render.js",

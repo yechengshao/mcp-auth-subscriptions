@@ -44,8 +44,12 @@ function harness() {
     let result: any;
     if (path.endsWith('/account')) result = { id: scope.stripe_account };
     else if (path.includes('/prices/')) {
-      const option = Object.values(offers.plans).flatMap((plan: any) => Object.values(plan.duration_options)).find((value: any) => path.endsWith('/' + value.price_id)) as any;
-      result = { id: option.price_id, type: 'one_time', active: true, product: option.product_id, unit_amount: option.amount_minor, currency: option.currency, livemode: false };
+      const [planId, plan] = Object.entries(offers.plans).find(([, value]: any) => Object.values(value.duration_options).some((option: any) => path.endsWith('/' + option.price_id))) as [string, any];
+      const [durationId, option] = Object.entries(plan.duration_options).find(([, value]: any) => path.endsWith('/' + value.price_id)) as [string, any];
+      result = { id: option.price_id, type: 'one_time', active: true, product: option.product_id, unit_amount: option.amount_minor, currency: option.currency, livemode: false,
+        metadata: { plan_id: planId, duration_option_id: durationId, environment: scope.environment, usage_plan_id: plan.usage_mapping.usage_plan_id,
+          rest_api_id: plan.usage_mapping.rest_api_id, stage: plan.usage_mapping.stage, term_unit: option.service_term.unit,
+          term_count: String(option.service_term.count), term_semantics: option.service_term.time_semantics } };
     }
     else if (init!.method === 'POST') {
       posts++; const body = new URLSearchParams(String(init!.body));

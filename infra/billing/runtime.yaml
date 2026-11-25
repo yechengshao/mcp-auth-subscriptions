@@ -46,6 +46,11 @@
     "StripeKeyParameterName": {
       "Type": "String"
     },
+    "RestApiStage": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_-]{1,128}$",
+      "Description": "Deployed REST API stage that billing plans must map to (the gateway stage)."
+    },
     "WebhookSecretParameterName": {
       "Type": "String"
     },
@@ -152,6 +157,13 @@
             "PolicyDocument": {
               "Version": "2012-10-17",
               "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access-api/rest-api-id"
+                  }
+                },
                 {
                   "Effect": "Allow",
                   "Action": "ssm:GetParameter",
@@ -291,6 +303,12 @@
             },
             "BILLING_ENTITLEMENTS_TABLE": {
               "Ref": "EntitlementTableName"
+            },
+            "BILLING_REST_API_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access-api/rest-api-id"
+            },
+            "BILLING_REST_STAGE": {
+              "Ref": "RestApiStage"
             },
             "STRIPE_KEY_PARAMETER": {
               "Ref": "StripeKeyParameterName"

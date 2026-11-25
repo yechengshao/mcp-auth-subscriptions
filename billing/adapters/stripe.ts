@@ -5,6 +5,16 @@ import type { BillingPayments } from '../ports.js';
 export const STRIPE_API_VERSION = '2025-02-24.acacia';
 type Json = Record<string, any>;
 export interface StripeSettings { account: string; live: boolean; successUrl: string; cancelUrl: string; maxPages: number }
+/** True only when the live price still carries the exact metadata the order snapshot was built from. */
+export function priceMetadataMatches(price: Json, snapshot: Snapshot): boolean {
+  const meta = price.metadata ?? {};
+  const expected: Record<string, string> = {
+    plan_id: snapshot.plan_id, duration_option_id: snapshot.duration_option_id, environment: snapshot.environment,
+    usage_plan_id: snapshot.usage_mapping.usage_plan_id, rest_api_id: snapshot.usage_mapping.rest_api_id, stage: snapshot.usage_mapping.stage,
+    term_unit: snapshot.service_term.unit, term_count: String(snapshot.service_term.count), term_semantics: snapshot.service_term.time_semantics,
+  };
+  return Object.entries(expected).every(([key, value]) => meta[key] === value);
+}
 export class StripeAdapter implements BillingPayments {
   private accountKey: string | undefined;
   private clientKey: string | undefined;
@@ -43,6 +53,7 @@ export class StripeAdapter implements BillingPayments {
     const price = await this.request(`prices/${encodeURIComponent(snapshot.price_id)}`);
     if (price.type !== 'one_time' || price.recurring || price.active !== true || price.product !== snapshot.product_id ||
         price.unit_amount !== snapshot.amount_minor || price.currency !== snapshot.currency || price.livemode !== this.settings.live) throw new Error('stripe_price_mismatch');
+    if (!priceMetadataMatches(price, snapshot)) throw new Error('stripe_price_metadata_changed');
     const body = new URLSearchParams({ mode: 'payment', 'line_items[0][price]': snapshot.price_id, 'line_items[0][quantity]': '1',
       client_reference_id: order.order_id, success_url: this.settings.successUrl, cancel_url: this.settings.cancelUrl,
       'metadata[order_id]': order.order_id, 'payment_intent_data[metadata][order_id]': order.order_id });

@@ -49,7 +49,8 @@ test('runtime configuration rejects budget/IaC drift and cross-account sources',
     BILLING_QUEUE_VISIBILITY: '185', BILLING_SQS_CONCURRENCY: '2', BILLING_BATCH_WINDOW: '5', BILLING_REPLAY_INTERVAL: '60',
     BILLING_QUEUE_ARN: 'arn:aws:sqs:us-east-1:000000000000:billing', BILLING_REPLAY_RULE_ARN: 'arn:aws:events:us-east-1:000000000000:rule/replay',
     STRIPE_ACCOUNT_ID: 'acct_fixture', BILLING_STATE_TABLE: 'state', BILLING_ENTITLEMENTS_TABLE: 'entitlements',
-    STRIPE_KEY_PARAMETER: '/test/stripe', STRIPE_WEBHOOK_SECRET_PARAMETER: '/test/webhook', BILLING_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/000000000000/billing',
+    STRIPE_KEY_PARAMETER: '/test/stripe', STRIPE_WEBHOOK_SECRET_PARAMETER: '/test/webhook',
+    BILLING_REST_API_PARAMETER: '/mcp/test/access-api/rest-api-id', BILLING_REST_STAGE: 'test', BILLING_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/000000000000/billing',
     BILLING_SUCCESS_URL: 'https://example.invalid/billing/return', BILLING_CANCEL_URL: 'https://example.invalid/billing/cancel', BILLING_SUPPORT_EMAIL: 'support@example.invalid' };
   assert.equal(runtimeConfig(source).live, false);
   assert.throws(() => runtimeConfig({ ...source, BILLING_QUEUE_VISIBILITY: '1' }));

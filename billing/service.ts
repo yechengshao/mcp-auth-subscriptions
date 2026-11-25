@@ -132,7 +132,14 @@ export class BillingService {
     else {
       if (now - order.created_at >= 23 * 3600) return this.support(request, 'financial_support_required');
       const customer = await this.store.get(this.store.key(request.identity, 'CUSTOMER'));
-      session = await this.stripe.create(order, customer?.stripe_customer_id);
+      try { session = await this.stripe.create(order, customer?.stripe_customer_id); }
+      catch (error) {
+        if (error instanceof Error && error.message === 'stripe_price_metadata_changed') {
+          await this.expire(order);
+          return { ...this.conflict(request), error_code: 'catalog_changed' };
+        }
+        throw error;
+      }
       if (!/^cs_[A-Za-z0-9_]+$/.test(session.id) || typeof session.url !== 'string' || !session.url.startsWith('https://checkout.stripe.com/c/pay/')) throw new Error('invalid_checkout_response');
       const next = { ...order, checkout_session_id: session.id, revision: order.revision + 1, updated_at: this.now() };
       const lookup = { ...this.base(request.identity, 'OWNER', 'provider_lookup'),
