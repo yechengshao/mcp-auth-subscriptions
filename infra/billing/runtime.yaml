@@ -37,16 +37,10 @@
     "TelemetryPolicyArn": {
       "Type": "String"
     },
-    "CatalogParameterArn": {
-      "Type": "String"
-    },
     "StripeKeyParameterArn": {
       "Type": "String"
     },
     "WebhookSecretParameterArn": {
-      "Type": "String"
-    },
-    "CatalogParameterName": {
       "Type": "String"
     },
     "StripeKeyParameterName": {
@@ -162,9 +156,6 @@
                   "Effect": "Allow",
                   "Action": "ssm:GetParameter",
                   "Resource": [
-                    {
-                      "Ref": "CatalogParameterArn"
-                    },
                     {
                       "Ref": "StripeKeyParameterArn"
                     },
@@ -300,9 +291,6 @@
             },
             "BILLING_ENTITLEMENTS_TABLE": {
               "Ref": "EntitlementTableName"
-            },
-            "BILLING_CATALOG_PARAMETER": {
-              "Ref": "CatalogParameterName"
             },
             "STRIPE_KEY_PARAMETER": {
               "Ref": "StripeKeyParameterName"

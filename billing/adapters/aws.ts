@@ -2,7 +2,6 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand, TransactWriteCommand, type TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { createCatalogCache } from '../contracts/catalog-cache.js';
 import { validateBillingRecord } from '../contracts/storage.js';
 import { identityPartition, validateQueue, type Scope } from '../contracts/validate.js';
 import { propagateSqs } from '../observability.js';
@@ -53,14 +52,6 @@ export class BillingStore implements BillingRepository {
     })));
     return { keys: (response.Items ?? []).map(row => ({ PK: row.PK as string, SK: row.SK as string })), next: response.LastEvaluatedKey as DueCursor | undefined };
   }
-}
-export function parameterCatalog(name: string, scope: Scope, telemetry: Telemetry, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), options: { max_age_ms?: number; fetch_timeout_ms?: number } = {}) {
-  if (!name.startsWith('/')) throw new Error('invalid_catalog_parameter');
-  return createCatalogCache(async signal => {
-    const response = await telemetry.dependency('ssm.catalog', () => ssm.send(new GetParameterCommand({ Name: name, WithDecryption: false }), { abortSignal: signal }));
-    if (response.Parameter?.Type !== 'String' || !response.Parameter.Value || !response.Parameter.Version) throw new Error('invalid_catalog_parameter');
-    return { version: response.Parameter.Version, value: JSON.parse(response.Parameter.Value) as unknown };
-  }, scope, options);
 }
 export function parameterSecret(name: string, telemetry: Telemetry, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
   let cached: string | undefined, until = 0;

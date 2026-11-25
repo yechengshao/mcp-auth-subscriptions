@@ -59,8 +59,7 @@ Replace these values per account. Nothing here is copied from this project.
 | Google OAuth client ID and client secret | Google Cloud console | `infra/access/auth.yaml` (secret is NoEcho) |
 | Callback and logout URLs for your real hosts | Your domain | `infra/access/auth.yaml` |
 | Stripe account ID (`acct_...`) | Stripe Dashboard | Billing runtime |
-| Stripe price IDs (`price_...`) and product names | Stripe Dashboard, test mode first | Catalog |
-| Catalog JSON | Approved catalog (see the catalog contract) | `infra/billing/catalog.yaml` |
+| Stripe products and prices with their metadata (`plan_id`, `duration_option_id`, `usage_plan_id`, `rest_api_id`, `stage`, `term_*`, `environment`) | Stripe Dashboard, test mode first | Stripe is the plan and price authority; see the plan-catalog contract |
 | Support email | You choose | Billing runtime |
 | HTTPS success and cancel URLs | Your access service | Billing runtime |
 | Stripe secret key parameter name | You create it (SecureString) | Billing runtime |
@@ -87,9 +86,8 @@ every output, including ARNs.
 | 2 | `infra/access/signing.yaml` | KMS RS256 signing key | `SigningKeyArn`, `kid` |
 | 3 | Read `SigningKeyArn` from the signing stack output (or `/mcp/<env>/access/signing-key-arn`) | Key ARN (not secret) | Nothing to enter; the runtime derives the public JWK from the ARN |
 | 4 | `infra/billing/storage.yaml` | Billing and entitlement tables | `BillingStateName`, `BillingEntitlementsName`, `BillingStreamArn`, `BillingStoragePolicyArn`, `BillingStreamReadPolicyArn` |
-| 5 | `infra/billing/catalog.yaml` | Nonsecret catalog parameter | `CatalogName`, `CatalogParameterArn` |
-| 6 | `infra/observability/template.json` | Log groups, alarms, dashboard | `BillingTelemetryPolicyArn`, `LambdaTracingMode` |
-| 7 | Billing runtime (`infra/billing/runtime.yaml`), rendered for your immutable image | Billing Lambda with `live` alias, queue, DLQ | Billing alias ARN, webhook alias ARN |
+| 5 | `infra/observability/template.json` | Log groups, alarms, dashboard | `BillingTelemetryPolicyArn`, `LambdaTracingMode` |
+| 6 | Billing runtime (`infra/billing/runtime.yaml`), rendered for your immutable image | Billing Lambda with `live` alias, queue, DLQ | Billing alias ARN, webhook alias ARN |
 | 8 | `infra/access/storage.yaml` | Access tables | Table names and ARNs |
 | 9 | `infra/access/runtime.yaml` | Access Lambda | Access alias ARN |
 | 10 | `infra/access/authorizer.yaml` | Authorizer from the published ZIP | Authorizer alias ARN |
@@ -100,16 +98,6 @@ Notes on the order:
 - Deploy `infra/billing/publication.yaml` and publish the billing image before step 7.
   The image must be in ECR with an immutable digest.
 - Billing must have its live alias before access can invoke it (step 9).
-- Before step 5, check the approved catalog file. It must pass the shape and
-  sellability checks for your exact scope. It must contain no placeholders:
-
-  ```sh
-  npm run build
-  node dist/scripts/check_catalog.js <catalog.json> <environment> <aws_account_id> <region> <stripe_account>
-  ```
-
-  Start from `infra/billing/catalog.draft.json` and replace every `REPLACE_` value.
-  The checker prints fixed codes only, so it is safe to share its output.
 - For `gateway.yaml`, deploy twice if you enable access logs: the first pass
   without `AccessLogGroupArn`, the second with it (see the access setup guide).
 

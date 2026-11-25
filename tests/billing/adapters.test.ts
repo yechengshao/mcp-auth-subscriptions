@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { BillingStore, BillingQueue, parameterCatalog, parameterSecret } from '../../billing/adapters/aws.js';
+import { BillingStore, BillingQueue, parameterSecret } from '../../billing/adapters/aws.js';
 import { StripeAdapter, verifyWebhook, STRIPE_API_VERSION } from '../../billing/adapters/stripe.js';
 import { BillingService } from '../../billing/service.js';
 import { composeBillingHandler, type HandlerConfig } from '../../billing/handler.js';
@@ -134,14 +134,11 @@ test('DynamoDB adapter rejects invalid records before any SDK call', async () =>
   await assert.rejects(h.store.commit([{ row: { PK: 'bad', SK: 'bad', entity_type: 'entitlement' } }]));
   assert.equal(h.commands.length, 0);
 });
-test('Parameter Store adapters use String catalog and SecureString secret with bounded caching', async () => {
+test('Parameter Store secret adapter reads only the SecureString with bounded caching and no value logging', async () => {
   const h = harness(); const commands: any[] = [];
-  const ssm = { send: async (command: any) => { commands.push(command.input); return { Parameter: command.input.WithDecryption
-    ? { Type: 'SecureString', Value: 'SECRET_SENTINEL', Version: 1 } : { Type: 'String', Value: JSON.stringify(catalog), Version: 1 } }; } };
-  const cache = parameterCatalog('/test/catalog', scope, h.telemetry, ssm as any);
-  await cache.read(); await cache.read();
+  const ssm = { send: async (command: any) => { commands.push(command.input); return { Parameter: { Type: 'SecureString', Value: 'SECRET_SENTINEL', Version: 1 } }; } };
   const secret = parameterSecret('/test/stripe', h.telemetry, ssm as any); await secret(); await secret();
-  assert.deepEqual(commands, [{ Name: '/test/catalog', WithDecryption: false }, { Name: '/test/stripe', WithDecryption: true }]);
+  assert.deepEqual(commands, [{ Name: '/test/stripe', WithDecryption: true }]);
   assert.equal(h.logs.join('').includes('SECRET_SENTINEL'), false);
 });
 test('webhook signature covers exact raw bytes, timestamp, mode and account', () => {
