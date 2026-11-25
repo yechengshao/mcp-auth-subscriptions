@@ -1,6 +1,8 @@
 import { createBillingHttpAdapter } from './http.js';
 import { createHash } from 'node:crypto';
-import { BillingStore, BillingQueue, parameterCatalog, parameterSecret } from './adapters/aws.js';
+import { BillingStore, BillingQueue, parameterSecret } from './adapters/aws.js';
+import { stripeCatalogRelease } from './adapters/stripe-catalog.js';
+import { createCatalogCache } from './contracts/catalog-cache.js';
 import { StripeAdapter, verifyWebhook } from './adapters/stripe.js';
 import { BillingService, type RuntimeBudgets } from './service.js';
 import { createBillingDispatcher, type BillingRequest } from './dispatcher.js';
@@ -13,7 +15,7 @@ import { awsAccountIdPattern } from '../contracts/patterns.js';
 import type { InvocationContext, HttpEvent } from '../observability/adapters.js';
 export interface HandlerConfig {
   environment: string; scope: { environment: string; aws_account_id: string; region: string; stripe_account: string };
-  stateTable: string; entitlementTable: string; catalogParameter: string; stripeKeyParameter: string; webhookSecretParameter: string;
+  stateTable: string; entitlementTable: string; stripeKeyParameter: string; webhookSecretParameter: string;
   queueUrl: string; queueArn: string; replayRuleArn: string; successUrl: string; cancelUrl: string; supportEmail: string;
   live: boolean; budgets: RuntimeBudgets;
 }
@@ -36,13 +38,13 @@ export function runtimeConfig(source: NodeJS.ProcessEnv): HandlerConfig {
   if (queueUrl !== expectedQueueUrl) throw new Error('billing_queue_url_mismatch');
   return { environment, scope: { environment, aws_account_id: account, region, stripe_account: required(source, 'STRIPE_ACCOUNT_ID') },
     stateTable: required(source, 'BILLING_STATE_TABLE'), entitlementTable: required(source, 'BILLING_ENTITLEMENTS_TABLE'),
-    catalogParameter: required(source, 'BILLING_CATALOG_PARAMETER'), stripeKeyParameter: required(source, 'STRIPE_KEY_PARAMETER'),
+    stripeKeyParameter: required(source, 'STRIPE_KEY_PARAMETER'),
     webhookSecretParameter: required(source, 'STRIPE_WEBHOOK_SECRET_PARAMETER'), queueUrl, queueArn,
     replayRuleArn, successUrl: required(source, 'BILLING_SUCCESS_URL'), cancelUrl: required(source, 'BILLING_CANCEL_URL'),
     supportEmail: required(source, 'BILLING_SUPPORT_EMAIL'), live: source.STRIPE_LIVE === 'true', budgets: budgets as RuntimeBudgets };
 }
 export function composeBillingHandler(config: HandlerConfig, service: BillingService, telemetry: Telemetry,
-  readCatalog: ReturnType<typeof parameterCatalog>['read'], webhookSecret: () => Promise<string>) {
+  readCatalog: ReturnType<typeof createCatalogCache>['read'], webhookSecret: () => Promise<string>) {
   const native = createBillingDispatcher(config.environment, config.supportEmail, {
     catalog: async () => (await readCatalog()).catalog,
     entitlement: identity => service.store.get(service.store.key(identity, 'ENTITLEMENT'), true),
@@ -104,10 +106,14 @@ export async function handler(event: unknown, context: InvocationContext) {
       const config = runtimeConfig(process.env);
       const telemetry = new Telemetry(configFromEnvironment('billing', process.env));
       const store = new BillingStore(config.environment, config.stateTable, config.entitlementTable, telemetry);
-      const catalog = parameterCatalog(config.catalogParameter, config.scope, telemetry, undefined, { max_age_ms: config.budgets.catalog_cache_seconds * 1000, fetch_timeout_ms: config.budgets.catalog_fetch_timeout_ms });
       const stripe = new StripeAdapter(parameterSecret(config.stripeKeyParameter, telemetry), {
         account: config.scope.stripe_account, live: config.live, successUrl: config.successUrl, cancelUrl: config.cancelUrl, maxPages: config.budgets.max_pages,
       }, telemetry);
+      // Stripe is the authority for plans, prices and usage-plan mapping; the catalog is derived from it per cache window.
+      const catalog = createCatalogCache(async () => {
+        const release = stripeCatalogRelease(await stripe.catalogObjects(config.budgets.max_pages), config.scope, config.live);
+        return { version: release.version, value: release.value };
+      }, config.scope, { max_age_ms: config.budgets.catalog_cache_seconds * 1000, fetch_timeout_ms: config.budgets.catalog_fetch_timeout_ms });
       const service = new BillingService(store, stripe, new BillingQueue(config.queueUrl, config.environment, telemetry), () => catalog.read(),
         config.scope.stripe_account, config.supportEmail, config.budgets, telemetry);
       initialized = composeBillingHandler(config, service, telemetry, () => catalog.read(), parameterSecret(config.webhookSecretParameter, telemetry));

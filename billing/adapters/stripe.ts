@@ -61,6 +61,25 @@ export class StripeAdapter implements BillingPayments {
     if (!/^cs_[A-Za-z0-9_]+$/.test(id)) throw new Error('invalid_session_reference');
     return this.request(`checkout/sessions/${encodeURIComponent(id)}?expand[]=line_items&expand[]=payment_intent.latest_charge`);
   }
+  /** Reads the active products and one-time prices that the billing catalog is built from; bounded by maxPages. */
+  async catalogObjects(maxPages: number): Promise<{ products: Json[]; prices: Json[] }> {
+    if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 10) throw new Error('invalid_query_budget');
+    return { products: await this.listAll('products', 'active=true', maxPages), prices: await this.listAll('prices', 'active=true&type=one_time', maxPages) };
+  }
+  private async listAll(resource: string, filter: string, maxPages: number): Promise<Json[]> {
+    const items: Json[] = []; let after: string | undefined;
+    for (let page = 0; page < maxPages; page++) {
+      const query = new URLSearchParams(filter); query.set('limit', '100');
+      if (after) query.set('starting_after', after);
+      const body = await this.request(`${resource}?${query}`);
+      if (!Array.isArray(body.data)) throw new Error('invalid_stripe_response');
+      items.push(...body.data);
+      if (!body.has_more) return items;
+      after = body.data.at(-1)?.id;
+      if (typeof after !== 'string') throw new Error('invalid_stripe_response');
+    }
+    throw new Error('stripe_catalog_too_large');
+  }
   async creditable(order: Json): Promise<boolean> {
     if (!order.checkout_session_id) return false;
     const session = await this.session(order.checkout_session_id);

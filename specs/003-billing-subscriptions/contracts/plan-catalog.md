@@ -113,6 +113,9 @@ Entitlements and bindings keep the snapshot model from above: the purchase-time 
 - The publish-time catalog assembly described in "Mapping source and publication".
 - The catalog template `infra/billing/catalog.yaml` is no longer deployed. Its removal is a follow-up change.
 
-### Not yet implemented
+### Implementation status (2026-11-25)
 
-The billing code, its tests, the Stripe verification command and the removal of the catalog stack are still to be done. Nothing in Stripe or AWS has been changed.
+- Implemented in code: `billing/adapters/stripe-catalog.ts` builds the catalog from active Stripe products and one-time prices in the environment's mode. It excludes incomplete, mixed-mode, other-environment and ambiguous entries, and refuses a release with no sellable plan. `StripeAdapter.catalogObjects` reads both lists with pagination bounded by `max_pages`. The handler reads the catalog through the existing cache (60 s maximum age, 3 s fetch deadline), and `BILLING_CATALOG_PARAMETER` is no longer required. Tests: `tests/billing/stripe_catalog.test.ts`.
+- Deviation kept for now: `catalog_version` is a digest of the whole projection, not a digest per price. Any change to any plan therefore invalidates existing quotes, which is safe but broader than the per-price rule above.
+- Naming kept for now: the snapshot's `ssm_version` field carries the newest Stripe `created` timestamp of the objects used.
+- Not yet done: removing `infra/billing/catalog.yaml` and the catalog env/IAM from `infra/billing/runtime.yaml`, the read-only Stripe verification command, and a live check of listing latency against the 3 s fetch deadline with many objects.

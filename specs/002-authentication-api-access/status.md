@@ -326,3 +326,4 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 
 - Approved amendment: Stripe products and prices, with their metadata, are the authority for plans, durations and usage-plan mapping. The SSM catalog is retired as a runtime source. Details are in `specs/003-billing-subscriptions/contracts/plan-catalog.md` (Stripe authority amendment).
 - Not implemented: the billing code changes, the Stripe verification command, and removing the catalog stack. Nothing has been changed in Stripe or AWS.
+- Billing code: the catalog is now built from Stripe in `billing/adapters/stripe-catalog.ts` and tested (342 tests pass on Node 24). The SSM catalog template and the runtime's catalog env are still deployed artifacts; removing them is a follow-up. Nothing is deployed.
