@@ -57,3 +57,20 @@ test('access runtime and authorizer set no reserved concurrency until the accoun
     }
   }
 });
+
+test('gateway resolves producer aliases from SSM at deploy time instead of taking ARNs', () => {
+  const gateway = load('infra/access/gateway.yaml');
+  const expected: Record<string, string> = {
+    ServiceAliasParameter: '/mcp/test/service/alias-arn',
+    AccessAliasParameter: '/mcp/test/access/alias-arn',
+    BillingWebhookAliasParameter: '/mcp/test/billing/alias-arn',
+    AuthorizerAliasParameter: '/mcp/test/authorizer/alias-arn',
+  };
+  for (const [name, parameterName] of Object.entries(expected)) {
+    assert.equal(gateway.Parameters[name].Type, 'AWS::SSM::Parameter::Value<String>');
+    assert.equal(gateway.Parameters[name].Default, parameterName);
+  }
+  for (const name of ['ServiceAliasArn', 'AccessAliasArn', 'BillingWebhookAliasArn', 'AuthorizerAliasArn']) {
+    assert.equal(JSON.stringify(gateway).includes(name), false, name);
+  }
+});

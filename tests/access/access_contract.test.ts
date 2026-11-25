@@ -158,9 +158,9 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
     assert.equal(properties.Integration.IntegrationHttpMethod, 'POST');
   }
   const aliasOf = (name: string) => JSON.stringify(template.Resources[name].Properties.Integration.Uri);
-  assert.ok(aliasOf('MMcp').includes('${ServiceAliasArn}') && aliasOf('MHealth').includes('${ServiceAliasArn}'));
-  assert.ok(aliasOf('MStripeWebhook').includes('${BillingWebhookAliasArn}'));
-  for (const [name] of methods.filter(([name]) => !['MMcp', 'MHealth', 'MStripeWebhook'].includes(name))) assert.ok(aliasOf(name).includes('${AccessAliasArn}'), name);
+  assert.ok(aliasOf('MMcp').includes('${ServiceAliasParameter}') && aliasOf('MHealth').includes('${ServiceAliasParameter}'));
+  assert.ok(aliasOf('MStripeWebhook').includes('${BillingWebhookAliasParameter}'));
+  for (const [name] of methods.filter(([name]) => !['MMcp', 'MHealth', 'MStripeWebhook'].includes(name))) assert.ok(aliasOf(name).includes('${AccessAliasParameter}'), name);
   assert.deepEqual(template.Resources.Authorizer.Properties.Type, 'REQUEST');
   assert.equal(template.Resources.Authorizer.Properties.AuthorizerResultTtlInSeconds, 0);
   assert.equal(template.Resources.Authorizer.Properties.IdentitySource, 'method.request.header.Authorization');

@@ -11,21 +11,25 @@
       "Type": "String",
       "AllowedPattern": "[A-Za-z0-9_.-]{1,96}"
     },
-    "ServiceAliasArn": {
-      "Type": "String",
-      "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*"
+    "ServiceAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/service/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
     },
-    "AccessAliasArn": {
-      "Type": "String",
-      "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*"
+    "AccessAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
     },
-    "BillingWebhookAliasArn": {
-      "Type": "String",
-      "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*"
+    "BillingWebhookAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/billing/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
     },
-    "AuthorizerAliasArn": {
-      "Type": "String",
-      "AllowedPattern": "arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:[A-Za-z][A-Za-z0-9_-]*"
+    "AuthorizerAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/authorizer/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
     },
     "ResourceMetadataUrl": {
       "Type": "String",
@@ -103,7 +107,7 @@
         "IdentitySource": "method.request.header.Authorization",
         "AuthorizerResultTtlInSeconds": 0,
         "AuthorizerUri": {
-          "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthorizerAliasArn}/invocations"
+          "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthorizerAliasParameter}/invocations"
         }
       }
     },
@@ -112,7 +116,7 @@
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
-          "Ref": "AuthorizerAliasArn"
+          "Ref": "AuthorizerAliasParameter"
         },
         "Principal": "apigateway.amazonaws.com",
         "SourceAccount": {
@@ -128,7 +132,7 @@
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
-          "Ref": "ServiceAliasArn"
+          "Ref": "ServiceAliasParameter"
         },
         "Principal": "apigateway.amazonaws.com",
         "SourceAccount": {
@@ -144,7 +148,7 @@
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
-          "Ref": "AccessAliasArn"
+          "Ref": "AccessAliasParameter"
         },
         "Principal": "apigateway.amazonaws.com",
         "SourceAccount": {
@@ -160,7 +164,7 @@
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
-          "Ref": "BillingWebhookAliasArn"
+          "Ref": "BillingWebhookAliasParameter"
         },
         "Principal": "apigateway.amazonaws.com",
         "SourceAccount": {
@@ -641,7 +645,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -662,7 +666,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -683,7 +687,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -704,7 +708,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -725,7 +729,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -746,7 +750,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -767,7 +771,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -788,7 +792,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -809,7 +813,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -830,7 +834,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -851,7 +855,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -872,7 +876,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -893,7 +897,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -914,7 +918,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -935,7 +939,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -956,7 +960,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -977,7 +981,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -998,7 +1002,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -1019,7 +1023,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -1040,7 +1044,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -1061,7 +1065,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -1082,7 +1086,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -1103,7 +1107,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
           }
         }
       }
@@ -1124,7 +1128,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BillingWebhookAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BillingWebhookAliasParameter}/invocations"
           }
         }
       }
@@ -1149,7 +1153,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServiceAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServiceAliasParameter}/invocations"
           }
         }
       }
@@ -1174,7 +1178,7 @@
           "IntegrationHttpMethod": "POST",
           "TimeoutInMillis": 29000,
           "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServiceAliasArn}/invocations"
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServiceAliasParameter}/invocations"
           }
         }
       }
