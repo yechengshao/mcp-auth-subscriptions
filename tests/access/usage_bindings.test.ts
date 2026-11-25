@@ -10,10 +10,7 @@ import { accessRecords } from '../fixtures/storage.js';
 
 const telemetry = () => new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: () => undefined });
 const create = (store: MemoryBindings, gateway: MemoryGateway, clock: { value: number }) => createUsageBindingProvisioner(
-  store, telemetry(), { target: { stage: usage_mapping.stage }, budgets: {
-    schema_version: 1, provisioning_budget_ms: 10_000, sdk_timeout_ms: 3_000, lease_seconds: 60,
-    max_attempts: 5, backoff_min_ms: 2_000, backoff_max_ms: 30_000,
-  } }, async () => ({ rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }), gateway, { now: () => clock.value, random: () => 0 },
+  store, telemetry(), async () => ({ rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }), gateway, { now: () => clock.value, random: () => 0 },
 );
 const input = { identity, subscriberId: 'subscriber_fixture', invocationId: 'invoke_fixture' };
 

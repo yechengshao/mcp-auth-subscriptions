@@ -73,7 +73,8 @@ test('access runtime reads the signing key ARN from SSM and derives the public J
 
 test('access runtime reads the REST API ID from SSM at runtime instead of taking it as a deploy input', () => {
   const runtime = load('infra/access/runtime.yaml');
-  assert.equal(runtime.Parameters.ProvisioningConfigJson.Type, 'String');
+  assert.equal(runtime.Parameters.ProvisioningConfigJson, undefined);
+  assert.deepEqual(runtime.Resources.Function.Properties.Environment.Variables.ACCESS_STAGE_PARAMETER, { 'Fn::Sub': '/mcp/${Environment}/access-api/stage' });
   const statements = runtime.Resources.Role.Properties.Policies[0].PolicyDocument.Statement;
   assert.ok(statements.some((s: any) => s.Action === 'ssm:GetParameter' && JSON.stringify(s.Resource).includes('/access-api/rest-api-id')));
   assert.deepEqual(runtime.Resources.Function.Properties.Environment.Variables.ACCESS_REST_API_ID_PARAMETER,
