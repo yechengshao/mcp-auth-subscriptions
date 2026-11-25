@@ -207,7 +207,7 @@ test('code exchange, PKCE, the authorizer, refresh and revocation all follow the
   const jwk = { ...await exportJWK(pair.publicKey), kid, alg: 'RS256', use: 'sig' };
   const issuer = 'https://access.example.invalid', resource = 'https://api.example.invalid/test/mcp';
   const tokens = new AccessTokens(w.access, async claims => new SignJWT(claims).setProtectedHeader({ alg: 'RS256', typ: 'at+jwt', kid }).sign(pair.privateKey), {
-    issuer, resource, clientIds: ['chatgpt_fixture'], clockSkewSeconds: 5, accessTtlSeconds: 3600,
+    issuer, resource, clockSkewSeconds: 5, accessTtlSeconds: 3600,
     target: async () => ({ rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }),
   }, telemetry, () => now);
   const exchange = (codeVerifier: string) => tokens.exchangeCode({ code, clientId: 'chatgpt_fixture',
@@ -218,7 +218,7 @@ test('code exchange, PKCE, the authorizer, refresh and revocation all follow the
   assert.equal(first.expires_in, 3600);
   await assert.rejects(exchange(verifier), /invalid_grant/, 'an authorization code is one use');
 
-  const authorizer = createAuthorizer({ issuer, resource, clientIds: ['chatgpt_fixture'], clockSkewSeconds: 5,
+  const authorizer = createAuthorizer({ issuer, resource, clockSkewSeconds: 5,
     region: 'us-east-1', accountId: '000000000000', apiId: 'fixturerest', stage: 'test',
     routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }] },
     new TrustedJwks(async () => ({ keys: [jwk] })), telemetry, () => now);
@@ -245,7 +245,7 @@ test('code exchange, PKCE, the authorizer, refresh and revocation all follow the
     'the stateless authorizer accepts an already-issued access token only until its signed expiry');
 
   // Expired OAuth: the same token is denied once its signed expiry has passed (one-hour access window).
-  const later = createAuthorizer({ issuer, resource, clientIds: ['chatgpt_fixture'], clockSkewSeconds: 5,
+  const later = createAuthorizer({ issuer, resource, clockSkewSeconds: 5,
     region: 'us-east-1', accountId: '000000000000', apiId: 'fixturerest', stage: 'test',
     routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }] },
     new TrustedJwks(async () => ({ keys: [jwk] })), telemetry, () => now + 3600 + 6);

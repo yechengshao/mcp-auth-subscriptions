@@ -86,7 +86,7 @@ export async function handler(event: unknown, context: InvocationContext) {
       const store = new AccessStore(config.environment, state, entitlements, telemetry);
       const sessions = new BrowserSessions(config, store, new CognitoIdentity(config.cognito, telemetry), telemetry);
       const trust = { issuer: config.issuer, resource: config.resource,
-        clientIds: config.clients.map(client => client.client_id), clockSkewSeconds: 5 };
+        clockSkewSeconds: 5 };
       const keys = createSigningKeys(awsSigningBackend(signingKeyParameter, telemetry));
       const restApiTarget = createRestApiTarget(restApiParameter, stageParameter);
       const tokens = new AccessTokens(store, createServiceTokenSigner(trust, keys), {

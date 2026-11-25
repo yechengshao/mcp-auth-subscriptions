@@ -13,7 +13,6 @@ const now = 1_800_000_000;
 const config = {
   environment: 'test', issuer: 'https://access.example.invalid', resource: 'https://api.example.invalid/test/mcp',
   clientConfigVersion: 'clients_v1', cookieName: '__Host-access',
-  clients: [{ client_id: 'chatgpt_fixture', redirect_uris: ['https://chatgpt.example.invalid/callback'], scopes: ['openid', 'mcp:invoke'] }],
   cognito: { issuer: 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_fixture', domain: 'https://login.example.invalid',
     clientId: 'cognito_fixture', callbackUri: 'https://access.example.invalid/oauth/cognito/callback', scopes: ['openid', 'email'] },
 };
@@ -139,13 +138,13 @@ function cookieValue(header: string, name: string): string {
   return pair.slice(name.length + 1);
 }
 const onboardingQuery = new URLSearchParams({ response_type: 'code', client_id: 'chatgpt_fixture',
-  redirect_uri: config.clients[0]!.redirect_uris[0]!, resource: config.resource, scope: 'openid mcp:invoke',
+  redirect_uri: 'https://chatgpt.example.invalid/callback', resource: config.resource, scope: 'openid mcp:invoke',
   state: 'chatgpt_state_123', code_challenge: 'A'.repeat(43), code_challenge_method: 'S256' });
 
 test('OAuth onboarding validates registered parameters, binds Cognito state to the browser, and rotates the session', async () => {
   const value = await fixture();
   {
-    const invalid = await invoke(value.handler, 'GET', `/authorize?${new URLSearchParams({ ...Object.fromEntries(onboardingQuery), client_id: 'unregistered' })}`);
+    const invalid = await invoke(value.handler, 'GET', `/authorize?${new URLSearchParams({ ...Object.fromEntries(onboardingQuery), client_id: 'bad client id!' })}`);
     assert.equal(invalid.statusCode, 400);
     assert.equal(responseHeader(invalid, 'location'), undefined);
     assert.equal(value.exchanges.length, 0);

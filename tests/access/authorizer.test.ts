@@ -21,7 +21,7 @@ test('REQUEST authorizer returns exact ARN policy and private top-level usage ke
   assert.equal(logs.join('').includes(claims.usageIdentifierKey), false);
 });
 test('wrong issuer/resource/client/type, excessive lifetime, paid bound and privacy claims deny', async () => {
-  for (const change of [{ iss: 'https://wrong.invalid' }, { aud: 'https://wrong.invalid/mcp' }, { aud: [trust.resource] }, { client_id: 'other' },
+  for (const change of [{ iss: 'https://wrong.invalid' }, { aud: 'https://wrong.invalid/mcp' }, { aud: [trust.resource] }, { client_id: 'bad client id!' },
     { token_use: 'id' }, { exp: now + 3601 }, { subscription_valid_until: now + 3599 }, { exp: now }, { iat: now + 1 },
     { usageIdentifierKey: '' }, { entitlement_revision: -1 }, { email: 'PRIVATE_EMAIL_SENTINEL' }]) {
     await assert.rejects(app().handler(event(await fixture.sign(change)), {}), /^Error: Unauthorized$/);

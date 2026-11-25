@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { validateEntitlement } from '../contracts/entitlement.js';
 import { identityPartition } from '../contracts/identity.js';
-import { identifierPattern, usageIdentifierKeyPattern } from '../contracts/patterns.js';
+import { identifierPattern, registeredClientIdPattern, usageIdentifierKeyPattern } from '../contracts/patterns.js';
 import type { ServiceClaims, TokenTrust } from '../security/service-token.js';
 import { parseScopes, validateTrust } from '../security/service-token.js';
 import type { AccessRow, StateKey } from './model.js';
@@ -46,7 +46,7 @@ export class AccessTokens {
   }
 
   async exchangeCode(input: { code: string; clientId: string; redirectUri: string; codeVerifier: string; resource: string }): Promise<TokenResponse> {
-    if (!this.config.clientIds.includes(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
+    if (!registeredClientIdPattern.test(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
     if (typeof input.code !== 'string' || !opaque.test(input.code) || typeof input.codeVerifier !== 'string' ||
         !verifierPattern.test(input.codeVerifier) || typeof input.redirectUri !== 'string' || input.redirectUri.length > 2048) throw new OAuthTokenFailure(400, 'invalid_request');
     // RFC 8707: a resource this server does not serve is an invalid target, not a malformed request.
@@ -90,7 +90,7 @@ export class AccessTokens {
   }
 
   async refresh(input: { refreshToken: string; clientId: string; resource?: string; scope?: string }): Promise<TokenResponse> {
-    if (!this.config.clientIds.includes(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
+    if (!registeredClientIdPattern.test(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
     if (typeof input.refreshToken !== 'string' || !opaque.test(input.refreshToken) ||
         (input.scope !== undefined && typeof input.scope !== 'string')) throw new OAuthTokenFailure(400, 'invalid_request');
     if (input.resource !== undefined && input.resource !== this.config.resource) throw new OAuthTokenFailure(400, 'invalid_target');
@@ -142,7 +142,7 @@ export class AccessTokens {
 
   /** RFC 7009: unknown tokens and other clients' tokens have the same empty success. */
   async revoke(input: { token: string; clientId: string; tokenTypeHint?: string }): Promise<void> {
-    if (!this.config.clientIds.includes(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
+    if (!registeredClientIdPattern.test(input.clientId)) throw new OAuthTokenFailure(401, 'invalid_client');
     if (typeof input.token !== 'string' || input.token.length > 2048 ||
         (input.tokenTypeHint !== undefined && (typeof input.tokenTypeHint !== 'string' || input.tokenTypeHint.length > 64))) {
       throw new OAuthTokenFailure(400, 'invalid_request');

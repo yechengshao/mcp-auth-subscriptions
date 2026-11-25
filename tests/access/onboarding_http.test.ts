@@ -10,7 +10,6 @@ import { Telemetry } from '../../observability/telemetry.js';
 const config: AccessConfiguration = {
   environment: 'test', issuer: 'https://access.example.invalid', resource: 'https://api.example.invalid/test/mcp',
   clientConfigVersion: 'clients_v1', cookieName: '__Host-access',
-  clients: [{ client_id: 'chatgpt_fixture', redirect_uris: ['https://chatgpt.example.invalid/callback'], scopes: ['openid', 'mcp:invoke'] }],
   cognito: { issuer: 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_fixture', domain: 'https://login.example.invalid',
     clientId: 'cognito_fixture', callbackUri: 'https://access.example.invalid/oauth/cognito/callback', scopes: ['openid', 'email'] },
 };

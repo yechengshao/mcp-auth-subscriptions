@@ -46,8 +46,8 @@ sequence. The order that matters for dependencies is:
 4. **Billing alias.** Deploy billing with its live alias. Access cannot invoke it
    until the alias exists.
 5. **Access runtime.** Deploy `infra/access/runtime.yaml` with `SigningKeyArn`, the
-   billing alias ARN, the table ARNs, `AccessConfigJson` (clients and the coordinator's own
-   settings; Cognito values come from SSM, not this JSON).
+   billing alias ARN, the table ARNs, `AccessConfigJson` (the coordinator's own settings; the
+   client registry is removed and Cognito values come from SSM).
    The signing key comes from the SSM parameter `/mcp/<env>/access/signing-key-arn`
    at runtime, so the runtime takes no public JWK input. The REST API ID comes from
    `/mcp/<env>/access-api/rest-api-id`, which the gateway stack publishes, so the

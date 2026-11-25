@@ -1,5 +1,5 @@
 import express, { type RequestHandler } from 'express';
-import { endpoint, type AccessConfiguration } from '../config.js';
+import { accessScopes, endpoint, type AccessConfiguration } from '../config.js';
 import type { OAuthExtension } from './types.js';
 import type { PublicKeySource } from '../signing.js';
 
@@ -23,7 +23,7 @@ export function discoveryRoutes(config: AccessConfiguration, publicKeys: PublicK
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: [...new Set(config.clients.flatMap(client => client.scopes))],
+    scopes_supported: [...accessScopes],
   };
   const resource = new URL(config.resource);
   const issuer = new URL(config.issuer);

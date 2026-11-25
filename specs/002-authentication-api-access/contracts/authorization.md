@@ -49,3 +49,17 @@ The MCP process validates no JWT and requires no OAuth, DynamoDB, Stripe or sign
 ## Sources
 
 [REST authorizer inputs](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-input.html), [authorizer output and usageIdentifierKey](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-output.html), [Cognito token validation](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html). Exact TTLs, issuer-side state reads and coordinator signing are project design decisions.
+
+
+## Amendment: open client registration (2026-11-25)
+
+The approved decision is that any client may start a sign-in. The static client registry is removed: there is no client allow-list, no per-client redirect list and no per-client scope list.
+
+What remains, enforced on every request:
+- `client_id` must be a well-formed identifier. The token's `client_id` claim must match the same format.
+- `redirect_uri` must be an HTTPS URL without credentials, fragment or wildcard. The authorization code is bound to the exact `redirect_uri` it was issued for, and `/token` refuses any different value.
+- PKCE with `S256` is required, and the authorization code is single-use and bound to the client that obtained it.
+- Requested scopes must be within `openid` and `mcp:invoke`. The access token carries the granted scopes, and the authorizer checks the MCP scope on each route.
+- Cognito still authenticates the user, and billing still decides whether a subscription is active.
+
+Accepted risk, recorded by the owner: a user who signs in through an unfamiliar app can have a token issued to that app, and that token carries the subscriber's usage key. Detection is by logging `client_id` on issuance and monitoring. Restricting which clients may use the service is a later, separate decision and will need its own amendment.

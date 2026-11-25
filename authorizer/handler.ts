@@ -12,7 +12,7 @@ export interface AuthorizerConfig extends TokenTrust {
 }
 export interface RequestEvent extends HttpEvent { type: string; methodArn: string; routeArn?: unknown; version?: unknown }
 export function validateAuthorizerConfig(input: AuthorizerConfig) {
-  const fields = ['issuer','resource','clientIds','clockSkewSeconds','region','accountId','apiId','stage','routes'];
+  const fields = ['issuer','resource','clockSkewSeconds','region','accountId','apiId','stage','routes'];
   if (!input || typeof input !== 'object' || Object.keys(input).some(key => !fields.includes(key))) throw new Error('invalid_authorizer_configuration');
   validateTrust(input);
   if (!/^[a-z]{2}(?:-[a-z0-9]+)+-\d$/.test(input.region) || !awsAccountIdPattern.test(input.accountId) ||
