@@ -171,7 +171,8 @@ deployments, including the failure cases.
 | Authorizer ZIP publication | Performed earlier |
 | Signing key stack `mcp-access-signing` | Performed (`CREATE_COMPLETE`); key ARN recorded |
 | Public JWK in `SigningConfigJson` and `PublicJwksJson` | Derived; not yet deployed to any runtime |
-| Storage stack for access tables | Not performed |
+| Storage stack for access tables `mcp-access-storage` | Performed (`CREATE_COMPLETE`, 2026-11-25) |
+| Billing storage stack `mcp-billing-storage` (tables, policies, stream) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Billing publication stack and image `billing-2026-11-24.4` | Performed (publish run 45482349557) |
 | Billing storage, runtime and alias | Not performed; needs approval |
 | Access runtime stack | Not performed; needs approval |
