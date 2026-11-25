@@ -54,8 +54,8 @@ sequence. The order that matters for dependencies is:
    billing webhook and authorizer alias ARNs, the metadata URL, and the stage name.
    The gateway stack also creates the basic usage plan on the API stage and outputs
    `BasicUsagePlanId` for the catalog. Access provisioning only attaches API keys to
-   that plan; it never creates usage plans. Throttle and quota must be added to the plan
-   from the approved catalog before selling.
+   that plan; it never creates usage plans.
+   Limits: 5 requests/second, burst 10, quota 10,000 requests per month.
 
 Each template is validated by `cfn-lint` in CI before deployment. Deploy inputs come
 from the publication workflows, never from local shells.

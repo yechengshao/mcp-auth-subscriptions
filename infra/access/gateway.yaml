@@ -158,7 +158,9 @@
       "DependsOn": ["Stage"],
       "Properties": {
         "UsagePlanName": { "Fn::Sub": "mcp-access-${StageName}-basic" },
-        "Description": "Paid API-key usage plan for the basic catalog entry. Throttle and quota are not set here; add them from the approved catalog before selling.",
+        "Description": "Paid API-key usage plan for the basic catalog entry: 5 requests/second sustained, burst 10, quota 10,000 requests per month.",
+        "Throttle": { "RateLimit": 5, "BurstLimit": 10 },
+        "Quota": { "Limit": 10000, "Period": "MONTH" },
         "ApiStages": [{ "ApiId": { "Ref": "RestApi" }, "Stage": { "Ref": "StageName" } }]
       }
     },
