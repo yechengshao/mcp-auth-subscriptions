@@ -22,7 +22,7 @@ test('the isolated access job fails without lockfiles and runs only the access s
 test('the full job keeps billing and observability checks in CI', () => {
   const full = job('full');
   assert.ok(/run: npm run check\s*$/m.test(full));
-  assert.ok(full.includes('cfn-lint infra/observability/template.json infra/billing/*.yaml infra/access/*.yaml'));
+  assert.ok(full.includes('cfn-lint infra/observability/template.json infra/observability/alarm-topic.yaml infra/billing/*.yaml infra/access/*.yaml'));
 });
 test('check:access covers exactly the access test directory and typechecks first', () => {
   assert.equal(packageJson.scripts['check:access'], 'npm run typecheck && npm run test:access');

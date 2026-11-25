@@ -68,5 +68,5 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check cfn-lint==1.59.0
-      - run: cfn-lint infra/observability/template.json infra/billing/*.yaml infra/access/*.yaml
+      - run: cfn-lint infra/observability/template.json infra/observability/alarm-topic.yaml infra/billing/*.yaml infra/access/*.yaml
       - run: git diff --check
