@@ -1,6 +1,8 @@
 # Contract: Shared Parameter Store Plan Catalog
 
-**Status**: Planned storage and mapping decision; no parameters, Stripe objects or usage plans are deployed. This contract owns shared catalog/version/snapshot behavior; eligibility policy remains spec FR-007, subscription keys remain the storage contract, and key provisioning belongs to access.
+**Status**: Planned storage and mapping decision; no parameters, Stripe objects or usage plans are deployed.
+
+**Amendment (2026-11-25)**: the approved authority for plans, prices and their usage-plan mapping is Stripe, as described in [Stripe authority amendment](#stripe-authority-amendment-2026-11-25). Where the sections below describe the SSM catalog as the authority, that amendment supersedes them. This contract owns shared catalog/version/snapshot behavior; eligibility policy remains spec FR-007, subscription keys remain the storage contract, and key provisioning belongs to access.
 
 ## Catalog source and schema
 
@@ -72,3 +74,45 @@ Rules that keep the mapping maintainable:
 - Add a tier by adding its usage plan to the gateway template, deploying the gateway, creating its prices with the metadata above, then publishing a new catalog version. No existing entry is edited in place.
 - Retire a tier by setting `enabled_for_purchase` to false in a new catalog version. Existing entitlements keep their snapshot.
 - Test and production use separate Stripe accounts, usage plan parameters, and catalog parameters. Production values are never created or published from a test run.
+
+
+## Stripe authority amendment (2026-11-25)
+
+Stripe is the authority for sellable plans, durations, prices and their usage-plan mapping. The shared SSM catalog document, its `catalog_version` and the `infra/billing/catalog.yaml` template are retired as a runtime source. The server still validates every value it uses, and AWS usage plans remain owned by the gateway stack.
+
+### Structure in Stripe
+
+- One active Stripe **Product** per billing plan. Product metadata: `plan_id`, `tier_order`, `enabled_for_purchase`, `actions` (comma list), `environment`.
+- One one-time **Price** per duration option. Price metadata: `plan_id`, `duration_option_id`, `usage_plan_id`, `rest_api_id`, `stage`, `service_term` (unit, count, `time_semantics`), `environment`, `enabled_for_purchase`. `unit_amount` and `currency` are the amount; `mode` is `payment`.
+- Metadata is the only place these values live. Environment is the Stripe account plus `livemode`; a test-mode price can never be used in a live environment, and the reverse.
+
+### Immutability rule
+
+Stripe prices cannot change amount or currency, so each price is an immutable version. A price's metadata is never edited once the price has been used for a purchase or quote. To change a mapping, create a new price with the new metadata, deactivate the old one, and leave the old one attached to existing orders. A metadata edit on a price that is referenced by an order is a configuration error. Enable Stripe audit logging and limit dashboard write access to the billing operator role.
+
+### Read path
+
+- **Listing (`listPlans`)** lists active products and their active prices, then returns the customer-facing fields only. Entries whose metadata is incomplete, mixed-environment, or whose usage plan is not on the deployed REST API and stage are excluded and recorded as a sanitized configuration event; they are never shown. A valid plan with no valid price is not listed.
+- Stripe reads use a per-Lambda memory cache of at most 60 seconds, a three-second deadline, and deduplicated concurrent loads. An expired cache with a failed refresh returns a retryable configuration result, not stale data.
+- **Quote** carries the price ID and a digest of its metadata and amount, not the whole catalog version.
+- **Checkout (`createCheckout`)** retrieves the exact price by ID (no listing), recomputes the digest, and compares it with the quote. A changed price or digest returns `conflict` with `error_code=catalog_changed`; the user must confirm again. The order snapshot stores the price ID, amount, currency, service term, usage plan, REST API, stage and the digest. Retries reuse that snapshot and the Stripe idempotency key.
+
+### Entitlements and access
+
+Entitlements and bindings keep the snapshot model from above: the purchase-time mapping is copied into the entitlement, and access provisions against that snapshot. Access never reads Stripe or the catalog. Renewals and upgrades use the same price-lookup and digest rules.
+
+### Operator flow
+
+1. The gateway stack deploys the usage plan and publishes its ID to SSM.
+2. The operator creates the Stripe product and price with the metadata above, in the environment's account, and sets `enabled_for_purchase` only after the verification check passes.
+3. A read-only verification command lists the Stripe objects, checks each usage plan on the deployed REST API and stage, checks `livemode` against the environment, and fails on any mismatch. It makes no Stripe writes.
+
+### Superseded by this amendment
+
+- The SSM catalog parameter as the authority, its `catalog_version` and its 4096-character limit.
+- The publish-time catalog assembly described in "Mapping source and publication".
+- The catalog template `infra/billing/catalog.yaml` is no longer deployed. Its removal is a follow-up change.
+
+### Not yet implemented
+
+The billing code, its tests, the Stripe verification command and the removal of the catalog stack are still to be done. Nothing in Stripe or AWS has been changed.

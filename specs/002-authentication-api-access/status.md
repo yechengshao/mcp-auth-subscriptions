@@ -321,3 +321,8 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 
 - Usage plans come from the gateway template and publish their IDs to SSM; Stripe prices are created after the plan exists and carry its ID in metadata; the publish step verifies those links and assembles the catalog. The rules are in `specs/003-billing-subscriptions/contracts/plan-catalog.md` (Mapping source and publication).
 - Not implemented: the per-tier usage plans, the verification step, and the catalog assembly. Nothing is deployed. The access runtime still waits on its `AccessConfigJson` inputs and approval.
+
+## Stripe is the billing mapping authority (2026-11-25)
+
+- Approved amendment: Stripe products and prices, with their metadata, are the authority for plans, durations and usage-plan mapping. The SSM catalog is retired as a runtime source. Details are in `specs/003-billing-subscriptions/contracts/plan-catalog.md` (Stripe authority amendment).
+- Not implemented: the billing code changes, the Stripe verification command, and removing the catalog stack. Nothing has been changed in Stripe or AWS.
