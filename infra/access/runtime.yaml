@@ -85,12 +85,6 @@
         "PassThrough"
       ],
       "Default": "PassThrough"
-    },
-    "ReservedConcurrency": {
-      "Type": "Number",
-      "MinValue": 1,
-      "MaxValue": 100,
-      "Default": 5
     }
   },
   "Resources": {
@@ -229,9 +223,6 @@
         ],
         "MemorySize": 512,
         "Timeout": 30,
-        "ReservedConcurrentExecutions": {
-          "Ref": "ReservedConcurrency"
-        },
         "TracingConfig": {
           "Mode": {
             "Ref": "TracingMode"

@@ -46,3 +46,14 @@ test('access storage and signing publish their table name and signing key ARN un
   assert.ok(storage.includes('Value: !Ref AccessState'));
   assert.ok(storage.includes('Environment:\n    Type: String'));
 });
+
+test('access runtime and authorizer set no reserved concurrency until the account quota allows it', () => {
+  const runtime = load('infra/access/runtime.yaml');
+  const authorizer = load('infra/access/authorizer.yaml');
+  assert.equal(runtime.Parameters.ReservedConcurrency, undefined);
+  for (const template of [runtime, authorizer]) {
+    for (const resource of Object.values<any>(template.Resources)) {
+      if (resource.Type === 'AWS::Lambda::Function') assert.equal(resource.Properties.ReservedConcurrentExecutions, undefined);
+    }
+  }
+});
