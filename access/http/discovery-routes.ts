@@ -1,10 +1,15 @@
 import express, { type RequestHandler } from 'express';
 import { endpoint, type AccessConfiguration } from '../config.js';
 import type { OAuthExtension } from './types.js';
+import type { PublicKeySource } from '../signing.js';
 
-export function discoveryRoutes(config: AccessConfiguration, publicJwks: unknown, extension?: OAuthExtension) {
+export function discoveryRoutes(config: AccessConfiguration, publicKeys: PublicKeySource, extension?: OAuthExtension) {
   const router = express.Router();
-  router.get('/jwks.json', (_request, response) => { response.json(publicJwks); });
+  router.get('/jwks.json', async (_request, response) => {
+    try { response.json(await publicKeys.jwks()); } catch {
+      response.status(503).set('retry-after', '5').json({ error: 'authorization_not_ready' });
+    }
+  });
   const unavailable: RequestHandler = (_request, response) => {
     response.status(503).set('retry-after', '5').json({ error: 'authorization_not_ready' });
   };

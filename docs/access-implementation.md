@@ -186,8 +186,9 @@ retained RSA 2048 `SIGN_VERIFY` key with alias `alias/mcp-access-signing` and pu
 its ARN to `/mcp/<env>/access/signing-key-arn`; no operator generates or handles private
 key material. At runtime the access service reads that ARN, calls `GetPublicKey` on it,
 derives the public JWK and a stable `kid`, and caches the JWK in execution-environment
-memory keyed by ARN (no time-based refresh; a changed ARN is a cache miss). A failed
-fetch is not cached and fails the request. `Sign` (`RSASSA_PKCS1_V1_5_SHA_256`,
+memory (no time-based refresh). The ARN is read once per environment, so a changed
+parameter takes effect in new environments after a runtime redeploy. A failed read is
+not cached and fails the request. `/jwks.json` publishes the same derived JWK. `Sign` (`RSASSA_PKCS1_V1_5_SHA_256`,
 `MessageType` `DIGEST`) runs for each token, sending only a SHA-256 digest of the JWS
 signing input. IAM grants belong to access alone: `kms:Sign` (conditioned on the
 algorithm), `kms:GetPublicKey` on the exact key ARN, and `ssm:GetParameter` on

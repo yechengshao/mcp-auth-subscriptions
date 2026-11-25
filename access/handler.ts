@@ -11,7 +11,7 @@ import type { HttpEvent, HttpResult, InvocationContext } from '../observability/
 import type { OAuthExtension } from './http/types.js';
 import { createOAuthExtension } from './http/oauth-extension.js';
 import { AccessTokens } from './tokens.js';
-import { createServiceTokenSigner, createSigningKeyCache, kmsSigningBackend, type SigningConfiguration } from './signing.js';
+import { awsSigningBackend, createServiceTokenSigner, createSigningKeys, type PublicKeySource } from './signing.js';
 import { BillingAliasInvoker } from './adapters/billing.js';
 import { createBillingAliasResolver } from './billing-alias.js';
 import { createUsageBindingProvisioner, type AccessProvisioningConfiguration } from './provisioning.js';
@@ -34,14 +34,14 @@ function configuredJson(environmentName: string, pathName: string): unknown {
 }
 function assertRuntimeEnvironmentSize(source: Record<string, string | undefined>) {
   const keys = ['MCP_SERVICE', 'MCP_ENVIRONMENT', 'MCP_RELEASE', 'ACCESS_STATE_TABLE', 'BILLING_ENTITLEMENTS_TABLE',
-    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_CONFIG_JSON', 'ACCESS_PUBLIC_JWKS_JSON',
-    'ACCESS_SIGNING_CONFIG_JSON', 'ACCESS_PROVISIONING_CONFIG_JSON', 'ACCESS_TOKEN_TTL_SECONDS'];
+    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_CONFIG_JSON', 'ACCESS_SIGNING_KEY_ARN_PARAMETER',
+    'ACCESS_PROVISIONING_CONFIG_JSON', 'ACCESS_TOKEN_TTL_SECONDS'];
   const size = keys.reduce((total, key) => total + Buffer.byteLength(key) + Buffer.byteLength(source[key] ?? '') + 2, 0);
   if (size > 3800) throw new Error('invalid_access_configuration');
 }
-export async function composeAccessHandler(config: AccessConfiguration, sessions: BrowserSessions, publicJwks: unknown,
+export async function composeAccessHandler(config: AccessConfiguration, sessions: BrowserSessions, publicKeys: PublicKeySource,
   telemetry: Telemetry, extension?: OAuthExtension) {
-  const app = await createAccessApp(config, sessions, publicJwks, extension);
+  const app = await createAccessApp(config, sessions, publicKeys, extension);
   const proxy = serverlessExpress({ app, eventSourceName: 'AWS_API_GATEWAY_V1', respondWithErrors: false, logSettings: { level: 'none' } });
   return async (event: unknown, context: InvocationContext): Promise<HttpResult> => {
     if (!event || typeof event !== 'object' || Array.isArray(event)) throw new Error('invalid_access_event');
@@ -64,10 +64,10 @@ export async function handler(event: unknown, context: InvocationContext) {
     if (!initialized) initialized = (async () => {
       assertRuntimeEnvironmentSize(process.env);
       const state = process.env.ACCESS_STATE_TABLE, entitlements = process.env.BILLING_ENTITLEMENTS_TABLE;
-      const signingConfigured = process.env.ACCESS_SIGNING_CONFIG_JSON !== undefined || process.env.ACCESS_SIGNING_CONFIG_PATH !== undefined;
+      const signingKeyParameter = process.env.ACCESS_SIGNING_KEY_ARN_PARAMETER;
       const provisioningConfigured = process.env.ACCESS_PROVISIONING_CONFIG_JSON !== undefined || process.env.ACCESS_PROVISIONING_CONFIG_PATH !== undefined;
       const accountId = process.env.ACCESS_AWS_ACCOUNT_ID, billingAliasParameter = process.env.BILLING_ALIAS_PARAMETER_NAME;
-      if (!state || !entitlements || !signingConfigured || !provisioningConfigured || !accountId || !billingAliasParameter) {
+      if (!state || !entitlements || !signingKeyParameter || !provisioningConfigured || !accountId || !billingAliasParameter) {
         throw new Error('invalid_access_configuration');
       }
       const config = validateAccessConfiguration(configuredJson('ACCESS_CONFIG_JSON', 'ACCESS_CONFIG_PATH') as AccessConfiguration);
@@ -75,12 +75,11 @@ export async function handler(event: unknown, context: InvocationContext) {
       const telemetry = new Telemetry(configFromEnvironment('access', process.env));
       const store = new AccessStore(config.environment, state, entitlements, telemetry);
       const sessions = new BrowserSessions(config, store, new CognitoIdentity(config.cognito, telemetry), telemetry);
-      const signing = configuredJson('ACCESS_SIGNING_CONFIG_JSON', 'ACCESS_SIGNING_CONFIG_PATH') as SigningConfiguration;
       const provisioning = configuredJson('ACCESS_PROVISIONING_CONFIG_JSON', 'ACCESS_PROVISIONING_CONFIG_PATH') as AccessProvisioningConfiguration;
       const trust = { issuer: config.issuer, resource: config.resource,
         clientIds: config.clients.map(client => client.client_id), clockSkewSeconds: 5 };
-      const keyCache = createSigningKeyCache(kmsSigningBackend(signing, telemetry), signing);
-      const tokens = new AccessTokens(store, createServiceTokenSigner(trust, keyCache), {
+      const keys = createSigningKeys(awsSigningBackend(signingKeyParameter, telemetry));
+      const tokens = new AccessTokens(store, createServiceTokenSigner(trust, keys), {
         ...trust, accessTtlSeconds: Number(process.env.ACCESS_TOKEN_TTL_SECONDS ?? '3600'),
         restApiId: provisioning.target.rest_api_id, stage: provisioning.target.stage,
       }, telemetry);
@@ -90,7 +89,7 @@ export async function handler(event: unknown, context: InvocationContext) {
       const onboarding = new Onboarding(store, billing, provisioner, telemetry);
       const management = new Management(store, billing, provisioner, telemetry);
       const extension = createOAuthExtension({ config, sessions, tokens, onboarding, management, telemetry });
-      return composeAccessHandler(config, sessions, configuredJson('ACCESS_PUBLIC_JWKS_JSON', 'ACCESS_PUBLIC_JWKS_PATH'), telemetry, extension);
+      return composeAccessHandler(config, sessions, keys, telemetry, extension);
     })().catch(() => { initialized = undefined; throw new Error('access_configuration_failed'); });
     return await (await initialized)(event, context);
   } catch { throw new Error('access_invocation_failed'); }

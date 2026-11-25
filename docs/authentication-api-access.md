@@ -66,9 +66,10 @@ from the publication workflows, never from local shells.
   signing input. The private key never leaves KMS.
 - The runtime reads the key ARN from `/mcp/<env>/access/signing-key-arn`, then calls
   `kms:GetPublicKey` on that ARN and converts the SubjectPublicKeyInfo to a JWK.
-  The public key is cached in execution-environment memory, keyed by ARN. A cache
-  miss (cold start or changed ARN) fetches and caches; later requests use the cached
-  JWK with no AWS call. Failed fetches are not cached.
+  The ARN is read once per execution environment. The public key is derived from it and
+  cached in memory; later requests use the cached JWK with no AWS call. Failed reads are
+  not cached, so the next request retries. A changed parameter takes effect in new
+  execution environments, so redeploy the runtime after switching it.
 - The `kid` is derived from the public key, so the same key always has the same `kid`.
 - Signing and the published JWKS use the same ARN, so they cannot diverge within one
   deployment. The `kms:GetPublicKey` check before signing is the cached one above.

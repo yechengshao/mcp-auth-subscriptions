@@ -105,7 +105,7 @@ async function fixture(extension?: OAuthExtension, accessConfig = config) {
     sink: line => telemetryLines.push(line), now: () => now * 1000,
   });
   const sessions = new BrowserSessions(accessConfig, store, cognito, telemetry, () => now);
-  const handler = await composeAccessHandler(accessConfig, sessions, publicIdentity.jwks, telemetry, extension);
+  const handler = await composeAccessHandler(accessConfig, sessions, { jwks: async () => publicIdentity.jwks }, telemetry, extension);
   return { handler, store, exchanges, publicIdentity, telemetryLines };
 }
 

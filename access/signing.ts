@@ -1,18 +1,35 @@
 import { createHash, createPublicKey } from 'node:crypto';
 import { GetPublicKeyCommand, KMSClient, SignCommand } from '@aws-sdk/client-kms';
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import type { JWK } from 'jose';
 import { publicKeySet } from '../security/jwks.js';
 import { validateServiceClaims, validateTrust, type ServiceClaims, type TokenTrust } from '../security/service-token.js';
 import type { Telemetry } from '../observability/telemetry.js';
-export interface SigningConfiguration { keyArn: string; kid: string; publicJwk: JWK }
-/** KMS operations used by the coordinator. The private key never leaves KMS. */
-export interface SigningBackend {
-  publicKeyDer(signal: AbortSignal): Promise<Uint8Array>;
-  signDigest(digest: Uint8Array, signal: AbortSignal): Promise<Uint8Array>;
+
+/** Public material derived from the key ARN, plus a signer bound to that same ARN. The private key never leaves KMS. */
+export interface PublishedSigningKey {
+  keyArn: string;
+  kid: string;
+  publicJwk: JWK;
+  sign(digest: Uint8Array): Promise<Uint8Array>;
 }
+
+/** Read-only view for publishing: the JWKS is derived from the same key the signer uses. */
+export interface PublicKeySource { jwks(): Promise<{ keys: JWK[] }> }
+
+/** AWS operations used by the coordinator: one SSM read for the ARN, KMS GetPublicKey and Sign. */
+export interface SigningBackend {
+  keyArn(signal: AbortSignal): Promise<string>;
+  publicKeyDer(keyArn: string, signal: AbortSignal): Promise<Uint8Array>;
+  signDigest(keyArn: string, digest: Uint8Array, signal: AbortSignal): Promise<Uint8Array>;
+}
+
 const KEY_ARN = /^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const PARAMETER_NAME = /^\/mcp\/(development|test|production)\/access\/signing-key-arn$/;
 const DEADLINE_MS = 3000;
-/** Runs one KMS operation with a three-second deadline and aborts it when the deadline passes. */
+const MIN_MODULUS_BITS = 2048, MAX_MODULUS_BITS = 8192;
+
+/** Runs one AWS operation with a three-second deadline and aborts it when the deadline passes. */
 async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const abort = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -21,55 +38,84 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>): Promi
     })]);
   } finally { if (timer) clearTimeout(timer); }
 }
+
+/** Stable key id: base64url SHA-256 of the DER SubjectPublicKeyInfo, so one key always has one kid. */
+export function signingKidFor(der: Uint8Array): string {
+  return createHash('sha256').update(der).digest('base64url');
+}
+
 /**
- * Verifies that KMS holds the configured public key (cached for at most maxAge), and signs digests through KMS.
- * No private material is held in memory, on disk, in DynamoDB, in JWKS or in logs.
+ * Reads the key ARN once per execution environment, asks KMS for its public key, derives the JWK and kid,
+ * and caches the result in memory. A successful derivation is cached for the life of the environment; a
+ * failed read is never cached, so the next request retries. Concurrent callers share one derivation.
  */
-export function createSigningKeyCache(backend: SigningBackend, config: SigningConfiguration,
-  options: { now?: () => number; maxAgeMs?: number } = {}) {
-  const now = options.now ?? Date.now, maxAge = options.maxAgeMs ?? 300000;
-  if (!KEY_ARN.test(config.keyArn) || config.publicJwk.kid !== config.kid ||
-      !Number.isInteger(maxAge) || maxAge < 1 || maxAge > 300000) throw new Error('invalid_signing_configuration');
-  const fixed = structuredClone(config);
-  let verifiedAt: number | undefined, pending: Promise<void> | undefined;
-  async function verify(): Promise<void> {
-    const started = now();
-    try {
-      await publicKeySet({ keys: [fixed.publicJwk] });
-      const der = await withDeadline(signal => backend.publicKeyDer(signal));
-      const actual = createPublicKey({ key: Buffer.from(der), format: 'der', type: 'spki' }).export({ format: 'jwk' });
-      if (actual.kty !== 'RSA' || actual.n !== fixed.publicJwk.n || actual.e !== fixed.publicJwk.e) throw new Error('signing_key_unavailable');
-      const finished = now();
-      if (!Number.isFinite(started) || !Number.isFinite(finished) || finished < started || finished - started >= maxAge) throw new Error('signing_key_unavailable');
-      verifiedAt = started;
-    } catch { verifiedAt = undefined; throw new Error('signing_key_unavailable'); }
+export function createSigningKeys(backend: SigningBackend) {
+  let keyArn: string | undefined;
+  let cached: PublishedSigningKey | undefined;
+  let pending: Promise<PublishedSigningKey> | undefined;
+
+  async function derive(): Promise<PublishedSigningKey> {
+    const arn = keyArn ?? await withDeadline(signal => backend.keyArn(signal));
+    if (!KEY_ARN.test(arn)) throw new Error('signing_key_unavailable');
+    keyArn = arn;
+    const der = await withDeadline(signal => backend.publicKeyDer(arn, signal));
+    const key = createPublicKey({ key: Buffer.from(der), format: 'der', type: 'spki' });
+    const modulusLength = key.asymmetricKeyDetails?.modulusLength;
+    const components = key.export({ format: 'jwk' }) as { kty?: string; n?: string; e?: string };
+    if (key.asymmetricKeyType !== 'rsa' || !modulusLength || modulusLength < MIN_MODULUS_BITS || modulusLength > MAX_MODULUS_BITS ||
+        components.kty !== 'RSA' || !components.n || !components.e) throw new Error('signing_key_unavailable');
+    const kid = signingKidFor(der);
+    const publicJwk: JWK = { kty: 'RSA', n: components.n, e: components.e, kid, alg: 'RS256', use: 'sig' };
+    await publicKeySet({ keys: [publicJwk] });
+    return {
+      keyArn: arn, kid, publicJwk,
+      sign: digest => withDeadline(signal => backend.signDigest(arn, digest, signal)),
+    };
   }
-  return {
-    kid: fixed.kid,
-    async verified(): Promise<void> {
-      const time = now(); if (!Number.isFinite(time) || time < 0) throw new Error('signing_key_unavailable');
-      if (verifiedAt !== undefined && time >= verifiedAt && time < verifiedAt + maxAge) return;
-      if (!pending) pending = verify().finally(() => { pending = undefined; });
+
+  const keys = {
+    /** Returns the cached key, deriving it on first use. Failures surface as signing_key_unavailable and are not cached. */
+    current(): Promise<PublishedSigningKey> {
+      if (cached) return Promise.resolve(cached);
+      pending ??= derive()
+        .then(key => { cached = key; return key; })
+        .catch(() => { throw new Error('signing_key_unavailable'); })
+        .finally(() => { pending = undefined; });
       return pending;
     },
-    signDigest(digest: Uint8Array): Promise<Uint8Array> {
-      return withDeadline(signal => backend.signDigest(digest, signal));
+    async jwks(): Promise<{ keys: JWK[] }> {
+      const key = await keys.current();
+      return { keys: [key.publicJwk] };
     },
   };
+  return keys;
 }
-/** KMS adapter. Key material never leaves KMS; the only operations are GetPublicKey and Sign with a SHA-256 digest. */
-export function kmsSigningBackend(config: SigningConfiguration, telemetry: Telemetry, kms = new KMSClient({
-  maxAttempts: 1, requestHandler: { connectionTimeout: 1000, requestTimeout: 3000 },
-})): SigningBackend {
-  const keyArn = config.keyArn;
+
+export type SigningKeys = ReturnType<typeof createSigningKeys>;
+
+/**
+ * AWS adapter. The parameter name is the exact deploy-provided SSM parameter that infra/access/signing.yaml
+ * publishes. KMS is used only for GetPublicKey and Sign with a SHA-256 digest.
+ */
+export function awsSigningBackend(parameterName: string | undefined, telemetry: Telemetry, clients: { kms?: KMSClient; ssm?: SSMClient } = {}): SigningBackend {
+  if (!parameterName || !PARAMETER_NAME.test(parameterName)) throw new Error('invalid_signing_configuration');
+  const kms = clients.kms ?? new KMSClient({ maxAttempts: 1, requestHandler: { connectionTimeout: 1000, requestTimeout: 3000 } });
+  const ssm = clients.ssm ?? new SSMClient({ maxAttempts: 1, requestHandler: { connectionTimeout: 1000, requestTimeout: 3000 } });
   return {
-    async publicKeyDer(signal) {
+    async keyArn(signal) {
+      const result = await telemetry.dependency('ssm.catalog', () => ssm.send(
+        new GetParameterCommand({ Name: parameterName, WithDecryption: false }), { abortSignal: signal }));
+      const value = result.Parameter?.Value;
+      if (!value) throw new Error('signing_key_unavailable');
+      return value;
+    },
+    async publicKeyDer(keyArn, signal) {
       const result = await telemetry.dependency('kms.signing', () => kms.send(
         new GetPublicKeyCommand({ KeyId: keyArn }), { abortSignal: signal }));
       if (!result.PublicKey) throw new Error('signing_key_unavailable');
       return result.PublicKey;
     },
-    async signDigest(digest, signal) {
+    async signDigest(keyArn, digest, signal) {
       const result = await telemetry.dependency('kms.signing', () => kms.send(new SignCommand({
         KeyId: keyArn, Message: digest, MessageType: 'DIGEST', SigningAlgorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
       }), { abortSignal: signal }));
@@ -78,20 +124,20 @@ export function kmsSigningBackend(config: SigningConfiguration, telemetry: Telem
     },
   };
 }
-export type SigningKey = ReturnType<typeof createSigningKeyCache>;
+
 /** Caller validates authority and commits code/refresh consumption with current revision guards before releasing credentials. */
-export function createServiceTokenSigner(input: TokenTrust, keys: SigningKey, now = () => Math.floor(Date.now() / 1000)) {
+export function createServiceTokenSigner(input: TokenTrust, keys: SigningKeys, now = () => Math.floor(Date.now() / 1000)) {
   const trust = validateTrust(input);
   return async (claims: ServiceClaims) => {
     validateServiceClaims(claims, trust, now());
-    await keys.verified();
-    validateServiceClaims(claims, trust, now()); // Never issue past paid expiry after a slow key check.
+    const key = await keys.current();
+    validateServiceClaims(claims, trust, now()); // Never issue past paid expiry after a slow key derivation.
     try {
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'at+jwt', kid: keys.kid })).toString('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'at+jwt', kid: key.kid })).toString('base64url');
       const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
       const signingInput = `${header}.${payload}`;
       const digest = createHash('sha256').update(signingInput).digest();
-      const signature = await keys.signDigest(digest);
+      const signature = await key.sign(digest);
       if (signature.length !== 256) throw new Error('token_signing_failed');
       return `${signingInput}.${Buffer.from(signature).toString('base64url')}`;
     } catch { throw new Error('token_signing_failed'); }

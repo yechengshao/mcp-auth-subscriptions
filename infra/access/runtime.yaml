@@ -47,18 +47,6 @@
       "MaxLength": 3000,
       "NoEcho": false
     },
-    "PublicJwksJson": {
-      "Type": "String",
-      "MinLength": 2,
-      "MaxLength": 3000,
-      "NoEcho": false
-    },
-    "SigningConfigJson": {
-      "Type": "String",
-      "MinLength": 2,
-      "MaxLength": 1500,
-      "NoEcho": false
-    },
     "ProvisioningConfigJson": {
       "Type": "String",
       "MinLength": 2,
@@ -262,12 +250,6 @@
             },
             "ACCESS_CONFIG_JSON": {
               "Ref": "AccessConfigJson"
-            },
-            "ACCESS_PUBLIC_JWKS_JSON": {
-              "Ref": "PublicJwksJson"
-            },
-            "ACCESS_SIGNING_CONFIG_JSON": {
-              "Ref": "SigningConfigJson"
             },
             "ACCESS_PROVISIONING_CONFIG_JSON": {
               "Ref": "ProvisioningConfigJson"

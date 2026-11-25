@@ -2,7 +2,7 @@ import express from 'express';
 import { isDeepStrictEqual } from 'node:util';
 import { validateAccessConfiguration, type AccessConfiguration } from './config.js';
 import { BrowserSessions } from './sessions.js';
-import { publicKeySet } from '../security/jwks.js';
+import type { PublicKeySource } from './signing.js';
 import { accessErrors } from './http/errors.js';
 import { discoveryRoutes } from './http/discovery-routes.js';
 import { identityRoutes } from './http/identity-routes.js';
@@ -12,10 +12,9 @@ import type { OAuthExtension } from './http/types.js';
 export type { OAuthExtension } from './http/types.js';
 
 /** Compose the HTTP boundary from focused protocol, browser and management routers. */
-export async function createAccessApp(input: AccessConfiguration, sessions: BrowserSessions, publicJwks: unknown, extension?: OAuthExtension) {
-  const config = validateAccessConfiguration(input), published = structuredClone(publicJwks);
+export async function createAccessApp(input: AccessConfiguration, sessions: BrowserSessions, publicKeys: PublicKeySource, extension?: OAuthExtension) {
+  const config = validateAccessConfiguration(input);
   if (!isDeepStrictEqual(config, sessions.config)) throw new Error('access_configuration_mismatch');
-  await publicKeySet(published);
   if (extension && ['token','revoke','resume','checkout','status','orderStatus','billingReturn','plans','onboarding',
     'managementPage','manageSubscription','managementStatus','billingPortal'].some(key => typeof extension[key as keyof OAuthExtension] !== 'function')) {
     throw new Error('invalid_access_extensions');
@@ -34,7 +33,7 @@ export async function createAccessApp(input: AccessConfiguration, sessions: Brow
     next();
   });
 
-  app.use(discoveryRoutes(config, published, extension));
+  app.use(discoveryRoutes(config, publicKeys, extension));
   app.use(identityRoutes(config, sessions));
   app.use(managementRoutes(config, sessions, extension));
   app.use(oauthRoutes(extension));

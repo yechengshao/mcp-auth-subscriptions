@@ -312,7 +312,7 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 
 - `infra/access/signing.yaml` publishes only the key ARN (`/mcp/<env>/access/signing-key-arn`). CloudFormation has no native attribute for a KMS public key, so no public key is stored in SSM and no custom resource is used.
 - The access runtime reads that ARN with `ssm:GetParameter` (Standard String, so no `kms:Decrypt`), calls `kms:GetPublicKey` on it, and converts the SubjectPublicKeyInfo to a JWK with `jose`. The `kid` is derived from the public key, so it is stable for a given key.
-- The JWK is cached in execution-environment memory keyed by ARN. A cache miss (cold start or a changed ARN) fetches and caches; later requests use the cached JWK with no AWS call. Failed fetches are not cached.
+- The ARN is read once per execution environment, and the JWK derived from it is cached in memory. Later requests use the cached JWK with no AWS call. Failed reads are not cached. A changed parameter takes effect in new environments after a runtime redeploy.
 - `infra/access/runtime.yaml` now grants `ssm:GetParameter` on the signing-key-arn parameter and sets `ACCESS_SIGNING_KEY_ARN_PARAMETER`.
-- Superseded: the pinned `publicJwk` in `SigningConfigJson`, the `PublicJwksJson` runtime input, and the 300-second KMS re-check. The code change to `access/signing.ts`, `access/handler.ts`, `access/app.ts` and their tests is still pending; the runtime template still accepts `PublicJwksJson` and `SigningConfigJson` until that change lands.
+- Superseded: the pinned `publicJwk` in `SigningConfigJson`, the `PublicJwksJson` runtime input, and the 300-second KMS re-check. `access/signing.ts`, `access/app.ts`, `access/handler.ts`, `/jwks.json` and their tests now use the ARN-derived key; `infra/access/runtime.yaml` no longer takes `PublicJwksJson` or `SigningConfigJson`. `npm test` passes on Node 24 (332 tests).
 - Not deployed. Runtime deploy needs your approval.
