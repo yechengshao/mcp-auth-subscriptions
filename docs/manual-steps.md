@@ -6,7 +6,7 @@ Update the status column as each one is finished. Nothing here has been run by C
 | # | Step | Where | Output to send back | Status |
 |---|---|---|---|---|
 | 1 | Create a Stripe test-mode account | Stripe Dashboard | None | Pending |
-| 2 | Create one product per plan, with one-time prices per duration (no recurring prices) | Stripe Dashboard, test mode, Product catalog | Price IDs (`price_...`), plan and duration names, amounts, currency | Pending |
+| 2 | Create one product per plan, with one-time prices per duration, and fill the metadata as in runbook section 3a (manual, no script) | Stripe Dashboard, test mode, Product catalog | Price IDs (`price_...`), plan and duration names, amounts, currency, usage plan ID per plan | Pending |
 | 3 | Copy the test secret key (`sk_test_`) and store it as a SecureString at `STRIPE_KEY_PARAMETER` | AWS console or CLI, on your machine | Parameter name only | Pending |
 | 4 | Deploy the billing storage and runtime stacks, record their outputs | CloudFormation (after approval) | Stack outputs, with ARNs | Pending |
 | 5 | Create the Stripe webhook endpoint at `<deployed API URL>/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired` | Stripe Dashboard, after step 5 | None | Pending |
