@@ -316,3 +316,8 @@ Boundary tests now cover cross-stack grants (entitlement table and billing alias
 - `infra/access/runtime.yaml` now grants `ssm:GetParameter` on the signing-key-arn parameter and sets `ACCESS_SIGNING_KEY_ARN_PARAMETER`.
 - Superseded: the pinned `publicJwk` in `SigningConfigJson`, the `PublicJwksJson` runtime input, and the 300-second KMS re-check. `access/signing.ts`, `access/app.ts`, `access/handler.ts`, `/jwks.json` and their tests now use the ARN-derived key; `infra/access/runtime.yaml` no longer takes `PublicJwksJson` or `SigningConfigJson`. `npm test` passes on Node 24 (332 tests).
 - Not deployed. Runtime deploy needs your approval.
+
+## Billing mapping source (2026-11-25)
+
+- Usage plans come from the gateway template and publish their IDs to SSM; Stripe prices are created after the plan exists and carry its ID in metadata; the publish step verifies those links and assembles the catalog. The rules are in `specs/003-billing-subscriptions/contracts/plan-catalog.md` (Mapping source and publication).
+- Not implemented: the per-tier usage plans, the verification step, and the catalog assembly. Nothing is deployed. The access runtime still waits on its `AccessConfigJson` inputs and approval.

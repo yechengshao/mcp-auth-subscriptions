@@ -55,3 +55,20 @@ Editing a shared API Gateway usage plan's actual limits affects every key associ
 B001/B003/B005/B010 and access T014/T017 validate schema/cache/IAM, display filtering, missing mapping, disabled tier/duration, forged duration/amount, wrong-tier duration choice, term-boundary calculation, quote change, old-order retries, late payment after catalog replacement, current-ready-binding login during SSM outage, revision mismatch, shared-plan limit changes and rollback. Integration/deployment evidence validates real referenced resources separately; no live configuration is performed by this document.
 
 Paid duration, one-time Stripe mode and manual expired-user repurchase are authoritative in [manual renewal](manual-renewal.md).
+
+## Mapping source and publication (2026-11-25)
+
+The mapping from a billing plan to AWS and Stripe resources is built from the owners of each value, not typed by hand. The server catalog remains the only authority for checkout, entitlements and access provisioning; Stripe metadata is a verification record and never a runtime source.
+
+Order of provisioning:
+
+1. **Usage plans** are defined in `infra/access/gateway.yaml`, one `AWS::ApiGateway::UsagePlan` per sellable tier with its rate, burst and quota in code. The same template writes each plan ID to `/mcp/<env>/access-api/<plan-name>` (the basic plan keeps `/mcp/<env>/access-api/usage-plan-id`). A plan that is not defined in the template is not published and not sellable.
+2. **Stripe prices** are created in the target account after the usage plan exists. Each price's metadata records `plan_id`, `duration_option_id`, `environment`, and the usage plan ID read from SSM. Stripe prices cannot change amount or currency, so the binding stays fixed once created. Stripe objects cannot be created from CloudFormation; the IDs are the only manual input.
+3. **Publication** reads the usage plan IDs from SSM and the price and product IDs from Stripe, verifies that each price's metadata matches its catalog entry, and only then assembles the catalog document. A mismatch, a missing price, a live-mode price in a test environment, or a usage plan that is not on the deployed REST API and stage fails the publish. The assembled document is passed to `infra/billing/catalog.yaml` as `CatalogJson` and becomes a new `catalog_version`.
+
+Consumers are unchanged: billing reads the catalog document for listing and checkout, and access reads the entitlement snapshot. Neither reads Stripe metadata or usage plan parameters at request time. The catalog template stores the approved document and does not perform the mapping.
+
+Rules that keep the mapping maintainable:
+- Add a tier by adding its usage plan to the gateway template, deploying the gateway, creating its prices with the metadata above, then publishing a new catalog version. No existing entry is edited in place.
+- Retire a tier by setting `enabled_for_purchase` to false in a new catalog version. Existing entitlements keep their snapshot.
+- Test and production use separate Stripe accounts, usage plan parameters, and catalog parameters. Production values are never created or published from a test run.
