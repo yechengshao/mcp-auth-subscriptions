@@ -15,6 +15,7 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 COPY --from=build /app/dist/access ./dist/access
 COPY --from=build /app/dist/billing/contracts ./dist/billing/contracts
 COPY --from=build /app/dist/contracts ./dist/contracts
+COPY --from=build /app/specs/003-billing-subscriptions/contracts/service-term.schema.json ./dist/specs/003-billing-subscriptions/contracts/service-term.schema.json
 COPY --from=build /app/dist/security ./dist/security
 COPY --from=build /app/dist/observability ./dist/observability
 COPY --from=build /app/node_modules ./node_modules

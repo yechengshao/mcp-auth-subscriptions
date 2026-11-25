@@ -85,6 +85,8 @@ test('access Lambda image uses the managed runtime, production install and exclu
   assert.match(dockerfile, /\/app\/dist\/billing\/contracts/);
   assert.doesNotMatch(dockerfile, /\/app\/dist \.\/dist/);
   assert.match(dockerfile, /dist\/access\/handler\.handler/);
+  // dist/contracts/schema.js resolves its JSON schema relative to dist/, so the file must sit at the same relative path.
+  assert.match(dockerfile, /COPY --from=build \/app\/specs\/003-billing-subscriptions\/contracts\/service-term\.schema\.json \.\/dist\/specs\/003-billing-subscriptions\/contracts\/service-term\.schema\.json/);
   // The image URI is read from SSM at deploy time; the workflow only writes a digest-pinned URI there.
   assert.match(readFileSync('infra/access/runtime.yaml', 'utf8'), /"Type": "AWS::SSM::Parameter::Value<String>"/);
   assert.match(readFileSync('access/Dockerfile.dockerignore', 'utf8'), /node_modules/);

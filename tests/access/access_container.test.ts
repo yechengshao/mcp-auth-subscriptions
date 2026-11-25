@@ -19,6 +19,7 @@ test('access image copies only the access runtime and its shared contracts into 
   const copies = finalStage.split('\n').filter(line => line.startsWith('COPY --from=build'));
   assert.deepEqual(copies.map(line => line.split(' ').at(-2)), [
     '/app/dist/access', '/app/dist/billing/contracts', '/app/dist/contracts',
+    '/app/specs/003-billing-subscriptions/contracts/service-term.schema.json',
     '/app/dist/security', '/app/dist/observability', '/app/node_modules',
   ]);
   assert.doesNotMatch(finalStage, /COPY \. /);
