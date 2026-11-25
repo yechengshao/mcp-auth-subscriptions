@@ -67,7 +67,7 @@ jobs:
             LAMBDA_RUNTIME_IMAGE=${{ vars.LAMBDA_RUNTIME_IMAGE }}
       - name: Smoke test the pushed ARM64 image
         env:
-          IMAGE: ${{ vars.BILLING_ECR_REPOSITORY_URI }}@${{ steps.build.outputs.digest }}
+          IMAGE: ${{ vars.ACCESS_ECR_REPOSITORY_URI }}@${{ steps.build.outputs.digest }}
         run: |
           docker run --rm --platform linux/arm64 --entrypoint /var/lang/bin/node "$IMAGE" -e "import('file:///var/task/dist/access/handler.js').then(m=>{if(typeof m.handler!=='function')throw new Error('handler_missing');console.log('handler_ok')}).catch(e=>{console.error(e.message);process.exit(1)})"
       - name: Write immutable release evidence
