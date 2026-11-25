@@ -15,7 +15,8 @@ test('billing runtime has one ARM64 function and only billing background deliver
   assert.deepEqual(template.Resources.Mapping.Properties.FunctionResponseTypes, ['ReportBatchItemFailures']);
   assert.equal(template.Resources.Queue.Properties.VisibilityTimeout, 185);
   assert.equal(template.Resources.Mapping.Properties.ScalingConfig.MaximumConcurrency, 2);
-  assert.equal(template.Resources.Function.Properties.ReservedConcurrentExecutions, 5);
+  // Reserved concurrency is not set: this account's unreserved limit (10) cannot hold a reservation. The budget value is the target; see the setup guide.
+  assert.equal(template.Resources.Function.Properties.ReservedConcurrentExecutions, undefined);
   assert.equal(template.Parameters.TracingMode.Default, 'PassThrough');
   assert.deepEqual(template.Resources.QueuePolicy.Properties.PolicyDocument.Statement[0].Principal.AWS, [{ 'Fn::GetAtt': ['Role', 'Arn'] }, { 'Fn::GetAtt': ['PipeRole', 'Arn'] }]);
   const policy = JSON.stringify(template.Resources.Role);

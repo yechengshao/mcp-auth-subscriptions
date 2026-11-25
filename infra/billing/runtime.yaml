@@ -285,7 +285,6 @@
         },
         "Timeout": 30,
         "MemorySize": 512,
-        "ReservedConcurrentExecutions": 5,
         "TracingConfig": {
           "Mode": {
             "Ref": "TracingMode"

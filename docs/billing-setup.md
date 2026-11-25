@@ -171,6 +171,8 @@ ARM64 billing Lambda, one work queue, its retained DLQ, one INSERT-only Pipe,
 an SQS mapping and scheduled replay, all targeting the same billing function.
 There is no activation worker. The shared API Gateway is owned elsewhere.
 
+Reserved concurrency: the runtime does not reserve concurrency. This account's Lambda limit is 10 with 10 unreserved, and AWS refuses any reservation below its 10-unreserved minimum. The budget value `reserved_concurrency` (5) is the target, not an enforced limit. Enforce it after the account concurrency quota is raised and the template line is restored.
+
 BudgetsJson is required validated JSON. A complete initial **test** profile is:
 
 ```json
