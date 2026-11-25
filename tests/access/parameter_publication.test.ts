@@ -28,3 +28,14 @@ test('billing storage publishes table names and stream ARN for later consumers, 
   assert.deepEqual(parameterOf(storage, 'EntitlementsTableNameParameter').Value, { Ref: 'BillingEntitlements' });
   assert.deepEqual(parameterOf(storage, 'StateStreamArnParameter').Value, { 'Fn::GetAtt': ['BillingState', 'StreamArn'] });
 });
+
+test('access storage and signing publish their table name and signing key ARN under the shared convention', () => {
+  const signing = load('infra/access/signing.yaml');
+  assert.deepEqual(signing.Parameters.Environment.AllowedValues, ['development', 'test', 'production']);
+  assert.deepEqual(parameterOf(signing, 'SigningKeyArnParameter').Name, { 'Fn::Sub': '/mcp/${Environment}/access/signing-key-arn' });
+  assert.deepEqual(parameterOf(signing, 'SigningKeyArnParameter').Value, { 'Fn::GetAtt': ['SigningKey', 'Arn'] });
+  const storage = readFileSync('infra/access/storage.yaml', 'utf8');
+  assert.ok(storage.includes("Name: !Sub '/mcp/${Environment}/access/state-table-name'"));
+  assert.ok(storage.includes('Value: !Ref AccessState'));
+  assert.ok(storage.includes('Environment:\n    Type: String'));
+});

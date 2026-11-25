@@ -1,5 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Retained access state only; no billing writes, worker, stream, queue or schedule.
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [development, test, production]
+    Default: test
 Resources:
   AccessState:
     Type: AWS::DynamoDB::Table
@@ -36,6 +41,14 @@ Resources:
               - dynamodb:PutItem
               - dynamodb:ConditionCheckItem
             Resource: !GetAtt AccessState.Arn
+  AccessStateNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/state-table-name'
+      Type: String
+      Tier: Standard
+      Value: !Ref AccessState
+      Description: Access state table name.
 Outputs:
   AccessStateName:
     Value: !Ref AccessState

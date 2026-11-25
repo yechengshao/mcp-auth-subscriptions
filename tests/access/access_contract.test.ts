@@ -124,8 +124,11 @@ test('signing key template creates one retained RSA 2048 signing key in KMS with
   assert.deepEqual(key.Properties.KeyPolicy.Statement.map((value: Record<string, unknown>) => value.Action), ['kms:*']);
   assert.equal(template.Resources.SigningKeyAliasResource.Type, 'AWS::KMS::Alias');
   assert.deepEqual(template.Outputs.SigningKeyArn.Value, { 'Fn::GetAtt': ['SigningKey', 'Arn'] });
+  // Parameter Store may hold only the key ARN (non-secret). No key material or secret-bearing parameter is allowed.
+  const ssm = Object.values(template.Resources).filter((value: any) => value.Type === 'AWS::SSM::Parameter') as any[];
+  assert.equal(ssm.length, 1);
+  assert.deepEqual(ssm[0].Properties.Value, { 'Fn::GetAtt': ['SigningKey', 'Arn'] });
   const text = JSON.stringify(template);
-  assert.equal(text.includes('AWS::SSM::Parameter'), false);
   assert.equal(text.includes('secretsmanager'), false);
 });
 

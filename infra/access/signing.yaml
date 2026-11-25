@@ -6,6 +6,15 @@
       "Type": "String",
       "Default": "alias/mcp-access-signing",
       "AllowedPattern": "^alias/[A-Za-z0-9/_-]{1,250}$"
+    },
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "development",
+        "test",
+        "production"
+      ],
+      "Default": "test"
     }
   },
   "Resources": {
@@ -20,28 +29,60 @@
         "Enabled": true,
         "KeyPolicy": {
           "Version": "2012-10-17",
-          "Statement": [{
-            "Sid": "AccountAdministrationDelegatesToIam",
-            "Effect": "Allow",
-            "Principal": { "AWS": { "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root" } },
-            "Action": "kms:*",
-            "Resource": "*"
-          }]
+          "Statement": [
+            {
+              "Sid": "AccountAdministrationDelegatesToIam",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
         }
       }
     },
     "SigningKeyAliasResource": {
       "Type": "AWS::KMS::Alias",
       "Properties": {
-        "AliasName": { "Ref": "SigningKeyAlias" },
-        "TargetKeyId": { "Ref": "SigningKey" }
+        "AliasName": {
+          "Ref": "SigningKeyAlias"
+        },
+        "TargetKeyId": {
+          "Ref": "SigningKey"
+        }
+      }
+    },
+    "SigningKeyArnParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/access/signing-key-arn"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Fn::GetAtt": [
+            "SigningKey",
+            "Arn"
+          ]
+        },
+        "Description": "Access JWT signing key ARN. The runtime reads it at deploy or at startup; the private key stays in KMS."
       }
     }
   },
   "Outputs": {
     "SigningKeyArn": {
       "Description": "Pass to infra/access/runtime.yaml as SigningKeyArn and as keyArn in SigningConfigJson.",
-      "Value": { "Fn::GetAtt": ["SigningKey", "Arn"] }
+      "Value": {
+        "Fn::GetAtt": [
+          "SigningKey",
+          "Arn"
+        ]
+      }
     }
   }
 }
