@@ -15,6 +15,7 @@ import { awsSigningBackend, createServiceTokenSigner, createSigningKeys, type Pu
 import { BillingAliasInvoker } from './adapters/billing.js';
 import { createBillingAliasResolver } from './billing-alias.js';
 import { createUsageBindingProvisioner, type AccessProvisioningConfiguration } from './provisioning.js';
+import { createRestApiTarget } from './rest-api-target.js';
 import { Onboarding } from './onboarding.js';
 import { Management } from './management.js';
 const routeOperations: Record<string, Operation> = { '/authorize': 'http.authorize', '/login': 'http.login', '/oauth/cognito/callback': 'http.callback',
@@ -34,7 +35,7 @@ function configuredJson(environmentName: string, pathName: string): unknown {
 }
 function assertRuntimeEnvironmentSize(source: Record<string, string | undefined>) {
   const keys = ['MCP_SERVICE', 'MCP_ENVIRONMENT', 'MCP_RELEASE', 'ACCESS_STATE_TABLE', 'BILLING_ENTITLEMENTS_TABLE',
-    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_CONFIG_JSON', 'ACCESS_SIGNING_KEY_ARN_PARAMETER',
+    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_CONFIG_JSON', 'ACCESS_SIGNING_KEY_ARN_PARAMETER', 'ACCESS_REST_API_ID_PARAMETER',
     'ACCESS_PROVISIONING_CONFIG_JSON', 'ACCESS_TOKEN_TTL_SECONDS'];
   const size = keys.reduce((total, key) => total + Buffer.byteLength(key) + Buffer.byteLength(source[key] ?? '') + 2, 0);
   if (size > 3800) throw new Error('invalid_access_configuration');
@@ -64,10 +65,10 @@ export async function handler(event: unknown, context: InvocationContext) {
     if (!initialized) initialized = (async () => {
       assertRuntimeEnvironmentSize(process.env);
       const state = process.env.ACCESS_STATE_TABLE, entitlements = process.env.BILLING_ENTITLEMENTS_TABLE;
-      const signingKeyParameter = process.env.ACCESS_SIGNING_KEY_ARN_PARAMETER;
+      const signingKeyParameter = process.env.ACCESS_SIGNING_KEY_ARN_PARAMETER, restApiParameter = process.env.ACCESS_REST_API_ID_PARAMETER;
       const provisioningConfigured = process.env.ACCESS_PROVISIONING_CONFIG_JSON !== undefined || process.env.ACCESS_PROVISIONING_CONFIG_PATH !== undefined;
       const accountId = process.env.ACCESS_AWS_ACCOUNT_ID, billingAliasParameter = process.env.BILLING_ALIAS_PARAMETER_NAME;
-      if (!state || !entitlements || !signingKeyParameter || !provisioningConfigured || !accountId || !billingAliasParameter) {
+      if (!state || !entitlements || !signingKeyParameter || !restApiParameter || !provisioningConfigured || !accountId || !billingAliasParameter) {
         throw new Error('invalid_access_configuration');
       }
       const config = validateAccessConfiguration(configuredJson('ACCESS_CONFIG_JSON', 'ACCESS_CONFIG_PATH') as AccessConfiguration);
@@ -79,13 +80,13 @@ export async function handler(event: unknown, context: InvocationContext) {
       const trust = { issuer: config.issuer, resource: config.resource,
         clientIds: config.clients.map(client => client.client_id), clockSkewSeconds: 5 };
       const keys = createSigningKeys(awsSigningBackend(signingKeyParameter, telemetry));
+      const restApiTarget = createRestApiTarget(restApiParameter, provisioning.target.stage);
       const tokens = new AccessTokens(store, createServiceTokenSigner(trust, keys), {
-        ...trust, accessTtlSeconds: Number(process.env.ACCESS_TOKEN_TTL_SECONDS ?? '3600'),
-        restApiId: provisioning.target.rest_api_id, stage: provisioning.target.stage,
+        ...trust, accessTtlSeconds: Number(process.env.ACCESS_TOKEN_TTL_SECONDS ?? '3600'), target: restApiTarget,
       }, telemetry);
       const billingAliasArn = await createBillingAliasResolver(billingAliasParameter, accountId)();
       const billing = new BillingAliasInvoker(telemetry, { environment: config.environment, accountId, aliasArn: billingAliasArn });
-      const provisioner = createUsageBindingProvisioner(store, telemetry, provisioning);
+      const provisioner = createUsageBindingProvisioner(store, telemetry, provisioning, restApiTarget);
       const onboarding = new Onboarding(store, billing, provisioner, telemetry);
       const management = new Management(store, billing, provisioner, telemetry);
       const extension = createOAuthExtension({ config, sessions, tokens, onboarding, management, telemetry });

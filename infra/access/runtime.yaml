@@ -162,6 +162,13 @@
                 },
                 {
                   "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access-api/rest-api-id"
+                  }
+                },
+                {
+                  "Effect": "Allow",
                   "Action": "apigateway:POST",
                   "Resource": {
                     "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/apikeys"
@@ -256,6 +263,9 @@
             },
             "ACCESS_SIGNING_KEY_ARN_PARAMETER": {
               "Fn::Sub": "/mcp/${Environment}/access/signing-key-arn"
+            },
+            "ACCESS_REST_API_ID_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access-api/rest-api-id"
             },
             "ACCESS_TOKEN_TTL_SECONDS": {
               "Ref": "TokenTtlSeconds"

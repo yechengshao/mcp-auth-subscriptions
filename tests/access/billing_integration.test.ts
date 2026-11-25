@@ -208,7 +208,7 @@ test('code exchange, PKCE, the authorizer, refresh and revocation all follow the
   const issuer = 'https://access.example.invalid', resource = 'https://api.example.invalid/test/mcp';
   const tokens = new AccessTokens(w.access, async claims => new SignJWT(claims).setProtectedHeader({ alg: 'RS256', typ: 'at+jwt', kid }).sign(pair.privateKey), {
     issuer, resource, clientIds: ['chatgpt_fixture'], clockSkewSeconds: 5, accessTtlSeconds: 3600,
-    restApiId: usage_mapping.rest_api_id, stage: usage_mapping.stage,
+    target: async () => ({ rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }),
   }, telemetry, () => now);
   const exchange = (codeVerifier: string) => tokens.exchangeCode({ code, clientId: 'chatgpt_fixture',
     redirectUri: 'https://chatgpt.example.invalid/callback', codeVerifier, resource });

@@ -10,10 +10,10 @@ import { accessRecords } from '../fixtures/storage.js';
 
 const telemetry = () => new Telemetry({ service: 'access', environment: 'test', release: 'fixture' }, { sink: () => undefined });
 const create = (store: MemoryBindings, gateway: MemoryGateway, clock: { value: number }) => createUsageBindingProvisioner(
-  store, telemetry(), { target: { rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }, budgets: {
+  store, telemetry(), { target: { stage: usage_mapping.stage }, budgets: {
     schema_version: 1, provisioning_budget_ms: 10_000, sdk_timeout_ms: 3_000, lease_seconds: 60,
     max_attempts: 5, backoff_min_ms: 2_000, backoff_max_ms: 30_000,
-  } }, gateway, { now: () => clock.value, random: () => 0 },
+  } }, async () => ({ rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }), gateway, { now: () => clock.value, random: () => 0 },
 );
 const input = { identity, subscriberId: 'subscriber_fixture', invocationId: 'invoke_fixture' };
 
@@ -177,7 +177,7 @@ test('an uncertain old-plan removal is read-reconciled and never blindly repeate
 
 test('usage-plan mapping must match the deployed REST API stage before provisioning starts', async () => {
   const store = new MemoryBindings(), gateway = new MemoryGateway(), clock = { value: now };
-  const service = new UsageBindingProvisioner(store, gateway, telemetry(), { rest_api_id: 'other_rest', stage: usage_mapping.stage }, {}, () => clock.value);
+  const service = new UsageBindingProvisioner(store, gateway, telemetry(), async () => ({ rest_api_id: 'other_rest', stage: usage_mapping.stage }), {}, () => clock.value);
   await assert.rejects(service.ensure(input), (error: unknown) => error instanceof ProvisioningFailure && error.code === 'usage_plan_mismatch');
   assert.equal(store.rows.size, 0);
   assert.equal(gateway.created.length, 0);

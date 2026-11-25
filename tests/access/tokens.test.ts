@@ -77,7 +77,7 @@ function setup() {
     return `jwt_${signed.length}`;
   }, {
     issuer: 'https://access.example.invalid', resource, clientIds: [clientId, 'other_fixture'], clockSkewSeconds: 0,
-    accessTtlSeconds: 3600, restApiId: usage_mapping.rest_api_id, stage: usage_mapping.stage,
+    accessTtlSeconds: 3600, target: async () => ({ rest_api_id: usage_mapping.rest_api_id, stage: usage_mapping.stage }),
   }, new Telemetry({ service: 'access', environment: 'test', release: 'token_fixture' }, { sink: () => undefined }), () => clock.value);
   return { service, store, clock, signed, grantId, bindingKey, txKey, codeKey: cKey,
     holdNextTwoSignatures() {

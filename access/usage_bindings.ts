@@ -6,6 +6,7 @@ import { identityPartition } from '../contracts/identity.js';
 import { identifierPattern, usageIdentifierKeyPattern } from '../contracts/patterns.js';
 import type { AccessRow, StateKey } from './model.js';
 import type { Telemetry } from '../observability/telemetry.js';
+import type { RestApiTargetSource } from './rest-api-target.js';
 
 export interface UsageBindingStore {
   readonly environment: string;
@@ -69,7 +70,7 @@ function cleanError(row: AccessRow) { const { error_class: _error, ...rest } = r
 export class UsageBindingProvisioner {
   private readonly options: ProvisioningOptions;
   constructor(private readonly store: UsageBindingStore, private readonly gateway: ApiGatewayUsagePlanPort,
-    private readonly telemetry: Telemetry, private readonly target: UsageBindingTarget, options: Partial<ProvisioningOptions> = {},
+    private readonly telemetry: Telemetry, private readonly target: RestApiTargetSource, options: Partial<ProvisioningOptions> = {},
     private readonly now = () => Math.floor(Date.now() / 1000), private readonly random = Math.random) {
     this.options = { ...defaultOptions, ...options };
     if (!Number.isInteger(this.options.maxAttempts) || this.options.maxAttempts < 1 ||
@@ -91,8 +92,10 @@ export class UsageBindingProvisioner {
     catch { throw new ProvisioningFailure('not_eligible', false); }
     if (!entitlement || entitlement.revision === undefined) throw new ProvisioningFailure('not_eligible', false);
     const target = entitlement.usage_mapping as { usage_plan_id: string; rest_api_id: string; stage: string };
+    let deployed: UsageBindingTarget;
+    try { deployed = await this.target(); } catch { throw new ProvisioningFailure('activation_support_required', false); }
     if (!identifierPattern.test(target.usage_plan_id) || !identifierPattern.test(target.rest_api_id) || !identifierPattern.test(target.stage) ||
-        target.rest_api_id !== this.target.rest_api_id || target.stage !== this.target.stage) {
+        target.rest_api_id !== deployed.rest_api_id || target.stage !== deployed.stage) {
       throw new ProvisioningFailure('usage_plan_mismatch', false);
     }
     const key = bindingKey(this.store.environment, input.subscriberId, target.rest_api_id, target.stage);

@@ -46,8 +46,10 @@ sequence. The order that matters for dependencies is:
 5. **Access runtime.** Deploy `infra/access/runtime.yaml` with `SigningKeyArn`, the
    billing alias ARN, the table ARNs, `AccessConfigJson` and `ProvisioningConfigJson`.
    The signing key comes from the SSM parameter `/mcp/<env>/access/signing-key-arn`
-   at runtime, so the runtime takes no public JWK input. The runtime refuses to start
-   without the signing and billing configuration.
+   at runtime, so the runtime takes no public JWK input. The REST API ID comes from
+   `/mcp/<env>/access-api/rest-api-id`, which the gateway stack publishes, so the
+   runtime does not wait for the gateway. `ProvisioningConfigJson` carries only the
+   stage. The runtime refuses to start without the signing and billing configuration.
 6. **Authorizer.** Deploy `infra/access/authorizer.yaml` from the published ZIP with
    the trusted `JwksUri` (`/jwks.json` on the access service).
 7. **Gateway.** Deploy `infra/access/gateway.yaml` with the service, access,

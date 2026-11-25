@@ -9,6 +9,8 @@ import { authCodeKey, credentialDigest, grantFamilyKey, matchesS256, newOpaqueCr
   subscriberBindingKey, transactionKey } from './grants.js';
 import { transitionTransaction } from './transitions.js';
 import type { Telemetry } from '../observability/telemetry.js';
+import type { RestApiTargetSource } from './rest-api-target.js';
+import type { UsageBindingTarget } from './usage_bindings.js';
 
 export interface TokenStore {
   readonly environment: string;
@@ -26,7 +28,7 @@ export type OAuthErrorCode = 'invalid_request' | 'invalid_client' | 'invalid_gra
 export class OAuthTokenFailure extends Error {
   constructor(readonly status: 400 | 401 | 503, readonly oauthError: OAuthErrorCode) { super(oauthError); }
 }
-export interface TokenConfiguration extends TokenTrust { accessTtlSeconds: number; restApiId: string; stage: string }
+export interface TokenConfiguration extends TokenTrust { accessTtlSeconds: number; target: RestApiTargetSource }
 const opaque = /^[A-Za-z0-9_-]{43}$/;
 const verifierPattern = /^[A-Za-z0-9._~-]{43,128}$/;
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -36,10 +38,11 @@ export class AccessTokens {
   readonly config: TokenConfiguration;
   constructor(private readonly store: TokenStore, private readonly signer: ServiceTokenSigner, config: TokenConfiguration,
     private readonly telemetry: Telemetry, private readonly now = () => Math.floor(Date.now() / 1000)) {
-    const trust = validateTrust(config);
+    const { accessTtlSeconds: _ttl, target: _target, ...trustFields } = config;
+    const trust = validateTrust(trustFields);
     if (!Number.isInteger(config.accessTtlSeconds) || config.accessTtlSeconds < 60 || config.accessTtlSeconds > 3600 ||
-        !identifierPattern.test(config.restApiId) || !identifierPattern.test(config.stage)) throw new Error('invalid_token_configuration');
-    this.config = { ...trust, accessTtlSeconds: config.accessTtlSeconds, restApiId: config.restApiId, stage: config.stage };
+        typeof config.target !== 'function') throw new Error('invalid_token_configuration');
+    this.config = { ...trust, accessTtlSeconds: config.accessTtlSeconds, target: config.target };
   }
 
   async exchangeCode(input: { code: string; clientId: string; redirectUri: string; codeVerifier: string; resource: string }): Promise<TokenResponse> {
@@ -171,7 +174,9 @@ export class AccessTokens {
       throw new OAuthTokenFailure(503, 'temporarily_unavailable');
     }
     const map = entitlement.usage_mapping as { rest_api_id: string; stage: string };
-    if (map.rest_api_id !== this.config.restApiId || map.stage !== this.config.stage) throw new OAuthTokenFailure(503, 'temporarily_unavailable');
+    let deployed: UsageBindingTarget;
+    try { deployed = await this.config.target(); } catch { throw new OAuthTokenFailure(503, 'temporarily_unavailable'); }
+    if (map.rest_api_id !== deployed.rest_api_id || map.stage !== deployed.stage) throw new OAuthTokenFailure(503, 'temporarily_unavailable');
     const binding = await this.read(subscriberBindingKey(this.store.environment, subscriberId, map.rest_api_id, map.stage));
     if (!binding || binding.entity_type !== 'subscriber_binding' || binding.subscriber_id !== subscriberId ||
         binding.state !== 'configured' || binding.entitlement_revision !== entitlement.revision ||

@@ -71,6 +71,16 @@ test('access runtime reads the signing key ARN from SSM and derives the public J
   assert.equal(Object.values<any>(signing.Resources).some(r => r.Type === 'AWS::SSM::Parameter' && JSON.stringify(r).includes('PublicKey')), false);
 });
 
+test('access runtime reads the REST API ID from SSM at runtime instead of taking it as a deploy input', () => {
+  const runtime = load('infra/access/runtime.yaml');
+  assert.equal(runtime.Parameters.ProvisioningConfigJson.Type, 'String');
+  const statements = runtime.Resources.Role.Properties.Policies[0].PolicyDocument.Statement;
+  assert.ok(statements.some((s: any) => s.Action === 'ssm:GetParameter' && JSON.stringify(s.Resource).includes('/access-api/rest-api-id')));
+  assert.deepEqual(runtime.Resources.Function.Properties.Environment.Variables.ACCESS_REST_API_ID_PARAMETER,
+    { 'Fn::Sub': '/mcp/${Environment}/access-api/rest-api-id' });
+  assert.equal(JSON.stringify(runtime).includes('"Ref":"RestApiId"'), false);
+});
+
 test('gateway resolves producer aliases from SSM at deploy time instead of taking ARNs', () => {
   const gateway = load('infra/access/gateway.yaml');
   const expected: Record<string, string> = {
