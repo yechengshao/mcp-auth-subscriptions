@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand, TransactWriteCommand, type TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { createTtlCache } from '../../contracts/ttl-cache.js';
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { validateBillingRecord } from '../contracts/storage.js';
 import { identityPartition, validateQueue, type Scope } from '../contracts/validate.js';
@@ -55,39 +56,30 @@ export class BillingStore implements BillingRepository {
 }
 const restApiParameterPattern = /^\/mcp\/(development|test|production)\/access-api\/rest-api-id$/;
 const stageParameterPattern = /^\/mcp\/(development|test|production)\/access-api\/stage$/;
-/** Reads the deployed REST API ID and stage the gateway stack publishes. Five-minute cache; failures are never cached. */
+/** Reads the deployed REST API ID and stage the gateway stack publishes; five-minute cache, failures never cached. */
 export function parameterRestApiTarget(restApiName: string | undefined, stageName: string | undefined,
   ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
   if (!restApiName || !restApiParameterPattern.test(restApiName) || !stageName || !stageParameterPattern.test(stageName)) {
     throw new Error('invalid_rest_api_target_configuration');
   }
-  let cached: { target: { rest_api_id: string; stage: string }; expiresAt: number } | undefined;
-  let pending: Promise<{ rest_api_id: string; stage: string }> | undefined;
   const read = async (name: string): Promise<string> => {
     const response = await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: false }));
     const value = response.Parameter?.Value;
     if (!value || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new Error('invalid_rest_api_target');
     return value;
   };
-  return async (): Promise<{ rest_api_id: string; stage: string }> => {
-    if (cached && cached.expiresAt > now()) return cached.target;
-    pending ??= (async () => {
-      const [rest_api_id, stage] = await Promise.all([read(restApiName), read(stageName)]);
-      const target = { rest_api_id, stage };
-      cached = { target, expiresAt: now() + 300_000 };
-      return target;
-    })().finally(() => { pending = undefined; });
-    return pending;
-  };
+  return createTtlCache(async (): Promise<{ rest_api_id: string; stage: string }> => {
+    const [rest_api_id, stage] = await Promise.all([read(restApiName), read(stageName)]);
+    return { rest_api_id, stage };
+  }, { ttlMs: 300_000, now });
 }
+/** Reads a SecureString only, with a one-minute cache; the value is never logged. */
 export function parameterSecret(name: string, telemetry: Telemetry, ssm = new SSMClient({ maxAttempts: 2, requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } }), now = Date.now) {
-  let cached: string | undefined, until = 0;
-  return async () => {
-    if (cached && now() < until) return cached;
+  return createTtlCache(async (): Promise<string> => {
     const response = await telemetry.dependency('ssm.secret', () => ssm.send(new GetParameterCommand({ Name: name, WithDecryption: true }), { abortSignal: AbortSignal.timeout(3000) }));
     if (response.Parameter?.Type !== 'SecureString' || !response.Parameter.Value) throw new Error('secret_unavailable');
-    cached = response.Parameter.Value; until = now() + 60000; return cached;
-  };
+    return response.Parameter.Value;
+  }, { ttlMs: 60_000, now });
 }
 export class BillingQueue implements BillingQueuePort {
   constructor(private readonly url: string, private readonly environment: string, private readonly telemetry: Telemetry,

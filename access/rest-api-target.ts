@@ -1,5 +1,6 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { identifierPattern } from '../contracts/patterns.js';
+import { createTtlCache } from '../contracts/ttl-cache.js';
 import type { UsageBindingTarget } from './usage_bindings.js';
 
 /** Resolves the REST API this deployment protects. Each call returns the current target or throws. */
@@ -19,18 +20,11 @@ export function createRestApiTarget(parameterName: string | undefined, stage: st
     throw new Error('invalid_rest_api_target_configuration');
   }
   const ssm = client ?? new SSMClient({ maxAttempts: 2 });
-  let cached: { restApiId: string; expiresAt: number } | undefined;
-  let pending: Promise<string> | undefined;
-  const restApiId = (): Promise<string> => {
-    if (cached && cached.expiresAt > now()) return Promise.resolve(cached.restApiId);
-    pending ??= (async () => {
-      const result = await ssm.send(new GetParameterCommand({ Name: parameterName, WithDecryption: false }));
-      const value = result.Parameter?.Value;
-      if (!value || !identifierPattern.test(value)) throw new Error('invalid_rest_api_target');
-      cached = { restApiId: value, expiresAt: now() + cacheMilliseconds };
-      return value;
-    })().finally(() => { pending = undefined; });
-    return pending;
-  };
+  const restApiId = createTtlCache(async (): Promise<string> => {
+    const result = await ssm.send(new GetParameterCommand({ Name: parameterName, WithDecryption: false }));
+    const value = result.Parameter?.Value;
+    if (!value || !identifierPattern.test(value)) throw new Error('invalid_rest_api_target');
+    return value;
+  }, { ttlMs: cacheMilliseconds, now });
   return async () => ({ rest_api_id: await restApiId(), stage });
 }

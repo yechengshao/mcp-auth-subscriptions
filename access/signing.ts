@@ -5,6 +5,7 @@ import type { JWK } from 'jose';
 import { publicKeySet } from '../security/jwks.js';
 import { validateServiceClaims, validateTrust, type ServiceClaims, type TokenTrust } from '../security/service-token.js';
 import type { Telemetry } from '../observability/telemetry.js';
+import { createTtlCache } from '../contracts/ttl-cache.js';
 
 /** Public material derived from the key ARN, plus a signer bound to that same ARN. The private key never leaves KMS. */
 export interface PublishedSigningKey {
@@ -50,14 +51,14 @@ export function signingKidFor(der: Uint8Array): string {
  * failed read is never cached, so the next request retries. Concurrent callers share one derivation.
  */
 export function createSigningKeys(backend: SigningBackend) {
-  let keyArn: string | undefined;
-  let cached: PublishedSigningKey | undefined;
-  let pending: Promise<PublishedSigningKey> | undefined;
-
-  async function derive(): Promise<PublishedSigningKey> {
-    const arn = keyArn ?? await withDeadline(signal => backend.keyArn(signal));
+  // The ARN is read once per execution environment; a successful derivation lives for the environment too.
+  const keyArn = createTtlCache(async (): Promise<string> => {
+    const arn = await withDeadline(signal => backend.keyArn(signal));
     if (!KEY_ARN.test(arn)) throw new Error('signing_key_unavailable');
-    keyArn = arn;
+    return arn;
+  }, { ttlMs: Infinity });
+  const derived = createTtlCache(async (): Promise<PublishedSigningKey> => {
+    const arn = await keyArn();
     const der = await withDeadline(signal => backend.publicKeyDer(arn, signal));
     const key = createPublicKey({ key: Buffer.from(der), format: 'der', type: 'spki' });
     const modulusLength = key.asymmetricKeyDetails?.modulusLength;
@@ -71,17 +72,12 @@ export function createSigningKeys(backend: SigningBackend) {
       keyArn: arn, kid, publicJwk,
       sign: digest => withDeadline(signal => backend.signDigest(arn, digest, signal)),
     };
-  }
+  }, { ttlMs: Infinity });
 
   const keys = {
-    /** Returns the cached key, deriving it on first use. Failures surface as signing_key_unavailable and are not cached. */
+    /** The derived key, cached for the environment. Failures surface as signing_key_unavailable and are not cached. */
     current(): Promise<PublishedSigningKey> {
-      if (cached) return Promise.resolve(cached);
-      pending ??= derive()
-        .then(key => { cached = key; return key; })
-        .catch(() => { throw new Error('signing_key_unavailable'); })
-        .finally(() => { pending = undefined; });
-      return pending;
+      return derived().catch(() => { throw new Error('signing_key_unavailable'); });
     },
     async jwks(): Promise<{ keys: JWK[] }> {
       const key = await keys.current();

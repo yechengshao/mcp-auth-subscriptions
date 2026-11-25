@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { createTtlCache } from '../../contracts/ttl-cache.js';
 import { canonicalJson } from './canonical.js';
 import { validateCatalog, type Catalog, type Scope } from './validate.js';
 
@@ -14,8 +15,6 @@ export function createCatalogCache(loader: CatalogLoader, scope: Scope, options:
   const now = options.now ?? Date.now;
   if (!Number.isInteger(maxAge) || maxAge <= 0 || maxAge > 60000 ||
       !Number.isInteger(timeout) || timeout <= 0 || timeout > 3000) throw new Error('invalid_catalog_cache_config');
-  let cached: CatalogValue | undefined, expiresAt = 0, loadedAt = 0;
-  let pending: Promise<CatalogValue> | undefined;
   // Only the most recent release is retained: no unbounded in-process catalog history.
   let lastRelease: { version: string; fingerprint: string } | undefined;
   async function load(): Promise<CatalogValue> {
@@ -36,23 +35,18 @@ export function createCatalogCache(loader: CatalogLoader, scope: Scope, options:
       // A stalled/rewound clock cannot extend validity beyond the configured maximum.
       const finished = now();
       if (!Number.isFinite(started) || !Number.isFinite(finished) || finished < started || finished - started >= maxAge) throw new Error('expired_catalog_load');
-      const value = { ssm_version: result.version, catalog };
       lastRelease = { version: catalog.catalog_version, fingerprint };
-      loadedAt = started; expiresAt = started + maxAge; cached = value;
-      return value;
+      return { ssm_version: result.version, catalog };
     } catch {
-      cached = undefined;
       throw new Error('catalog_unavailable'); // Provider errors/values never escape to logs or callers.
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
   }
+  const cached = createTtlCache(load, { ttlMs: maxAge, now });
   return {
     async read(): Promise<CatalogValue> {
-      const clock = now();
-      if (cached && Number.isFinite(clock) && clock >= loadedAt && clock < expiresAt) return structuredClone(cached);
-      if (!pending) pending = load().finally(() => { pending = undefined; });
-      return structuredClone(await pending);
+      return structuredClone(await cached());
     },
   };
 }

@@ -1,4 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { createTtlCache } from '../contracts/ttl-cache.js';
 
 const parameterNamePattern = /^\/mcp\/(development|test|production)\/billing\/alias-arn$/;
 const liveAliasPattern = /^arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[A-Za-z0-9_-]+:live$/;
@@ -14,19 +15,12 @@ export function createBillingAliasResolver(parameterName: string | undefined, ac
     throw new Error('invalid_billing_alias_parameter');
   }
   const ssm = client ?? new SSMClient({ maxAttempts: 2 });
-  let cached: { value: string; expiresAt: number } | undefined;
-  let pending: Promise<string> | undefined;
-  return async (): Promise<string> => {
-    if (cached && cached.expiresAt > now()) return cached.value;
-    pending ??= (async () => {
-      const result = await ssm.send(new GetParameterCommand({ Name: parameterName }));
-      const value = result.Parameter?.Value;
-      if (!value || !liveAliasPattern.test(value) || value.split(':')[4] !== accountId) {
-        throw new Error('invalid_billing_alias_parameter');
-      }
-      cached = { value, expiresAt: now() + cacheMilliseconds };
-      return value;
-    })().finally(() => { pending = undefined; });
-    return pending;
-  };
+  return createTtlCache(async (): Promise<string> => {
+    const result = await ssm.send(new GetParameterCommand({ Name: parameterName }));
+    const value = result.Parameter?.Value;
+    if (!value || !liveAliasPattern.test(value) || value.split(':')[4] !== accountId) {
+      throw new Error('invalid_billing_alias_parameter');
+    }
+    return value;
+  }, { ttlMs: cacheMilliseconds, now });
 }
