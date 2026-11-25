@@ -67,6 +67,15 @@
 - Deployments MUST use reviewed template versions and MUST NOT use root account credentials.
 - Account-level bootstrap (for example, enabling billing or SSO) is the only exception and MUST be documented.
 
+### Service Decoupling
+
+- **Publish, don't pass.** A stack MUST NOT receive another service's ARN, URL or name as a deploy-time input when its owner can publish that value. The owning stack publishes it as an SSM String parameter named `/mcp/<environment>/<component>/<name>`, created in the same template as the resource.
+- **Secrets are separate.** Secrets MUST NOT be published this way. They stay in SecureString parameters, read by name.
+- **Read at runtime by default.** A consumer reads a published value at runtime, cached, with `ssm:GetParameter` granted on that exact parameter name. Deploy-time parameter types are allowed only where a resource must have the value at creation.
+- **Stable contracts.** Cross-service calls go through a Lambda alias or a URL, never a version. IAM grants name the exact alias or parameter.
+- **No new deploy-order loops.** A loop is removed by moving the dependency to runtime, by creating a permission in the later stack, or by a documented two-pass update. Any new loop needs a recorded exception.
+- **Proportionate.** Parameter Store is the registry. No other discovery service is added unless a requirement calls for health checks or live registration.
+
 ## Documentation Scope
 
 Apply these rules to future generated or revised specifications, plans, tasks, and
@@ -105,5 +114,6 @@ patch version for clarifications. Reviews MUST check compliance with this consti
 - **1.4.0 — 2026-11-13**: Added Infrastructure as Code: AWS resources only from CloudFormation templates, no root credentials, documented bootstrap exceptions. Rationale: first deployments are at risk of console-created or untracked resources.
 - **1.5.0 — 2026-11-23**: Added Proportionate Design: build the simplest mechanism the current requirements need, and add versioning, dual-running, or migration only when a specific change requires it. Rationale: the project is small and pre-production; mechanisms for hypothetical changes add maintenance cost before they add value. Compatibility rules become additive-only until a breaking change is planned.
 - **1.6.0 — 2026-11-23**: Added to Documentation Scope: a change that alters behavior, configuration, or infrastructure updates its authoritative contract in the same change, and code, templates, and contracts agree before merge. Rationale: a signing-key change left SSM wording in three contracts and the implementation doc, so the documents no longer described the deployed design.
+- **1.7.0 — 2026-11-25**: Added Service Decoupling: services publish consumer-facing values as `/mcp/<environment>/<component>/<name>` SSM parameters and read them at runtime, with exact-name IAM grants and no new deploy-order loops. Rationale: copying ARNs between stacks at deploy time coupled deploy order and caused stale values; the billing and access loops showed the cost.
 
-**Version**: 1.6.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-23
+**Version**: 1.7.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-25

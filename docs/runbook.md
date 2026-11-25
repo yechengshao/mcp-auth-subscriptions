@@ -24,6 +24,8 @@ named `/mcp/<environment>/<component>/<name>`, for example `/mcp/test/billing/al
 Consumers read the parameter by name instead of receiving the value at deploy time.
 Parameters are created by the same template that owns the resource, so they change
 with it. Only non-secret values belong here; secrets stay in SecureString parameters.
+This is the Service Decoupling principle in the project constitution (section
+"Service Decoupling", version 1.7.0).
 
 ## 1. Inputs to collect
 
