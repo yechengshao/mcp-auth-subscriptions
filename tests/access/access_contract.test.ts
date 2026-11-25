@@ -32,7 +32,9 @@ test('Cognito create-mode template retains a self-registering public code-flow c
 });
 test('prepared authorizer function has only the telemetry role and no public or service invoke surface', () => {
   const template = JSON.parse(readFileSync('infra/access/authorizer.yaml', 'utf8'));
-  assert.equal(Object.keys(template.Resources).length, 4);
+  // Five resources: role, function, version, alias and the published alias parameter (publish-only, no grant).
+  assert.equal(Object.keys(template.Resources).length, 5);
+  assert.equal(template.Resources.AliasParameter.Type, 'AWS::SSM::Parameter');
   assert.deepEqual(template.Resources.Role.Properties.ManagedPolicyArns, [{ Ref: 'TelemetryPolicyArn' }]);
   assert.deepEqual(template.Resources.Function.Properties.Architectures, ['arm64']);
   const variables = Object.keys(template.Resources.Function.Properties.Environment.Variables);

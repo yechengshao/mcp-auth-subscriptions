@@ -168,6 +168,20 @@
           ]
         }
       }
+    },
+    "AliasParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/authorizer/alias-arn"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "Alias"
+        },
+        "Description": "Authorizer live alias ARN. Read by consumers at runtime."
+      }
     }
   },
   "Outputs": {
@@ -190,6 +204,11 @@
           "Function",
           "Arn"
         ]
+      }
+    },
+    "AliasParameterName": {
+      "Value": {
+        "Fn::Sub": "/mcp/${Environment}/authorizer/alias-arn"
       }
     }
   }

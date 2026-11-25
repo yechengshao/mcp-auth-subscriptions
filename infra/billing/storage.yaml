@@ -112,7 +112,7 @@
               "Action": [
                 "dynamodb:GetItem",
                 "dynamodb:PutItem",
-              "dynamodb:ConditionCheckItem"
+                "dynamodb:ConditionCheckItem"
               ],
               "Resource": [
                 {
@@ -196,6 +196,51 @@
           ]
         }
       }
+    },
+    "StateTableNameParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/billing/state-table-name"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "BillingState"
+        },
+        "Description": "Billing state table name."
+      }
+    },
+    "EntitlementsTableNameParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/billing/entitlements-table-name"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "BillingEntitlements"
+        },
+        "Description": "Billing entitlement projection table name."
+      }
+    },
+    "StateStreamArnParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/billing/state-stream-arn"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Fn::GetAtt": [
+            "BillingState",
+            "StreamArn"
+          ]
+        },
+        "Description": "Billing state table stream ARN."
+      }
     }
   },
   "Outputs": {
@@ -251,6 +296,17 @@
     "ReconciliationInsertFilter": {
       "Description": "Required filter for the future billing Pipe; the table stream itself is unfiltered.",
       "Value": "{\"eventName\":[\"INSERT\"],\"dynamodb\":{\"Keys\":{\"SK\":{\"S\":[{\"prefix\":\"WORK#\"}]}},\"NewImage\":{\"entity_type\":{\"S\":[\"reconciliation_work\"]},\"kind\":{\"S\":[\"reconcile_payment\"]},\"schema_version\":{\"N\":[\"1\"]},\"generation\":{\"N\":[\"1\"]}}}}"
+    }
+  },
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "development",
+        "test",
+        "production"
+      ],
+      "Default": "test"
     }
   }
 }

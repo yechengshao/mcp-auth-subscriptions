@@ -27,6 +27,20 @@ with it. Only non-secret values belong here; secrets stay in SecureString parame
 This is the Service Decoupling principle in the project constitution (section
 "Service Decoupling", version 1.7.0).
 
+Published parameters (`<env>` is `test` for now):
+
+| Parameter | Published by | Deployed state |
+|---|---|---|
+| `/mcp/<env>/billing/alias-arn` | `infra/billing/runtime.yaml` | Live (`mcp-billing-test`) |
+| `/mcp/<env>/billing/state-table-name` | `infra/billing/storage.yaml` | Template ready; stack update pending |
+| `/mcp/<env>/billing/entitlements-table-name` | `infra/billing/storage.yaml` | Template ready; stack update pending |
+| `/mcp/<env>/billing/state-stream-arn` | `infra/billing/storage.yaml` | Template ready; stack update pending |
+| `/mcp/<env>/access/alias-arn` | `infra/access/runtime.yaml` | Template ready; not deployed |
+| `/mcp/<env>/authorizer/alias-arn` | `infra/access/authorizer.yaml` | Template ready; not deployed |
+| `/mcp/<env>/access-api/usage-plan-id` | `infra/access/gateway.yaml` | Template ready; not deployed |
+
+Not yet published: access storage, signing key, alarm topic and observability policy ARNs.
+
 ## 1. Inputs to collect
 
 Replace these values per account. Nothing here is copied from this project.
