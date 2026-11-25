@@ -91,7 +91,8 @@ test('the Cognito settings are published by the auth stack and read by the acces
   const runtime = load('infra/access/runtime.yaml');
   const vars = runtime.Resources.Function.Properties.Environment.Variables;
   assert.deepEqual(vars.ACCESS_COGNITO_DOMAIN_PARAMETER, { 'Fn::Sub': '/mcp/${Environment}/access/cognito-domain' });
-  assert.equal(JSON.stringify(runtime.Parameters.AccessConfigJson).includes('cognito'), false);
+  assert.equal(runtime.Parameters.AccessConfigJson, undefined);
+  assert.equal(runtime.Resources.Function.Properties.Environment.Variables.ACCESS_CONFIG_JSON, undefined);
 });
 
 test('public issuer and resource URLs are published as placeholders from a template, updated by redeploy not by hand', () => {

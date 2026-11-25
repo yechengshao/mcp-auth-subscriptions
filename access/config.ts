@@ -1,6 +1,9 @@
 import { validateHttps, opaqueId, parseScopes } from '../security/service-token.js';
 import { registeredClientIdPattern, s256ChallengePattern } from '../contracts/patterns.js';
 
+/** Cookie name and config label are code, not deploy inputs: they never vary by deployment. */
+export const accessCookieName = '__Host-access';
+export const accessClientConfigVersion = 'access_v1';
 /** Scopes a client may request: the OIDC protocol scope and the one MCP scope. Requests outside this set are refused. */
 export const accessScopes: readonly string[] = ['openid', 'mcp:invoke'];
 export interface CognitoConfiguration { issuer: string; domain: string; clientId: string; callbackUri: string; scopes: string[] }

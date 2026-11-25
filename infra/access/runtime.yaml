@@ -41,12 +41,6 @@
       "Type": "String",
       "AllowedPattern": "arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
     },
-    "AccessConfigJson": {
-      "Type": "String",
-      "MinLength": 2,
-      "MaxLength": 3000,
-      "NoEcho": false
-    },
     "TokenTtlSeconds": {
       "Type": "Number",
       "MinValue": 60,
@@ -175,6 +169,12 @@
                     },
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/cognito-callback-uri"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/issuer-url"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/access/resource-url"
                     }
                   ]
                 },
@@ -266,9 +266,6 @@
             "BILLING_ALIAS_PARAMETER_NAME": {
               "Fn::Sub": "/mcp/${Environment}/billing/alias-arn"
             },
-            "ACCESS_CONFIG_JSON": {
-              "Ref": "AccessConfigJson"
-            },
             "ACCESS_SIGNING_KEY_ARN_PARAMETER": {
               "Fn::Sub": "/mcp/${Environment}/access/signing-key-arn"
             },
@@ -283,6 +280,12 @@
             },
             "ACCESS_COGNITO_CALLBACK_PARAMETER": {
               "Fn::Sub": "/mcp/${Environment}/access/cognito-callback-uri"
+            },
+            "ACCESS_ISSUER_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/issuer-url"
+            },
+            "ACCESS_RESOURCE_PARAMETER": {
+              "Fn::Sub": "/mcp/${Environment}/access/resource-url"
             },
             "ACCESS_STAGE_PARAMETER": {
               "Fn::Sub": "/mcp/${Environment}/access-api/stage"

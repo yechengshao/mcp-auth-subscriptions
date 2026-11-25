@@ -4,7 +4,7 @@ import { AccessStore } from './store.js';
 import { CognitoIdentity } from './identity.js';
 import { BrowserSessions } from './sessions.js';
 import { createAccessApp } from './app.js';
-import { validateAccessConfiguration, type AccessConfiguration } from './config.js';
+import { accessClientConfigVersion, accessCookieName, validateAccessConfiguration, type AccessConfiguration } from './config.js';
 import { withAccessHttpTelemetry, Telemetry } from './observability.js';
 import { configFromEnvironment, type Operation } from '../observability/config.js';
 import type { HttpEvent, HttpResult, InvocationContext } from '../observability/adapters.js';
@@ -17,6 +17,7 @@ import { createBillingAliasResolver } from './billing-alias.js';
 import { createUsageBindingProvisioner } from './provisioning.js';
 import { createRestApiTarget } from './rest-api-target.js';
 import { readCognitoSettings } from './cognito-settings.js';
+import { readPublicUrls } from './public-urls.js';
 import { Onboarding } from './onboarding.js';
 import { Management } from './management.js';
 const routeOperations: Record<string, Operation> = { '/authorize': 'http.authorize', '/login': 'http.login', '/oauth/cognito/callback': 'http.callback',
@@ -36,7 +37,7 @@ function configuredJson(environmentName: string, pathName: string): unknown {
 }
 function assertRuntimeEnvironmentSize(source: Record<string, string | undefined>) {
   const keys = ['MCP_SERVICE', 'MCP_ENVIRONMENT', 'MCP_RELEASE', 'ACCESS_STATE_TABLE', 'BILLING_ENTITLEMENTS_TABLE',
-    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_CONFIG_JSON', 'ACCESS_SIGNING_KEY_ARN_PARAMETER', 'ACCESS_REST_API_ID_PARAMETER',
+    'ACCESS_AWS_ACCOUNT_ID', 'BILLING_ALIAS_PARAMETER_NAME', 'ACCESS_ISSUER_PARAMETER', 'ACCESS_RESOURCE_PARAMETER', 'ACCESS_SIGNING_KEY_ARN_PARAMETER', 'ACCESS_REST_API_ID_PARAMETER',
     'ACCESS_STAGE_PARAMETER', 'ACCESS_TOKEN_TTL_SECONDS', 'ACCESS_COGNITO_ISSUER_PARAMETER', 'ACCESS_COGNITO_CLIENT_ID_PARAMETER',
     'ACCESS_COGNITO_DOMAIN_PARAMETER', 'ACCESS_COGNITO_CALLBACK_PARAMETER'];
   const size = keys.reduce((total, key) => total + Buffer.byteLength(key) + Buffer.byteLength(source[key] ?? '') + 2, 0);
@@ -73,14 +74,14 @@ export async function handler(event: unknown, context: InvocationContext) {
       if (!state || !entitlements || !signingKeyParameter || !restApiParameter || !stageParameter || !accountId || !billingAliasParameter) {
         throw new Error('invalid_access_configuration');
       }
-      const accessJson = configuredJson('ACCESS_CONFIG_JSON', 'ACCESS_CONFIG_PATH') as Record<string, unknown>;
-      if (!accessJson || typeof accessJson !== 'object' || Object.hasOwn(accessJson, 'cognito')) throw new Error('invalid_access_configuration');
       const telemetryForSettings = new Telemetry(configFromEnvironment('access', process.env));
       const cognito = await readCognitoSettings({
         issuer: process.env.ACCESS_COGNITO_ISSUER_PARAMETER ?? '', clientId: process.env.ACCESS_COGNITO_CLIENT_ID_PARAMETER ?? '',
         domain: process.env.ACCESS_COGNITO_DOMAIN_PARAMETER ?? '', callbackUri: process.env.ACCESS_COGNITO_CALLBACK_PARAMETER ?? '',
       }, telemetryForSettings);
-      const config = validateAccessConfiguration({ ...accessJson, cognito } as unknown as AccessConfiguration);
+      const publicUrls = await readPublicUrls({ issuer: process.env.ACCESS_ISSUER_PARAMETER ?? '', resource: process.env.ACCESS_RESOURCE_PARAMETER ?? '' }, telemetryForSettings);
+      const config = validateAccessConfiguration({ environment: process.env.MCP_ENVIRONMENT, issuer: publicUrls.issuer, resource: publicUrls.resource,
+        clientConfigVersion: accessClientConfigVersion, cookieName: accessCookieName, cognito } as unknown as AccessConfiguration);
       if (config.environment !== process.env.MCP_ENVIRONMENT) throw new Error('invalid_access_configuration');
       const telemetry = new Telemetry(configFromEnvironment('access', process.env));
       const store = new AccessStore(config.environment, state, entitlements, telemetry);
