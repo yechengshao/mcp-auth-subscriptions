@@ -1,7 +1,7 @@
 export type Service = 'access' | 'authorizer' | 'billing';
 export type Environment = 'development' | 'test' | 'production';
 export const operations = [
-  'http.authorize', 'http.callback', 'http.token', 'http.status', 'http.resume', 'http.login', 'http.billing', 'http.discovery',
+  'http.authorize', 'http.callback', 'http.token', 'http.status', 'http.resume', 'http.login', 'http.billing', 'http.discovery', 'http.register',
   'authorizer.validate', 'billing.webhook', 'billing.listPlans', 'billing.createCheckout', 'billing.getOrder',
   'billing.reconcileOrder', 'billing.quoteUpgrade', 'billing.confirmUpgrade', 'billing.manageSubscription', 'billing.openPortal',
   'billing.reconcile', 'billing.replay', 'lambda.invoke_billing', 'dynamodb.read', 'dynamodb.transact',

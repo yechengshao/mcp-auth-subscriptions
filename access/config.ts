@@ -66,7 +66,7 @@ export function stringParameters(input: unknown, allowed: string[]): Record<stri
 }
 
 /** Any client may start a sign-in. Its redirect URI must be an HTTPS URL without credentials, fragment or wildcard. */
-function redirectUriAllowed(uri: string | undefined): uri is string {
+export function redirectUriAllowed(uri: string | undefined): uri is string {
   if (typeof uri !== 'string' || uri.length > 2048 || uri.includes('*')) return false;
   let parsed: URL;
   try { parsed = new URL(uri); } catch { return false; }

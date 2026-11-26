@@ -8,6 +8,7 @@ import { discoveryRoutes } from './http/discovery-routes.js';
 import { identityRoutes } from './http/identity-routes.js';
 import { managementRoutes } from './http/management-routes.js';
 import { oauthRoutes } from './http/oauth-routes.js';
+import { registrationRoutes } from './http/registration-routes.js';
 import type { OAuthExtension } from './http/types.js';
 export type { OAuthExtension } from './http/types.js';
 
@@ -34,6 +35,7 @@ export async function createAccessApp(input: AccessConfiguration, sessions: Brow
   });
 
   app.use(discoveryRoutes(config, publicKeys, extension));
+  app.use(registrationRoutes(config, sessions.telemetry));
   app.use(identityRoutes(config, sessions));
   app.use(managementRoutes(config, sessions, extension));
   app.use(oauthRoutes(extension));

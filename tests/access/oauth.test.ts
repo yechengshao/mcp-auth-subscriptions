@@ -402,3 +402,43 @@ test('a browser login expires exactly 1800 seconds after start and its remaining
   clock = now;
   assert.equal(sessions.remaining(now + 5000), 1800, 'remaining time is capped at 30 minutes');
 });
+
+test('registration returns the fixed Cognito client ID for valid public metadata and echoes redirect URIs', async () => {
+  const value = await fixture();
+  const body = { redirect_uris: ['https://claude.example.invalid/callback', 'https://chat.example.invalid/oauth/callback'],
+    token_endpoint_auth_method: 'none', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'],
+    client_name: 'Fixture App', scope: 'openid mcp:invoke' };
+  const first = await invoke(value.handler, 'POST', '/register', { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const second = await invoke(value.handler, 'POST', '/register', { headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: ['https://other.example.invalid/cb'] }) });
+  assert.equal(first.statusCode, 201);
+  assert.deepEqual(JSON.parse(first.body!), { client_id: config.cognito.clientId, redirect_uris: body.redirect_uris, token_endpoint_auth_method: 'none' });
+  assert.equal(JSON.parse(second.body!).client_id, config.cognito.clientId, 'every registration returns the same identifier');
+});
+
+test('registration rejects invalid bodies with OAuth registration errors and no client identifier', async () => {
+  const value = await fixture();
+  const send = (body: string | null, type = 'application/json') => invoke(value.handler, 'POST', '/register', { headers: { 'content-type': type }, ...(body === null ? {} : { body }) });
+  const cases: Array<[string, Parameters<typeof send>, string, number]> = [
+    ['non-JSON content type', ['{}', 'text/plain'], 'invalid_client_metadata', 400],
+    ['malformed JSON', ['{', 'application/json'], 'invalid_client_metadata', 400],
+    ['array body', ['[]'], 'invalid_client_metadata', 400],
+    ['missing redirect URIs', ['{}'], 'invalid_redirect_uri', 400],
+    ['empty redirect URIs', ['{"redirect_uris":[]}'], 'invalid_redirect_uri', 400],
+    ['http redirect', ['{"redirect_uris":["http://a.example.invalid/cb"]}'], 'invalid_redirect_uri', 400],
+    ['wildcard redirect', ['{"redirect_uris":["https://*.example.invalid/cb"]}'], 'invalid_redirect_uri', 400],
+    ['redirect with credentials', ['{"redirect_uris":["https://u:p@a.example.invalid/cb"]}'], 'invalid_redirect_uri', 400],
+    ['one bad redirect rejects all', ['{"redirect_uris":["https://a.example.invalid/cb","javascript:alert(1)"]}'], 'invalid_redirect_uri', 400],
+    ['client secret requested', ['{"redirect_uris":["https://a.example.invalid/cb"],"client_secret":"x"}'], 'invalid_client_metadata', 400],
+    ['confidential auth method', ['{"redirect_uris":["https://a.example.invalid/cb"],"token_endpoint_auth_method":"client_secret_post"}'], 'invalid_client_metadata', 400],
+    ['unsupported grant', ['{"redirect_uris":["https://a.example.invalid/cb"],"grant_types":["client_credentials"]}'], 'invalid_client_metadata', 400],
+    ['unsupported response type', ['{"redirect_uris":["https://a.example.invalid/cb"],"response_types":["token"]}'], 'invalid_client_metadata', 400],
+    ['scope outside service scopes', ['{"redirect_uris":["https://a.example.invalid/cb"],"scope":"admin"}'], 'invalid_client_metadata', 400],
+    ['oversized body', [JSON.stringify({ redirect_uris: ['https://a.example.invalid/' + 'x'.repeat(9000)] })], 'invalid_client_metadata', 413],
+  ];
+  for (const [name, args, error, status] of cases) {
+    const response = await send(...args as [string | null, string?]);
+    assert.equal(response.statusCode, status, name);
+    assert.deepEqual(JSON.parse(response.body!), { error }, name);
+    assert.equal(response.body!.includes(config.cognito.clientId), false, `${name} must not return the client identifier`);
+  }
+});
