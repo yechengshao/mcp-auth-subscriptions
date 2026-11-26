@@ -59,7 +59,8 @@ sequence. The order that matters for dependencies is:
    `access/provisioning.ts`, not deploy inputs. The runtime refuses to start without the
    signing and billing configuration.
 6. **Authorizer.** Deploy `infra/access/authorizer.yaml` from the published ZIP with
-   the trusted `JwksUri` (`/jwks.json` on the access service).
+   The issuer and route list are code constants, and its JWKS is `/jwks.json` on the
+   access service. It reads the release location from SSM, so it takes no artifact inputs.
 7. **Gateway.** Deploy `infra/access/gateway.yaml` with the service, access,
    billing webhook and authorizer alias ARNs, the metadata URL, and the stage name.
    The gateway stack also creates the basic usage plan on the API stage and outputs
@@ -97,7 +98,7 @@ Cognito reauthentication on expiry. Neither flow hands the AI client's MCP token
 browser.
 
 - **Onboarding.** An AI client's `/authorize` request is validated against the
-  registered client, redirect URI, resource and S256 challenge. The browser signs in
+  client_id, redirect URI, resource and S256 challenge. The browser signs in
   through Cognito, chooses a plan, and pays on Stripe. Stripe returns the browser to
   `/billing/return`. The signed Stripe webhook arrives separately, to billing, and can
   come before or after the browser. The browser completes the flow by submitting a

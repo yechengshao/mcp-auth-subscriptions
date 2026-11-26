@@ -1,5 +1,5 @@
 ---
-description: "24 of 25 access tasks checked; T013 live billing recovery, reconnect and cutover acceptance remains open pending live prerequisites"
+description: "24 of 25 access tasks checked; T013 live billing recovery, reconnect and cutover acceptance remains open pending live prerequisites. Access, authorizer, gateway, domain and observability stacks are deployed in ca-central-1 (2026-11-26)"
 ---
 
 # Tasks: Authentication and API Access
@@ -10,7 +10,7 @@ description: "24 of 25 access tasks checked; T013 live billing recovery, reconne
 ## Foundations and authorizer
 
 - [x] T001 Write access boundary, REST and observability infrastructure tests for ownership, alias permissions, retained state, acyclic wiring, role separation and absence of Step Functions resources. Files: `tests/access/access_contract.test.ts`.
-- [x] T002 Write isolated token, JWKS and authorizer tests covering wrong resource/client/type, expiry, usage-key tampering, unavailable keys, exact REST methodArn, and zero datastore or MCP calls on denial. Files: `tests/access/authorizer.test.ts`, `tests/access/support/identity_fixture.ts`. Depends: T001, T014.
+- [x] T002 Write isolated token, JWKS and authorizer tests covering wrong resource/client/type, expiry, usage-key tampering, unavailable keys, exact REST method and path against the route list with its scope (API and stage are not checked, per the 2026-11-26 amendment), and zero datastore or MCP calls on denial. Files: `tests/access/authorizer.test.ts`, `tests/access/support/identity_fixture.ts`. Depends: T001, T014.
 - [x] T003 Implement the isolated Node.js REST REQUEST handler with JWT and JWKS verification and signed usage-key validation, with no datastore, Stripe or MCP imports. Files: `authorizer/handler.ts`, `authorizer/package.json`, `authorizer/package-lock.json`. Depends: T002.
 - [x] T004 Build and test an npm-locked Node.js 24.x ARM64 authorizer ZIP with production dependencies only and recorded SHA-256 evidence, exercised without Docker. Files: `infra/access/package-authorizer.ts`, `infra/access/zip.ts`, `scripts/package_authorizer.mjs`, `tests/access/authorizer_package.test.ts`. Depends: T003.
 
@@ -22,12 +22,12 @@ description: "24 of 25 access tasks checked; T013 live billing recovery, reconne
 
 ## Publication and evidence
 
-- [x] T008 Add manual, OIDC-protected publication workflows that build the authorizer ZIP and access image once, upload them with checksum and digest evidence, and grant no deployment or billing rights. Files: `.github/workflows/publish-authorizer-zip.yml`, `.github/workflows/publish-access-image.yml`, `tests/access/access_publication.test.ts`. Depends: T004, T019, T021.
+- [x] T008 Add manual, OIDC-protected publication workflows that build the authorizer ZIP and access image once, upload them with checksum and digest evidence, and grant no deployment or billing rights. The publish roles may write only their release SSM parameters (`/mcp/<env>/access/image-uri`, `/mcp/<env>/authorizer/artifact-*`). Files: `.github/workflows/publish-authorizer-zip.yml`, `.github/workflows/publish-access-image.yml`, `tests/access/access_publication.test.ts`. Depends: T004, T019, T021.
 - [x] T009 Write then implement separate local and read-only live verification for discovery, OAuth, refresh, privacy, subscriber isolation, REST plans, release identities and recovery outcomes, without asserting hard quotas. Files: `scripts/verify_access.ts`, `tests/access/access_verifier.test.ts`. Depends: T007, T008, T020, T025.
 - [x] T010 Document the bootstrap, registered-host PKCE and payment flow, token and revocation bounds, billing recovery, compatible rollback, and REST cutover, marking every unperformed cloud or provider step. Files: `docs/authentication-api-access.md`, `specs/002-authentication-api-access/quickstart.md`. Depends: T006, T007, T008, T009.
 - [x] T011 Add a required isolated CI workflow that typechecks, builds and runs the access and authorizer suites, and fails when selected dependencies or checks are missing. Files: `.github/workflows/test-access.yml`, `tests/access/`, `access/package.json`, `authorizer/package.json`. Depends: T008, T009.
 - [x] T012 Run the expanded local and native suites with the DAG, permission, retention and privacy review, and document pending live checks separately from earlier service tests. Files: `tests/access/`, `specs/002-authentication-api-access/tasks.md`. Depends: T010, T011.
-- [ ] T013 Validate live billing recovery, reconnect, subscriber plans, cutover and rollback with real prerequisites; local runs leave this `not_run` and move no real charges. Files: `docs/authentication-api-access.md`, `/tmp/tradingview-access-evidence/live.json`. Depends: T012, spec-003 payment acceptance, spec-001 REST acceptance.
+- [ ] T013 Validate live billing recovery, reconnect, subscriber plans, cutover and rollback with real prerequisites; local runs leave this `not_run` and move no real charges. Live read-only status on 2026-11-26: discovery, JWKS, the `/mcp` challenge, the health challenge, the invalid-bearer rejection and the billing redirect pass against the deployed API; subscriber, OAuth, refresh, metering and recovery checks remain `not_run`. Files: `docs/authentication-api-access.md`, `/tmp/tradingview-access-evidence/live.json`. Depends: T012, spec-003 payment acceptance, spec-001 REST acceptance.
 
 ## OAuth coordination and activation prerequisites
 
@@ -38,7 +38,7 @@ description: "24 of 25 access tasks checked; T013 live billing recovery, reconne
 - [x] T018 Write integration tests, then implement onboarding and paid-management use cases behind thin Express controllers and internal billing ports, covering payment-plus-binding gates and resume. Files: `access/onboarding.ts`, `access/management.ts`, `tests/access/onboarding.test.ts`, `tests/access/management.test.ts`. Depends: T015, T016, T017, T023, and spec-003 internal operations.
 - [x] T019 Build and test a pinned, npm-locked ARM64 access image with digest evidence, excluding credentials, card data and MCP imports. Files: `access/Dockerfile`, `access/Dockerfile.dockerignore`, `tests/access/access_container.test.ts`. Depends: T016, T017, T018.
 - [x] T020 Implement local full-journey simulations joining client S256, Cognito, billing order, entitlement, refresh and REST authorization against a mock MCP, including adversarial and expiry cases. Files: `tests/access/client_journey.test.ts`. Depends: T007, T019, T025, and spec-003 simulated billing acceptance.
-- [x] T021 Finalize scoped publishing roles so the authorizer identity writes only its S3 prefix and the access identity publishes only its ECR repository, with no deployment or cross-component rights. Files: `infra/access/publication.yaml`, `tests/access/access_publication.test.ts`. Depends: T001 and the spec-001 publishing-IAM interface.
+- [x] T021 Finalize scoped publishing roles so the authorizer identity writes only its S3 prefix and the access identity publishes only its ECR repository and its image URI parameter, with no deployment or cross-component rights. Each release location is written to SSM by the publish workflow, not passed as a deploy input. Files: `infra/access/publication.yaml`, `tests/access/access_publication.test.ts`. Depends: T001 and the spec-001 publishing-IAM interface.
 
 ## Persisted onboarding and background recovery
 

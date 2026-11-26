@@ -6,7 +6,7 @@
 
 Use string PK/SK, integer revision and UTC epoch-second timestamps. Environment is trusted deployment configuration. Derive identity_key as SHA-256 of canonical UTF-8 JSON `[issuer,subject]`, matching billing. Generate an opaque subscriber_id once per verified identity/environment; email is never identity. Store no secrets in key attributes or indexes. Access Lambda alone owns access writes; authorizer/MCP/billing receive no access-table grants. Tables use encryption at rest, explicit deletion protection/retention and scoped logs; never log records or credential values.
 
-Exact registered client/redirect/resource/scope and client-config version come from validated deployment registration, not a mutable browser record. No GSI or account-wide Scan is required: all authority reads use exact base keys and strong consistency. Billing entitlement lookup uses its shared identity-key algorithm; the catalog/purchased mapping contract remains unchanged.
+Exact redirect/resource/scope and client-config version come from validated deployment configuration, not a mutable browser record; the client ID is validated for format only (open client registration, 2026-11-25). No GSI or account-wide Scan is required: all authority reads use exact base keys and strong consistency. Billing entitlement lookup uses its shared identity-key algorithm; the catalog/purchased mapping contract remains unchanged.
 
 The billing-owned entitlement projection includes the application `subscription_id` of the current paid term as well as the current plan, paid-through time, usage mapping and revision. Access uses that identifier only to call Billing's own-account upgrade operations; it does not read payment, customer, order or history rows from `BillingState`.
 
@@ -22,7 +22,7 @@ TTL attribute `delete_after`; logical validity is always checked separately. Rec
 
 | Entity | PK / SK | Fields and constraints |
 |---|---|---|
-| OAuth transaction | `ENV#e#TX#random_id` / `STATE` | purpose discriminator, registered client/redirect/resource/scopes/S256 challenge for onboarding or fixed local destination for management, original downstream state, issuer, client-config version, phase/revision, absolute expires_at, verified subscriber/identity only after Cognito validation, own-order ref, attempts/next_attempt_at/error category |
+| OAuth transaction | `ENV#e#TX#random_id` / `STATE` | purpose discriminator, client ID/redirect/resource/scopes/S256 challenge for onboarding or fixed local destination for management, original downstream state, issuer, client-config version, phase/revision, absolute expires_at, verified subscriber/identity only after Cognito validation, own-order ref, attempts/next_attempt_at/error category |
 | Browser session | `ENV#e#SESSION#digest` / `SESSION` | purpose, authentication_stage, tx_id, CSRF digest, optional verified identity/subscriber, session revision, created/expires_at; shared browser-session contract controls cookie/rotation |
 | Upstream Cognito attempt | `ENV#e#UPSTREAM#state_digest` / `ATTEMPT` | tx_id/session binding, nonce digest, server PKCE verifier, exact Cognito client/issuer/callback, expires_at, consumed flag/revision; verifier is required server-side secret, not merely a digest |
 | Authorization code | `ENV#e#CODE#sha256(code)` / `CODE` | tx/subscriber/client/resource/redirect/S256 bindings, grant_id, issued/expires_at, consumed marker/revision; high-entropy opaque raw code returned once, never stored |

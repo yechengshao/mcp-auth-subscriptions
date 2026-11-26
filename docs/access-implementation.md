@@ -103,18 +103,20 @@ npm run render:authorizer -- \
 cfn-lint /tmp/authorizer-release.yaml
 ```
 
-The renderer pins the function code to the supplied S3 object version and
-`CodeSha256`, and derives a release ID from those immutable artifact inputs. Supply
-a new `ReleaseId` whenever runtime configuration changes so CloudFormation
-publishes a version with the new settings. Provide the template's FunctionName,
-Environment, ArtifactBucket/ArtifactKey/ArtifactVersion, PackageSha256/ReleaseId,
-JwksUri, AuthorizerConfig and the **authorizer**
-TelemetryPolicyArn from the shared observability stack. The CloudFormation
+The template reads the immutable artifact location (bucket, key, S3 version and
+SHA-256) from SSM under `/mcp/<env>/authorizer/artifact-*`, which the publish workflow
+writes after its evidence check. It pins the function code to that version and
+`CodeSha256`. Supply a new `ReleaseId` whenever the release changes so CloudFormation
+publishes a version with the new code. Provide FunctionName, Environment, ReleaseId and
+the **authorizer** TelemetryPolicyArn from the shared observability stack. The issuer,
+resource, clock skew and route list are code constants (`authorizer/handler.ts`), and
+the JWKS URL is derived from the issuer, so there is no JwksUri or AuthorizerConfig input. The CloudFormation
 deployment identity needs read access to that artifact; the Lambda execution role
 does not. The function/log-group names and TracingMode must match the telemetry
 stack. Do not substitute a storage/signing/billing policy. No Function URL exists.
 Gateway-owned invoke permission, REQUEST identity source, TTL 0, AUTHORIZER key
-source and paid REST methods are still T007 work, not deployed by this template.
+source and paid REST methods are owned by `infra/access/gateway.yaml`, deployed
+2026-11-26.
 
 `infra/access/auth.yaml` is create-mode only. If a pool already exists, do not
 deploy a replacement or modify the pool to make it fit. Capture only the needed
@@ -139,31 +141,15 @@ only stable mismatch codes and never echoes provider data. It makes no AWS calls
 reuse the pool only if every check passes. The template does not modify or reuse
 an existing pool.
 
-AuthorizerConfig is public configuration; this example contains placeholders:
+The authorizer's route list is code (`authorizer/handler.ts`): `POST mcp` and
+`GET health`, each requiring `mcp:invoke`. The authorizer matches the request's method
+and path to that list and checks the token's scope; it does not check the account,
+region, REST API ID or stage (amendment 2026-11-26 in `specs/002-authentication-api-access/contracts/authorization.md`).
+The authorizer permits no ANY or path wildcard. Public OAuth/discovery and Stripe routes
+must not use this paid authorizer.
 
-```json
-{
-  "issuer": "https://login.example.invalid/test",
-  "resource": "https://api.example.invalid/test/mcp",
-  "clientIds": ["REGISTERED_PUBLIC_CLIENT_ID"],
-  "clockSkewSeconds": 0,
-  "region": "us-east-1",
-  "accountId": "000000000000",
-  "apiId": "actualrestapiid",
-  "stage": "test",
-  "routes": [
-    {"method":"POST","path":"mcp","scope":"mcp:invoke"},
-    {"method":"GET","path":"health","scope":"mcp:invoke"}
-  ]
-}
-```
-
-Use actual exact issuer/resource/registration and REST outputs. For a gateway ANY
-method, enumerate each allowed real HTTP verb; the authorizer permits no ANY/path
-wildcard. Tokens for one API, stage or resource cannot authorize another. Public
-OAuth/discovery and Stripe routes must not use this paid authorizer.
-
-JwksUri is a fixed HTTPS URL to an independently published **public** artifact:
+The JWKS is served by the access runtime at `<issuer>/jwks.json` and is derived from
+the KMS signing key ARN. Its shape is
 `{"keys":[{"kty":"RSA","kid":"YOUR_KEY_ID","alg":"RS256","use":"sig","n":"BASE64URL_MODULUS","e":"AQAB"}]}`.
 Up to ten unique opaque key IDs and RSA 2048–8192-bit keys are accepted. No private
 RSA fields, octet keys, certificate/key URLs or token-supplied key source is used.

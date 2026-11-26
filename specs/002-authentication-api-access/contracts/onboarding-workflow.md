@@ -12,7 +12,7 @@ Each request loads durable state, validates its trigger, performs bounded work, 
 
 ## Durable state and transitions
 
-Access transactions record an opaque ID, registered client/redirect/resource/PKCE binding, verified identity, own-order reference, phase, monotonic revision, absolute expiry, attempts, next-attempt time and sanitized release/error metadata. Sensitive session/code/grant fields follow the client/token contracts. Physical keys, record fields, retention and transaction rules follow the [access storage contract](access-storage.md); T014/T022 validate their schemas.
+Access transactions record an opaque ID, client ID/redirect/resource/PKCE binding, verified identity, own-order reference, phase, monotonic revision, absolute expiry, attempts, next-attempt time and sanitized release/error metadata. Sensitive session/code/grant fields follow the client/token contracts. Physical keys, record fields, retention and transaction rules follow the [access storage contract](access-storage.md); T014/T022 validate their schemas.
 
 All transitions use conditional writes against expected phase/revision, identity/order and unexpired state. Terminal cancelled/expired/redeemed states cannot reopen. Persist the required next provisioning action with its transition; a crash must leave recoverable state for the next browser/reconnect request, not depend on enqueueing. External effects use stable operation/idempotency references and durable outcomes. Recover uncertain responses by inspecting authoritative provider/binding state before retrying; there is no exactly-once invocation assumption.
 
