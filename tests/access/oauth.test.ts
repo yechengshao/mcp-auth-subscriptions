@@ -253,6 +253,7 @@ test('well-known aliases resolve only for the configured stage issuer and exact 
   assert.deepEqual(JSON.parse(authorizationMetadata.body!), JSON.parse(oidcMetadata.body!));
   assert.equal(JSON.parse(authorizationMetadata.body!).issuer, stageConfig.issuer);
   assert.equal(JSON.parse(authorizationMetadata.body!).authorization_endpoint, `${stageConfig.issuer}/authorize`);
+  assert.equal(JSON.parse(authorizationMetadata.body!).registration_endpoint, `${stageConfig.issuer}/register`);
   assert.equal(resourceMetadata.statusCode, 200);
   assert.deepEqual(JSON.parse(resourceMetadata.body!), {
     resource: stageConfig.resource, authorization_servers: [stageConfig.issuer], scopes_supported: ['openid', 'mcp:invoke'],

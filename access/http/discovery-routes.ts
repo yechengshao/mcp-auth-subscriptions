@@ -18,6 +18,7 @@ export function discoveryRoutes(config: AccessConfiguration, publicKeys: PublicK
     authorization_endpoint: endpoint(config, '/authorize'),
     token_endpoint: endpoint(config, '/token'),
     revocation_endpoint: endpoint(config, '/revoke'),
+    registration_endpoint: endpoint(config, '/register'),
     jwks_uri: endpoint(config, '/jwks.json'),
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
