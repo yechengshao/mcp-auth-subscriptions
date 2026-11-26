@@ -38,7 +38,9 @@ test('prepared authorizer function has only the telemetry role and no public or 
   assert.deepEqual(template.Resources.Role.Properties.ManagedPolicyArns, [{ Ref: 'TelemetryPolicyArn' }]);
   assert.deepEqual(template.Resources.Function.Properties.Architectures, ['arm64']);
   const variables = Object.keys(template.Resources.Function.Properties.Environment.Variables);
-  assert.deepEqual(variables, ['MCP_SERVICE','MCP_ENVIRONMENT','MCP_RELEASE','AUTHORIZER_CONFIG','SERVICE_JWKS_URI']);
+  assert.deepEqual(variables, ['MCP_SERVICE','MCP_ENVIRONMENT','MCP_RELEASE']);
+  assert.equal(template.Parameters.AuthorizerConfig, undefined);
+  assert.equal(template.Parameters.JwksUri, undefined);
   const text = JSON.stringify(template);
   for (const forbidden of ['AWS::Lambda::Url','AWS::Lambda::Permission','dynamodb:','ssm:','lambda:InvokeFunction','apigateway:','kms:']) assert.equal(text.includes(forbidden), false);
 });

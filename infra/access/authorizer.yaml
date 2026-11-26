@@ -42,15 +42,6 @@
       "Type": "String",
       "Description": "Exact authorizer telemetry-policy output; grants own finite logs and configured native X-Ray export only."
     },
-    "AuthorizerConfig": {
-      "Type": "String",
-      "MaxLength": 2500
-    },
-    "JwksUri": {
-      "Type": "String",
-      "AllowedPattern": "https://[^\\s]+",
-      "MaxLength": 512
-    },
     "TracingMode": {
       "Type": "String",
       "AllowedValues": [
@@ -126,12 +117,6 @@
             },
             "MCP_RELEASE": {
               "Ref": "ReleaseId"
-            },
-            "AUTHORIZER_CONFIG": {
-              "Ref": "AuthorizerConfig"
-            },
-            "SERVICE_JWKS_URI": {
-              "Ref": "JwksUri"
             }
           }
         }

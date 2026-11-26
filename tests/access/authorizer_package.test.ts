@@ -84,21 +84,16 @@ test('authorizer ZIP is lean, carries checksums, and executes its real Lambda ha
       writeFileSync(target, data);
     }
 
-    process.env.AUTHORIZER_CONFIG = JSON.stringify({
-      issuer: 'https://login.example.invalid/test', resource: 'https://api.example.invalid/test/mcp',
-      clockSkewSeconds: 0, routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }],
-    });
-    process.env.SERVICE_JWKS_URI = 'https://login.example.invalid/test/keys';
     process.env.MCP_ENVIRONMENT = 'test';
     process.env.MCP_SERVICE = 'authorizer';
     process.env.MCP_RELEASE = 'package-smoke';
 
     const pair = await generateKeyPair('RS256', { modulusLength: 2048 });
     const publicJwk = { ...await exportJWK(pair.publicKey), kid: 'smoke_key', alg: 'RS256', use: 'sig' };
-    const config = JSON.parse(process.env.AUTHORIZER_CONFIG!);
+    const config = { issuer: 'https://access.tradingview.chat', resource: 'https://access.tradingview.chat/mcp' };
     let fetches = 0;
     globalThis.fetch = async input => {
-      assert.equal(String(input), process.env.SERVICE_JWKS_URI);
+      assert.equal(String(input), 'https://access.tradingview.chat/jwks.json');
       fetches++;
       return new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200, headers: { 'content-type': 'application/json' } });
     };

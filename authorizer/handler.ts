@@ -75,14 +75,30 @@ export function createAuthorizer(input: AuthorizerConfig, jwks: TrustedJwks, tel
     return observed(event, context);
   };
 }
+// Authorizer settings live in code. The public URLs mirror the defaults in infra/access/public-urls.yaml; production
+// stays unset until its domain is approved, so the authorizer refuses to start there.
+export const authorizerConstants = {
+  clockSkewSeconds: 5,
+  routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }, { method: 'GET', path: 'health', scope: 'mcp:invoke' }],
+};
+export const authorizerPublicUrls: Record<string, { issuer: string; resource: string } | undefined> = {
+  development: undefined,
+  test: { issuer: 'https://access.tradingview.chat', resource: 'https://access.tradingview.chat/mcp' },
+  production: undefined,
+};
+export function authorizerSettings(environment: string | undefined): { config: AuthorizerConfig; jwksUri: string } {
+  const urls = environment !== undefined && Object.hasOwn(authorizerPublicUrls, environment) ? authorizerPublicUrls[environment] : undefined;
+  if (!urls) throw new Error('invalid_configuration');
+  return { config: { issuer: urls.issuer, resource: urls.resource, clockSkewSeconds: authorizerConstants.clockSkewSeconds, routes: authorizerConstants.routes },
+    jwksUri: `${urls.issuer}/jwks.json` };
+}
 let initialized: ReturnType<typeof createAuthorizer> | undefined;
 export async function handler(event: RequestEvent, context: { awsRequestId?: string }) {
   if (!initialized) {
     try {
-      const raw = process.env.AUTHORIZER_CONFIG; if (!raw || !process.env.SERVICE_JWKS_URI) throw new Error('invalid_configuration');
-      const config = JSON.parse(raw) as AuthorizerConfig;
+      const { config, jwksUri } = authorizerSettings(process.env.MCP_ENVIRONMENT);
       const telemetry = new Telemetry(configFromEnvironment('authorizer', process.env));
-      const source = remoteJwks(process.env.SERVICE_JWKS_URI, (url, init) => fetch(url, { ...init, headers: {
+      const source = remoteJwks(jwksUri, (url, init) => fetch(url, { ...init, headers: {
         ...(telemetry.currentCorrelationId() ? { 'x-correlation-id': telemetry.currentCorrelationId()! } : {}),
         ...(telemetry.currentTraceHeader() ? { 'x-amzn-trace-id': telemetry.currentTraceHeader()! } : {}),
       } }), work => telemetry.dependency('jwks.request', work));
