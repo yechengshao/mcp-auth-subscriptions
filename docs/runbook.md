@@ -88,7 +88,7 @@ only needs to exist before the stacks that read its values. Record every output.
 | 1 | `mcp-access-auth`, `infra/access/auth.yaml` | Cognito pool, PKCE client, Google IdP | `access/cognito-issuer`, `cognito-client-id`, `cognito-domain`, `cognito-callback-uri` |
 | 2 | `mcp-access-signing`, `infra/access/signing.yaml` | KMS RS256 signing key | `access/signing-key-arn` |
 | 3 | `mcp-access-storage` (`infra/access/storage.yaml`) and `mcp-billing-storage` (`infra/billing/storage.yaml`) | Access and billing tables, stream | `access/state-table-name` and billing table names |
-| 4 | `mcp-observability-test` (`infra/observability/template.json`) | Log groups, telemetry policies, X-Ray rule | Telemetry policy ARNs (stack outputs) |
+| 4 | `mcp-observability-test` (`infra/observability/template.json`), first pass with the placeholder REST API ID; second pass after step 11 | Log groups, telemetry policies, X-Ray rule | Telemetry policy ARNs (stack outputs), read by steps 7, 9 and 10 |
 | 5 | `mcp-access-publication` (`infra/access/publication.yaml`) | GitHub OIDC publish roles, ECR repo, release bucket | `access/image-uri` (placeholder), role permissions for the publish workflows |
 | 6 | Publish workflows, run from `main` with an approved environment | Access image and authorizer ZIP | `access/image-uri`; `authorizer/artifact-bucket`, `-key`, `-version`, `-sha256` |
 | 7 | `mcp-billing-test` (`infra/billing/runtime.yaml`) | Billing Lambda with `live` alias, queue, DLQ | `billing/alias-arn` |
@@ -100,8 +100,10 @@ only needs to exist before the stacks that read its values. Record every output.
 
 Notes on the order:
 
-- Steps 1 to 4 can run in any order. Step 8 must run before step 11, because the gateway
-  reads `access/resource-metadata-url` when it deploys.
+- Steps 1 to 3 can run in any order. Step 4 must run before steps 7, 9 and 10, because each
+  runtime takes its telemetry policy ARN from the observability stack and attaches it to its
+  execution role. Step 8 must run before step 11, because the gateway reads
+  `access/resource-metadata-url` when it deploys.
 - Step 5 must run before step 6, because the publish role may write only the parameters
   `publication.yaml` grants it. The publish workflows run only from `main` and need an
   approval on their GitHub environment (`access-publish`, `authorizer-publish`).
