@@ -66,6 +66,7 @@
 - Every AWS resource MUST be defined in a CloudFormation template in the repository and created or changed only by deploying that template. Resources MUST NOT be created by hand in the console or by ad hoc CLI commands.
 - Deployments MUST use reviewed template versions and MUST NOT use root account credentials.
 - Account-level bootstrap (for example, enabling billing or SSO) is the only exception and MUST be documented.
+- **Deploy inputs are minimal.** A template takes a deploy input only for release identity (`ReleaseId`) or for a value the resource must have at creation. Other non-secret configuration is a code constant or a template default, with per-environment values selected by `Environment`. A value owned by another component is read from its SSM parameter, as Service Decoupling requires. Any other deploy input MUST have its reason recorded in the component's contract.
 
 ### Service Decoupling
 
@@ -115,5 +116,6 @@ patch version for clarifications. Reviews MUST check compliance with this consti
 - **1.5.0 — 2026-11-23**: Added Proportionate Design: build the simplest mechanism the current requirements need, and add versioning, dual-running, or migration only when a specific change requires it. Rationale: the project is small and pre-production; mechanisms for hypothetical changes add maintenance cost before they add value. Compatibility rules become additive-only until a breaking change is planned.
 - **1.6.0 — 2026-11-23**: Added to Documentation Scope: a change that alters behavior, configuration, or infrastructure updates its authoritative contract in the same change, and code, templates, and contracts agree before merge. Rationale: a signing-key change left SSM wording in three contracts and the implementation doc, so the documents no longer described the deployed design.
 - **1.7.0 — 2026-11-25**: Added Service Decoupling: services publish consumer-facing values as `/mcp/<environment>/<component>/<name>` SSM parameters and read them at runtime, with exact-name IAM grants and no new deploy-order loops. Rationale: copying ARNs between stacks at deploy time coupled deploy order and caused stale values; the billing and access loops showed the cost.
+- **1.8.0 — 2026-11-26**: Added the Deploy inputs are minimal rule to Infrastructure as Code: a deploy input only for release identity or a value needed at resource creation; other configuration as code constants or template defaults; other components' values read from SSM; any other input needs a recorded reason. Rationale: the access runtime still took about ten deploy inputs, several of them values that another component publishes, so deploy commands carried values that drifted from their owners.
 
-**Version**: 1.7.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-25
+**Version**: 1.8.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-26
