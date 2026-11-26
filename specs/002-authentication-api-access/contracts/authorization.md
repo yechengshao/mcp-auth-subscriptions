@@ -87,7 +87,7 @@ Discovery:
 - The metadata keeps `token_endpoint_auth_methods_supported: ["none"]`, `code_challenge_methods_supported: ["S256"]` and the scopes already listed.
 
 `POST /register` accepts `application/json` only, with a bounded body size. The coordinator returns `201` with a JSON object containing:
-- `client_id`: the fixed public client identifier from configuration.
+- `client_id`: the fixed public client identifier, read from `/mcp/<env>/access/cognito-client-id` (the Cognito app client ID the access runtime already loads at startup). It is not a secret.
 - `redirect_uris`: the requested URIs, echoed unchanged.
 - `token_endpoint_auth_method`: `none`.
 
