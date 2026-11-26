@@ -12,6 +12,8 @@ RUN npm run build \
 
 FROM ${LAMBDA_RUNTIME_IMAGE}
 WORKDIR ${LAMBDA_TASK_ROOT}
+# package.json carries "type": "module"; without it Node loads the ES-module handler as CommonJS and init fails.
+COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/dist/access ./dist/access
 COPY --from=build /app/dist/billing/contracts ./dist/billing/contracts
 COPY --from=build /app/dist/contracts ./dist/contracts
