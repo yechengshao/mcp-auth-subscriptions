@@ -24,7 +24,7 @@ const routeOperations: Record<string, Operation> = { '/authorize': 'http.authori
   '/billing': 'http.billing', '/billing/checkout': 'http.billing', '/billing/return': 'http.billing',
   '/billing/plans': 'http.billing', '/billing/status': 'http.billing', '/billing/portal': 'http.billing',
   '/onboarding': 'http.status', '/onboarding/status': 'http.status', '/logout': 'http.login', '/token': 'http.token',
-  '/revoke': 'http.token', '/onboarding/resume': 'http.resume' };
+  '/revoke': 'http.token', '/onboarding/resume': 'http.resume', '/register': 'http.register' };
 function configuredJson(environmentName: string, pathName: string): unknown {
   const source = process.env[environmentName];
   if (source !== undefined) {

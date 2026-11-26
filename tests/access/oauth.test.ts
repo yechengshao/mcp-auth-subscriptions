@@ -442,3 +442,32 @@ test('registration rejects invalid bodies with OAuth registration errors and no 
     assert.equal(response.body!.includes(config.cognito.clientId), false, `${name} must not return the client identifier`);
   }
 });
+
+test('registration logs carry the reason and redirect scheme and host, never the request body', async () => {
+  const value = await fixture();
+  value.telemetryLines.length = 0;
+  const secret = 'PRIVATE_BODY_SENTINEL_path_and_query';
+  await invoke(value.handler, 'POST', '/register', { headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ redirect_uris: [`https://chat.example.invalid/cb?code=${secret}`], client_secret: secret }) });
+  await invoke(value.handler, 'POST', '/register', { headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ redirect_uris: ['https://claude.example.invalid/callback'] }) });
+  const lines = value.telemetryLines.join('\n');
+  const records = value.telemetryLines.map(line => JSON.parse(line) as Record<string, unknown>).filter(record => String(record.outcome).startsWith('registration_'));
+  assert.equal(records.length, 2);
+  assert.equal(records[0]!.outcome, 'registration_rejected');
+  assert.equal(records[0]!.reason, 'invalid_client_metadata');
+  assert.equal(records[0]!.redirect_host, 'chat.example.invalid');
+  assert.equal(records[0]!.redirect_scheme, 'https');
+  assert.equal(records[1]!.outcome, 'registration_accepted');
+  assert.equal(records[1]!.redirect_host, 'claude.example.invalid');
+  assert.equal(lines.includes(secret), false, 'the request body and URL path or query never reach logs');
+  assert.equal(lines.includes(config.cognito.clientId), false, 'the client identifier is not logged');
+});
+
+test('redirect fields carry only scheme and host and reject unparseable or oversized values', async () => {
+  const { redirectFields } = await import('../../observability/telemetry.js');
+  assert.deepEqual(redirectFields('https://app.example.invalid:8443/cb?token=x#frag'), { scheme: 'https', host: 'app.example.invalid' });
+  assert.equal(redirectFields('not a url'), undefined);
+  assert.equal(redirectFields(42), undefined);
+  assert.equal(redirectFields('https://a.example.invalid/' + 'x'.repeat(2100)), undefined);
+});

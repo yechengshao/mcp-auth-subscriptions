@@ -1,6 +1,6 @@
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
 import { accessScopes, redirectUriAllowed, type AccessConfiguration } from '../config.js';
-import type { Telemetry } from '../../observability/telemetry.js';
+import { redirectFields, type Telemetry } from '../../observability/telemetry.js';
 
 /** Fixed public-client registration (2026-11-26 amendment). Every caller receives the same Cognito app client ID; nothing is stored. */
 const maxRedirectUris = 8;
@@ -44,11 +44,15 @@ export function registrationRoutes(config: AccessConfiguration, telemetry: Telem
     try {
       if (!request.is('application/json')) reject('invalid_client_metadata');
       const redirectUris = validateRegistration(request.body);
-      telemetry.log('transition', 'http.register', 'registration_accepted');
+      telemetry.log('transition', 'http.register', 'registration_accepted', { redirect: redirectFields(redirectUris[0]) });
       response.status(201).json({ client_id: config.cognito.clientId, redirect_uris: redirectUris, token_endpoint_auth_method: 'none' });
     } catch (error) {
       if (error instanceof RegistrationFailure) {
-        telemetry.log('transition', 'http.register', 'registration_rejected', { status_code: error.status });
+        // Logs carry the reason code and, when parseable, the first redirect's scheme and host. Never the body.
+        const body = request.body as { redirect_uris?: unknown } | undefined;
+        const first = Array.isArray(body?.redirect_uris) ? body.redirect_uris[0] : undefined;
+        telemetry.log('transition', 'http.register', 'registration_rejected',
+          { status_code: error.status, reason: error.oauthError, redirect: redirectFields(first) });
         response.status(error.status).json({ error: error.oauthError });
         return;
       }

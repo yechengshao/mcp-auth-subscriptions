@@ -8,7 +8,7 @@ import type { AccessRow, StateKey } from './model.js';
 import { authCodeKey, credentialDigest, grantFamilyKey, matchesS256, newOpaqueCredential, refreshCredentialKey,
   subscriberBindingKey, transactionKey } from './grants.js';
 import { transitionTransaction } from './transitions.js';
-import type { Telemetry } from '../observability/telemetry.js';
+import { redirectFields, type Telemetry } from '../observability/telemetry.js';
 import type { RestApiTargetSource } from './rest-api-target.js';
 import type { UsageBindingTarget } from './usage_bindings.js';
 
@@ -85,7 +85,7 @@ export class AccessTokens {
       { row: redeemedTransaction, expectedRevision: transaction.revision },
       { row: family }, { row: refresh },
     ], this.authorityChecks(identity, authority.entitlement.revision, authority.binding));
-    this.telemetry.log('transition', 'http.token', 'completed');
+    this.telemetry.log('transition', 'http.token', 'completed', { redirect: redirectFields(input.redirectUri) });
     return tokens.response;
   }
 

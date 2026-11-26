@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { AccessRow } from './model.js';
 import { IdentityProviderFailure, type BrowserSessionStore, type IdentityProvider } from './ports.js';
-import type { Telemetry } from '../observability/telemetry.js';
+import { redirectFields, type Telemetry } from '../observability/telemetry.js';
 import { authorizeParameters, validateAccessConfiguration, type AccessConfiguration } from './config.js';
 import { validateSessionContext } from './contracts/validate.js';
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -78,6 +78,7 @@ export class BrowserSessions {
   }
   async start(purpose: 'onboarding' | 'management', parameters: unknown = {}) {
     const downstream = purpose === 'onboarding' ? authorizeParameters(this.config, parameters) : undefined;
+    if (downstream) this.telemetry.log('transition', 'http.authorize', 'completed', { redirect: redirectFields(downstream.redirect_uri) });
     if (purpose === 'management' && (!parameters || typeof parameters !== 'object' || Object.keys(parameters).length)) throw new SessionFailure(400, 'invalid_request');
     const now = this.now(), txId = randomUUID(), grantId = purpose === 'onboarding' ? randomUUID() : undefined;
     const token = random(), csrf = random(), state = random(), nonce = random(), verifier = random();

@@ -31,6 +31,16 @@ function safeFrames(error: unknown) {
   } catch { return []; }
 
 }
+/** Scheme and host of a redirect URI, the only parts of it that logs may carry. Never the path, query or fragment. */
+export interface RedirectFields { scheme: string; host: string }
+export function redirectFields(uri: unknown): RedirectFields | undefined {
+  if (typeof uri !== 'string' || uri.length > 2048) return undefined;
+  try {
+    const parsed = new URL(uri);
+    if (!/^[a-z][a-z0-9+.-]{0,15}$/.test(parsed.protocol.slice(0, -1)) || parsed.hostname.length === 0 || parsed.hostname.length > 253) return undefined;
+    return { scheme: parsed.protocol.slice(0, -1), host: parsed.hostname };
+  } catch { return undefined; }
+}
 export class Telemetry {
   readonly config: ReturnType<typeof validatedConfig>;
   readonly #storage = new AsyncLocalStorage<Active>();
@@ -44,7 +54,7 @@ export class Telemetry {
     return parent ? xrayHeader(parent) : undefined;
   }
   log(level: 'error' | 'transition' | 'summary', operation: Operation, outcome: Outcome,
-      fields: { duration_ms?: number; status_code?: number; error?: unknown } = {}): void {
+      fields: { duration_ms?: number; status_code?: number; error?: unknown; reason?: string | undefined; redirect?: RedirectFields | undefined } = {}): void {
     if (!operations.includes(operation) || !outcomes.includes(outcome)) return;
     // No success/polling/cache-hit logging. Callers explicitly mark critical transitions.
     if (level === 'summary' && outcome === 'completed') return;
@@ -60,6 +70,8 @@ export class Telemetry {
         ...(Number.isFinite(fields.duration_ms) && fields.duration_ms! >= 0 ? { duration_ms: Math.round(fields.duration_ms! * 1000) / 1000 } : {}),
         ...(Number.isInteger(fields.status_code) && fields.status_code! >= 100 && fields.status_code! <= 599 ? { status_code: fields.status_code } : {}),
         ...(fields.error ? { error_category: 'unexpected_failure', frames: safeFrames(fields.error) } : {}),
+        ...(typeof fields.reason === 'string' && /^[a-z_]{1,64}$/.test(fields.reason) ? { reason: fields.reason } : {}),
+        ...(fields.redirect ? { redirect_scheme: fields.redirect.scheme, redirect_host: fields.redirect.host } : {}),
       };
       const line = JSON.stringify(record) + '\n';
       if (Buffer.byteLength(line) <= 4096) (this.options.sink ?? (line => { process.stdout.write(line); }))(line);
