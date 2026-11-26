@@ -151,7 +151,14 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
   assert.deepEqual(plans[0]![1].Properties.Throttle, { RateLimit: 5, BurstLimit: 10 });
   assert.deepEqual(plans[0]![1].Properties.Quota, { Limit: 10000, Period: 'MONTH' });
   const methods = Object.entries(template.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::ApiGateway::Method') as [string, any][];
-  assert.equal(methods.length, 24);
+  assert.equal(methods.length, 25);
+  const register = template.Resources.MRegister;
+  assert.equal(register.Properties.HttpMethod, 'POST');
+  assert.equal(register.Properties.AuthorizationType, 'NONE', 'registration is public and bypasses the MCP authorizer');
+  assert.equal(register.Properties.ApiKeyRequired, undefined, 'registration needs no usage-plan API key');
+  assert.deepEqual(register.Properties.ResourceId, { Ref: 'ResRegister' });
+  assert.equal(template.Resources.ResRegister.Properties.PathPart, 'register');
+  assert.ok(template.Resources.Deployment.DependsOn.includes('MRegister'), 'the deployment waits for the registration method');
   const paid = methods.filter(([, value]) => value.Properties.AuthorizationType === 'CUSTOM').map(([name]) => name).sort();
   assert.deepEqual(paid, ['MHealth', 'MMcp']);
   for (const [name, value] of methods) {

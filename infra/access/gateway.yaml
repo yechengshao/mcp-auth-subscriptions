@@ -438,6 +438,21 @@
         "PathPart": "revoke"
       }
     },
+    "ResRegister": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "register"
+      }
+    },
     "ResToken": {
       "Type": "AWS::ApiGateway::Resource",
       "Properties": {
@@ -933,6 +948,27 @@
         }
       }
     },
+    "MRegister": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResRegister"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
     "MJwks": {
       "Type": "AWS::ApiGateway::Method",
       "Properties": {
@@ -1108,6 +1144,7 @@
         "MLogout",
         "MRevoke",
         "MToken",
+        "MRegister",
         "MJwks",
         "MWkProtectedResource",
         "MWkAuthServer",
