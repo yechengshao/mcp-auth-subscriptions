@@ -11,7 +11,7 @@ Update the status column as each one is finished. Nothing here has been run by C
 | 4 | Deploy the billing storage and runtime stacks, record their outputs | CloudFormation (after approval) | Stack outputs, with ARNs | Pending |
 | 5 | Create the Stripe webhook endpoint at `<deployed API URL>/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired` | Stripe Dashboard, after step 5 | None | Pending |
 | 7 | Copy the endpoint signing secret (`whsec_`) and store it as a SecureString at `STRIPE_WEBHOOK_SECRET_PARAMETER` | AWS console or CLI, on your machine | Parameter name only | Pending |
-| 8 | Create the usage plans and REST stage mappings listed in the catalog | API Gateway, after approval | Usage plan IDs, stage names | Pending |
+| 8 | Record the basic usage plan ID in the Stripe price metadata. The gateway stack creates the plan (`/mcp/<env>/access-api/usage-plan-id`, deployed 2026-11-26); nothing else is created here | SSM, Stripe Dashboard | Usage plan ID (not secret) | Ready |
 | 9 | Re-authenticate the AWS connection (or provide CLI access) so Claude can read stack outputs and run checks | Claude Code / AWS connector | None | Pending |
 | 10 | Give explicit approval for each live action: Stripe test-mode calls and each stack deploy | Chat | Approval message | Pending |
 | 11 | Google OAuth client and Cognito setup for sign-in | Google Cloud console, AWS | Confirmed client ID (no secret) | Done for the Cognito stack `mcp-access-auth` (CREATE_COMPLETE, per `authentication-api-access.md`); callback and logout URLs for real hosts still pending |

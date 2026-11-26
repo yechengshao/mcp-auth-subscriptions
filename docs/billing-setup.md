@@ -37,7 +37,7 @@ names and counts. Last local run (2026-11-24): 313 tests pass; 15 of 15 required
 evidence tests pass; 4 live checks are `not_run`. The CI jobs `billing` and `full`
 run the same checks on GitHub.
 
-## 2. Prepare AWS and the approved catalog
+## 2. Prepare AWS and the Stripe catalog
 
 Choose one account, region, environment and function name. Deploy
 `infra/billing/storage.yaml` with IAM capability acknowledgement. Record these
@@ -55,15 +55,15 @@ The two tables are retained, deletion-protected, on-demand, AWS-owned encrypted,
 and have point-in-time recovery enabled. PITR costs money. Paid records and
 idempotency evidence have no TTL. There is no additional activation table/queue.
 
-Create the nonsecret Parameter Store **String** catalog using the structure in
-[the catalog contract](../specs/003-billing-subscriptions/contracts/plan-catalog.md).
-Provide actual tier order, duration options, one-time Stripe product/price IDs,
-amounts/currencies and preconfigured usage-plan/REST-stage mappings. Account,
-region, environment and Stripe account must match this deployment. Increment
-catalog_version when content changes. Before enabling Checkout, verify every enabled Stripe price and API Gateway usage-plan/stage mapping exists in the selected environment; schema validation checks shape/scope, not remote resource existence. The backend caches valid catalogs for at
-most 60 seconds; it never serves an expired cache after a failed refresh.
-Persisted purchases retain their own snapshot. Retrying a pending purchase does
-not require reading the newest catalog.
+Plans, durations, prices and their usage-plan mappings come from Stripe, not from a
+Parameter Store catalog. Create the Stripe products and one-time prices as in runbook
+section 3a, with the metadata keys that section lists. The usage-plan ID is the
+basic plan from `/mcp/<env>/access-api/usage-plan-id`, and the REST API ID and stage
+come from the gateway's SSM parameters. Before enabling Checkout, run
+`npm run verify:stripe-catalog` (read-only) to confirm every enabled price's metadata
+matches this deployment. The backend caches the Stripe-built catalog for a short time
+and never serves an expired cache after a failed refresh. A persisted purchase keeps
+its own snapshot, so a retry does not read the newest catalog.
 
 ## 3. Prepare Stripe and secret parameters
 

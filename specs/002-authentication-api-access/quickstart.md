@@ -12,8 +12,9 @@ Read the [endpoint inventory](contracts/endpoints.md), [client onboarding](contr
 
 Before artifact publication, follow the separate OIDC publisher bootstrap in the
 [Access implementation guide](../../docs/access-implementation.md#separate-publication-setup).
-The publication template and manual workflows are source-controlled, but they
-are not deployed or run; current work remains local-only.
+The publication stack, the publish workflows, and the access, authorizer, gateway and
+domain stacks are deployed in `ca-central-1` (2026-11-26). Live subscriber, OAuth-code,
+refresh, metering and billing-recovery checks have not run.
 
 The host obtains a short-lived MCP bearer via code exchange after confirmed activation. It sends no x-api-key. Purchase/renewal uses a bounded enrollment continuation; successful login and billing management enforce [FR-003/FR-004](spec.md#functional-requirements). All provider values for the MCP runtime remain native Lambda environment variables; access/billing secrets never enter that map.
 

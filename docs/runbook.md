@@ -35,9 +35,9 @@ Published parameters (`<env>` is `test` for now):
 | `/mcp/<env>/billing/state-table-name` | `infra/billing/storage.yaml` | Live (`mcp-billing-storage`) |
 | `/mcp/<env>/billing/entitlements-table-name` | `infra/billing/storage.yaml` | Live (`mcp-billing-storage`) |
 | `/mcp/<env>/billing/state-stream-arn` | `infra/billing/storage.yaml` | Live (`mcp-billing-storage`) |
-| `/mcp/<env>/access/alias-arn` | `infra/access/runtime.yaml` | Template ready; not deployed |
-| `/mcp/<env>/authorizer/alias-arn` | `infra/access/authorizer.yaml` | Template ready; not deployed |
-| `/mcp/<env>/access-api/usage-plan-id` | `infra/access/gateway.yaml` | Template ready; not deployed |
+| `/mcp/<env>/access/alias-arn` | `infra/access/runtime.yaml` | Deployed 2026-11-26 (`mcp-access-runtime-test`) |
+| `/mcp/<env>/authorizer/alias-arn` | `infra/access/authorizer.yaml` | Deployed 2026-11-26 (`mcp-authorizer-test`) |
+| `/mcp/<env>/access-api/usage-plan-id` | `infra/access/gateway.yaml` | Deployed 2026-11-26 (`mcp-access-gateway-test`) |
 
 | `/mcp/<env>/access/state-table-name` | `infra/access/storage.yaml` | Live (`mcp-access-storage`) |
 | `/mcp/<env>/access/signing-key-arn` | `infra/access/signing.yaml` | Live (`mcp-access-signing`) |
