@@ -33,6 +33,7 @@
     },
     "ResourceMetadataUrl": {
       "Type": "String",
+      "Default": "https://access.tradingview.chat/.well-known/oauth-protected-resource",
       "AllowedPattern": "^https://[^\\s]+$",
       "Description": "Exact HTTPS URL advertised in the WWW-Authenticate challenge."
     },
