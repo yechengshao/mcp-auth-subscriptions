@@ -1188,7 +1188,10 @@
             "MetricsEnabled": false
           }
         ]
-      }
+      },
+      "DependsOn": [
+        "Account"
+      ]
     },
     "UsagePlanIdParameter": {
       "Type": "AWS::SSM::Parameter",
@@ -1253,6 +1256,40 @@
           "Ref": "StageName"
         },
         "Description": "Deployed gateway stage name. Billing reads it to match plan mappings to this deployment."
+      }
+    },
+    "ApiGatewayCloudWatchRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Description": "Lets API Gateway write its access and execution logs to CloudWatch Logs. Account-level: set once through the AWS::ApiGateway::Account resource.",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+          }
+        ]
+      }
+    },
+    "Account": {
+      "Type": "AWS::ApiGateway::Account",
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "ApiGatewayCloudWatchRole",
+            "Arn"
+          ]
+        }
       }
     }
   },
