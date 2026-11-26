@@ -185,21 +185,23 @@ deployments, including the failure cases.
 
 | Step | Status |
 |---|---|
-| Cognito stack `mcp-access-auth` in `ca-central-1` | Performed (`CREATE_COMPLETE`) |
-| Publication stack `mcp-access-publication` | Performed (`UPDATE_COMPLETE`) |
-| Access image publication (ECR, immutable, scanned) | Performed earlier, with accepted base-image findings |
-| Authorizer ZIP publication | Performed earlier |
+| Cognito stack `mcp-access-auth` in `ca-central-1` | Performed (`CREATE_COMPLETE`, updated 2026-11-26 with the coordinator callback `https://access.tradingview.chat/oauth/cognito/callback` and logout `https://access.tradingview.chat/logout`) |
+| Publication stack `mcp-access-publication` | Performed (`UPDATE_COMPLETE`, 2026-11-26; the authorizer publish role may write only `/mcp/<env>/authorizer/artifact-*`) |
+| Access image publication (ECR, immutable) | Performed 2026-11-26 (`access-2026-11-26.1`, after copying `package.json` into the image so the handler loads as an ES module) |
+| Authorizer ZIP publication | Performed 2026-11-26 (`authorizer-2026-11-26.2`; release location written to `/mcp/test/authorizer/artifact-*`) |
 | Signing key stack `mcp-access-signing` | Performed (`CREATE_COMPLETE`); key ARN recorded |
 | Public JWK | Not configured; derived at runtime from the ARN in `/mcp/<env>/access/signing-key-arn` (cached by ARN) |
 | Storage stack for access tables `mcp-access-storage` | Performed (`CREATE_COMPLETE`, 2026-11-25) |
 | Billing storage stack `mcp-billing-storage` (tables, policies, stream) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
-| Observability stack `mcp-observability-test` (log groups, telemetry policies, X-Ray sampling rule; alarms and dashboard off) | Performed (`CREATE_COMPLETE`, 2026-11-25). Gateway log groups use placeholder REST API ID `pending`; update with the real ID after the gateway is deployed |
+| Observability stack `mcp-observability-test` (log groups, telemetry policies, X-Ray sampling rule; alarms and dashboard off) | Performed (`CREATE_COMPLETE`, 2026-11-25; `UPDATE_COMPLETE` 2026-11-26 with the real REST API ID and the access log group `/aws/apigateway/mcp-access-test/access`) |
 | Billing publication stack and image `billing-2026-11-24.4` | Performed (publish run 45482349557) |
 | Billing runtime stack `mcp-billing-test` (live alias `mcp-billing-test:live`, queue, DLQ, Pipe, replay; delivery disabled; no reserved concurrency) | Performed (`CREATE_COMPLETE`, 2026-11-25) |
-| Access runtime stack | Not performed; needs approval |
-| Authorizer stack | Not performed; needs approval |
-| REST gateway stack | Not performed; template written and validated locally |
-| Cognito callback and logout URLs for real hosts | Not performed (placeholders only) |
+| Public URL stack `mcp-access-public-urls-test` (issuer, resource and metadata URLs in SSM) | Performed (`CREATE_COMPLETE` and `UPDATE_COMPLETE`, 2026-11-26) |
+| Access runtime stack `mcp-access-runtime-test` (`access-2026-11-26.1`) | Performed (`CREATE_COMPLETE`, then `UPDATE_COMPLETE` 2026-11-26 after the image fix; function `mcp-access-test`) |
+| Authorizer stack `mcp-authorizer-test` (`authorizer-2026-11-26.2`) | Performed (`CREATE_COMPLETE`, 2026-11-26) |
+| REST gateway stack `mcp-access-gateway-test` | Performed (`CREATE_COMPLETE`, 2026-11-26, then `UPDATE_COMPLETE` for the fixed access log group name). REST API `xbesqip7tl`, stage `test`, usage plan `x4rjep` |
+| Domain stack `mcp-access-domain-test` (certificate, regional custom domain, Route 53 alias for `access.tradingview.chat`) | Performed (`CREATE_COMPLETE`, 2026-11-26) |
+| Read-only verifier against the live API | Performed 2026-11-26 with the execute-api base and public issuer and resource URLs: 7 passed, 0 failed, 6 `not_run`. Public-host runs need a machine that can reach `access.tradingview.chat` |
 | Stripe test-mode payments and webhook | Not performed |
 | Live host OAuth, code exchange and REST metering | Not performed |
 | Live cutover and rollback | Not performed |

@@ -80,26 +80,39 @@ this order:
 Deploy in this order. Each stack's outputs feed the next stack's parameters. Record
 every output, including ARNs.
 
-| Order | Template | Purpose | Key outputs to record |
+Deploy in this order. Each stack's outputs feed the next stack through SSM, so a stack
+only needs to exist before the stacks that read its values. Record every output.
+
+| Order | Stack and template | Purpose | Publishes to SSM (`/mcp/<env>/...`) |
 |---|---|---|---|
-| 1 | `infra/access/auth.yaml` | Cognito and identity | User pool and client IDs, issuer |
-| 2 | `infra/access/signing.yaml` | KMS RS256 signing key | `SigningKeyArn`, `kid` |
-| 3 | Read `SigningKeyArn` from the signing stack output (or `/mcp/<env>/access/signing-key-arn`) | Key ARN (not secret) | Nothing to enter; the runtime derives the public JWK from the ARN |
-| 4 | `infra/billing/storage.yaml` | Billing and entitlement tables | `BillingStateName`, `BillingEntitlementsName`, `BillingStreamArn`, `BillingStoragePolicyArn`, `BillingStreamReadPolicyArn` |
-| 5 | `infra/observability/template.json` | Log groups, alarms, dashboard | `BillingTelemetryPolicyArn`, `LambdaTracingMode` |
-| 6 | Billing runtime (`infra/billing/runtime.yaml`), rendered for your immutable image | Billing Lambda with `live` alias, queue, DLQ | Billing alias ARN, webhook alias ARN |
-| 8 | `infra/access/storage.yaml` | Access tables | Table names and ARNs |
-| 9 | `infra/access/runtime.yaml` | Access Lambda | Access alias ARN |
-| 10 | `infra/access/authorizer.yaml` | Authorizer from the published ZIP | Authorizer alias ARN |
-| 11 | `infra/access/gateway.yaml` | REST API, stage, methods | Stage URL |
+| 1 | `mcp-access-auth`, `infra/access/auth.yaml` | Cognito pool, PKCE client, Google IdP | `access/cognito-issuer`, `cognito-client-id`, `cognito-domain`, `cognito-callback-uri` |
+| 2 | `mcp-access-signing`, `infra/access/signing.yaml` | KMS RS256 signing key | `access/signing-key-arn` |
+| 3 | `mcp-access-storage` (`infra/access/storage.yaml`) and `mcp-billing-storage` (`infra/billing/storage.yaml`) | Access and billing tables, stream | `access/state-table-name` and billing table names |
+| 4 | `mcp-observability-test` (`infra/observability/template.json`) | Log groups, telemetry policies, X-Ray rule | Telemetry policy ARNs (stack outputs) |
+| 5 | `mcp-access-publication` (`infra/access/publication.yaml`) | GitHub OIDC publish roles, ECR repo, release bucket | `access/image-uri` (placeholder), role permissions for the publish workflows |
+| 6 | Publish workflows, run from `main` with an approved environment | Access image and authorizer ZIP | `access/image-uri`; `authorizer/artifact-bucket`, `-key`, `-version`, `-sha256` |
+| 7 | `mcp-billing-test` (`infra/billing/runtime.yaml`) | Billing Lambda with `live` alias, queue, DLQ | `billing/alias-arn` |
+| 8 | `mcp-access-public-urls-test` (`infra/access/public-urls.yaml`) | Issuer, resource and metadata URLs | `access/issuer-url`, `access/resource-url`, `access/resource-metadata-url` |
+| 9 | `mcp-access-runtime-test` (`infra/access/runtime.yaml`) | Access Lambda with `live` alias | `access/alias-arn` |
+| 10 | `mcp-authorizer-test` (`infra/access/authorizer.yaml`) | Authorizer Lambda from the published ZIP | `authorizer/alias-arn` |
+| 11 | `mcp-access-gateway-test` (`infra/access/gateway.yaml`) | REST API, stage, methods, logging role | `access-api/rest-api-id`, `access-api/stage`, `access-api/usage-plan-id` |
+| 12 | `mcp-access-domain-test` (`infra/access/domain.yaml`) | Certificate, regional custom domain, Route 53 alias | Nothing; reads the REST API ID and stage |
 
 Notes on the order:
 
-- Deploy `infra/billing/publication.yaml` and publish the billing image before step 7.
-  The image must be in ECR with an immutable digest.
-- Billing must have its live alias before access can invoke it (step 9).
-- For `gateway.yaml`, deploy twice if you enable access logs: the first pass
-  without `AccessLogGroupArn`, the second with it (see the access setup guide).
+- Steps 1 to 4 can run in any order. Step 8 must run before step 11, because the gateway
+  reads `access/resource-metadata-url` when it deploys.
+- Step 5 must run before step 6, because the publish role may write only the parameters
+  `publication.yaml` grants it. The publish workflows run only from `main` and need an
+  approval on their GitHub environment (`access-publish`, `authorizer-publish`).
+- Step 7 (billing alias) must exist before the access runtime invokes it (step 9).
+- Step 4 deploys with the placeholder REST API ID. After step 11, update the observability
+  stack so it uses the real ID from `access-api/rest-api-id`. Its execution log group is
+  named by that ID, and an empty log group created by API Gateway must be removed first so
+  the stack can create it with retention.
+- Step 12 is last. The domain only maps the hostname to the gateway's stage.
+- The gateway creates its own access log group, `/aws/apigateway/mcp-access-<stage>/access`,
+  and the account-level CloudWatch logging role. No extra stack or second pass is needed.
 
 Example deploy command for one stack. Run it only through the approved path, or with
 explicit approval, and substitute your own stack name and parameter values:
@@ -113,9 +126,18 @@ aws cloudformation deploy \
   --parameter-overrides Environment=<environment> <Key>=<Value>
 ```
 
-## 2a. Public issuer and resource URLs (placeholder until the domain is known)
+## 2a. Public issuer, resource and metadata URLs
 
-`infra/access/public-urls.yaml` publishes `/mcp/<env>/access/issuer-url` (`https://access.tradingview.chat`) and `/mcp/<env>/access/resource-url` (`https://access.tradingview.chat/mcp`). The access runtime refuses to start on an `UNSET` or non-HTTPS value. Before deploying, the custom domain, the certificate and the DNS record for `access.tradingview.chat` must exist, and the auth stack's `CoordinatorCallbackUri` must be `https://access.tradingview.chat/oauth/cognito/callback`. When the domain is known, redeploy this stack with `IssuerUrl` (HTTPS, no path after the host) and `ResourceUrl` (HTTPS, ending in `/mcp`). Do not edit the parameters in the console; a template-managed value keeps one owner.
+`infra/access/public-urls.yaml` (stack `mcp-access-public-urls-test`) publishes three values:
+
+- `/mcp/<env>/access/issuer-url`: `https://access.tradingview.chat`
+- `/mcp/<env>/access/resource-url`: `https://access.tradingview.chat/mcp`
+- `/mcp/<env>/access/resource-metadata-url`: `https://access.tradingview.chat/.well-known/oauth-protected-resource`
+
+The access runtime refuses to start on an `UNSET` or non-HTTPS value. The gateway reads the
+metadata URL at deploy time and bakes it into the 401 `WWW-Authenticate` header, so a change
+to that URL needs a gateway redeploy. The issuer has no path, so the gateway has no
+issuer-path discovery routes. These values are defaults in the template, not deploy inputs.
 
 ## 3a. Stripe plans and prices (manual, per environment)
 
@@ -165,8 +187,11 @@ Rules after publication:
 - The stack reaches `CREATE_COMPLETE` or `UPDATE_COMPLETE`, and its outputs match the
   table above.
 - `cfn-lint` passes on the template (CI runs this on every change).
-- After the gateway deploys, run the read-only access verifier against the stage URL:
-  `scripts/verify_access.ts`. It sends GET requests only.
+- After the gateway deploys, run the read-only access verifier. It sends GET requests only.
+  Pass the execute-api stage URL as the base, and the public issuer and resource URLs:
+  `node dist/scripts/verify_access.js https://<rest-api-id>.execute-api.ca-central-1.amazonaws.com/<stage> https://access.tradingview.chat https://access.tradingview.chat/mcp`
+  The metadata and login checks use the public issuer host. The checks that need paid
+  subscribers or a browser login report `not_run`.
 - Run `npm run verify:billing` locally. It reports the current test counts and which
   evidence tests pass; live checks stay `not_run` until they are performed.
 
