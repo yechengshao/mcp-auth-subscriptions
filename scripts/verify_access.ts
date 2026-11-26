@@ -42,7 +42,10 @@ export async function verifyAccess(input: VerifyInput, transport: Transport = (u
   // The stage path is part of every route, so join onto it rather than resolving from the origin.
   const prefix = base.pathname.replace(/\/$/, '');
   const at = (path: string) => new URL(prefix + path, base.origin).toString();
-  const metadataUrl = at('/.well-known/oauth-protected-resource');
+  // The public issuer host advertises the metadata and hosts the login page; the base URL may be a raw execute-api stage.
+  const issuerUrl = new URL(input.issuer);
+  const metadataUrl = `${issuerUrl.origin}/.well-known/oauth-protected-resource`;
+  const loginPath = `${issuerUrl.pathname.replace(/\/$/, '')}/login`;
   const get = (path: string, headers: Record<string, string> = {}) =>
     transport(at(path), { method: 'GET', redirect: 'manual', headers, signal: AbortSignal.timeout(10000) });
   const checks: CheckResult[] = [];
@@ -89,7 +92,8 @@ export async function verifyAccess(input: VerifyInput, transport: Transport = (u
   await check('billing-anonymous-redirect', async () => {
     const response = await get('/billing');
     if (![302, 303].includes(response.status)) fail('anonymous billing page did not redirect');
-    if (new URL(response.headers.get('location') ?? '', base).pathname !== `${prefix}/login`) fail('anonymous billing page does not redirect to login');
+    const location = new URL(response.headers.get('location') ?? '', base);
+    if (location.origin !== issuerUrl.origin || location.pathname !== loginPath) fail('anonymous billing page does not redirect to login');
   });
   for (const [name, reason] of NOT_RUN) checks.push({ name, status: 'not_run', detail: reason });
   const summary = { passed: checks.filter(c => c.status === 'passed').length, failed: checks.filter(c => c.status === 'failed').length, not_run: checks.filter(c => c.status === 'not_run').length };

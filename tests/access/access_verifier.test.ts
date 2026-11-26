@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyAccess, type VerifyInput } from '../../scripts/verify_access.js';
 const input: VerifyInput = { baseUrl: 'https://api.example.invalid/test', issuer: 'https://login.example.invalid/test', resource: 'https://api.example.invalid/test/mcp' };
-const metadataUrl = 'https://api.example.invalid/test/.well-known/oauth-protected-resource';
+const metadataUrl = 'https://login.example.invalid/.well-known/oauth-protected-resource';
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 /** A fixture deployment that satisfies every read-only check. */
 function goodRoutes(overrides: Record<string, () => Response> = {}): Record<string, () => Response> {
@@ -12,7 +12,7 @@ function goodRoutes(overrides: Record<string, () => Response> = {}): Record<stri
     '/jwks.json': () => json({ keys: [{ kty: 'RSA', alg: 'RS256', use: 'sig', kid: 'fixture_key', n: 'AQAB', e: 'AQAB' }] }),
     '/mcp': () => new Response(null, { status: 401, headers: { 'www-authenticate': `Bearer resource_metadata="${metadataUrl}"` } }),
     '/health': () => new Response(null, { status: 401 }),
-    '/billing': () => new Response(null, { status: 302, headers: { location: 'https://api.example.invalid/test/login' } }),
+    '/billing': () => new Response(null, { status: 302, headers: { location: 'https://login.example.invalid/test/login' } }),
     ...overrides,
   };
 }
