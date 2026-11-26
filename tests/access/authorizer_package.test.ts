@@ -7,13 +7,11 @@ import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { packageAuthorizer } from '../../infra/access/package-authorizer.js';
-import { authorizerRelease } from '../../infra/access/release-authorizer.js';
 import { readStoredZip } from '../../infra/access/zip.js';
 
-test('authorizer template deploys a managed Node.js ZIP and pins immutable artifact inputs', () => {
-  const packageSha256 = Buffer.alloc(32, 7).toString('base64');
-  const rendered = authorizerRelease('mcp-release-artifacts', 'authorizer/test/0123.zip', 'version-123', packageSha256);
-  const fn = rendered.Resources.Function.Properties;
+test('authorizer template deploys a managed Node.js ZIP and reads its release location from SSM', () => {
+  const template = JSON.parse(readFileSync('infra/access/authorizer.yaml', 'utf8'));
+  const fn = template.Resources.Function.Properties;
   assert.equal(fn.Runtime, 'nodejs24.x');
   assert.equal(fn.Handler, 'authorizer/handler.handler');
   assert.deepEqual(fn.Architectures, ['arm64']);
@@ -23,16 +21,16 @@ test('authorizer template deploys a managed Node.js ZIP and pins immutable artif
     S3Key: { Ref: 'ArtifactKey' },
     S3ObjectVersion: { Ref: 'ArtifactVersion' },
   });
-  assert.equal(rendered.Parameters.ArtifactBucket.Default, 'mcp-release-artifacts');
-  assert.equal(rendered.Parameters.ArtifactKey.Default, 'authorizer/test/0123.zip');
-  assert.equal(rendered.Parameters.ArtifactVersion.Default, 'version-123');
-  const versionName = Object.keys(rendered.Resources).find(name => /^Version[0-9a-f]{24}$/.test(name));
-  assert.ok(versionName);
-  assert.deepEqual(rendered.Resources[versionName!].Properties.CodeSha256, { Ref: 'PackageSha256' });
-  assert.equal(rendered.Parameters.PackageSha256.Default, packageSha256);
-  assert.deepEqual(rendered.Resources.Alias.Properties.FunctionVersion, { 'Fn::GetAtt': [versionName, 'Version'] });
-  assert.throws(() => authorizerRelease('bad/bucket', 'key.zip', 'version', packageSha256), /immutable_authorizer_zip_required/);
-  assert.throws(() => authorizerRelease('mcp-release-artifacts', 'key.zip', 'version', 'not-a-hash'), /immutable_authorizer_zip_required/);
+  assert.deepEqual(template.Resources.Version.Properties.CodeSha256, { Ref: 'PackageSha256' });
+  assert.deepEqual(template.Resources.Alias.Properties.FunctionVersion, { 'Fn::GetAtt': ['Version', 'Version'] });
+  const release = {
+    ArtifactBucket: '/mcp/test/authorizer/artifact-bucket', ArtifactKey: '/mcp/test/authorizer/artifact-key',
+    ArtifactVersion: '/mcp/test/authorizer/artifact-version', PackageSha256: '/mcp/test/authorizer/artifact-sha256',
+  };
+  for (const [name, parameter] of Object.entries(release)) {
+    assert.equal(template.Parameters[name].Type, 'AWS::SSM::Parameter::Value<String>', name);
+    assert.equal(template.Parameters[name].Default, parameter, name);
+  }
 });
 
 test('authorizer ZIP is lean, carries checksums, and executes its real Lambda handler', async () => {

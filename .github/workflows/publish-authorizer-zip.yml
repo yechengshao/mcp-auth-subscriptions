@@ -100,6 +100,21 @@ jobs:
           NODE
           echo "artifact_key=$ATTEMPT_KEY/authorizer.zip" >> "$GITHUB_OUTPUT"
           echo "artifact_version=$VERSION_ID" >> "$GITHUB_OUTPUT"
+          echo "package_sha256=$PACKAGE_SHA" >> "$GITHUB_OUTPUT"
+      - name: Publish authorizer release location to SSM
+        env:
+          ARTIFACT_BUCKET: ${{ vars.AUTHORIZER_ARTIFACT_BUCKET }}
+          ARTIFACT_KEY: ${{ steps.upload.outputs.artifact_key }}
+          ARTIFACT_VERSION: ${{ steps.upload.outputs.artifact_version }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PACKAGE_SHA: ${{ steps.upload.outputs.package_sha256 }}
+        run: |
+          set -euo pipefail
+          test -n "$PACKAGE_SHA"
+          aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/authorizer/artifact-bucket" --type String --value "$ARTIFACT_BUCKET" --overwrite
+          aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/authorizer/artifact-key" --type String --value "$ARTIFACT_KEY" --overwrite
+          aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/authorizer/artifact-version" --type String --value "$ARTIFACT_VERSION" --overwrite
+          aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/authorizer/artifact-sha256" --type String --value "$PACKAGE_SHA" --overwrite
       - uses: actions/upload-artifact@v4
         with:
           name: authorizer-release-${{ inputs.release_tag }}

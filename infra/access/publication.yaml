@@ -201,6 +201,13 @@
                   "Resource": {
                     "Fn::Sub": "${AuthorizerArtifactBucket.Arn}/access/authorizer/*"
                   }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "ssm:PutParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/authorizer/artifact-*"
+                  }
                 }
               ]
             }

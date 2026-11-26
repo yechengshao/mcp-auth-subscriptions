@@ -16,23 +16,24 @@
       "AllowedPattern": "[A-Za-z][A-Za-z0-9_-]{0,63}"
     },
     "ArtifactBucket": {
-      "Type": "String",
-      "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/authorizer/artifact-bucket",
+      "Description": "Release bucket of the authorizer ZIP, written by the publish workflow."
     },
     "ArtifactKey": {
-      "Type": "String",
-      "MinLength": 1,
-      "MaxLength": 1024
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/authorizer/artifact-key",
+      "Description": "S3 key of the authorizer ZIP, written by the publish workflow."
     },
     "ArtifactVersion": {
-      "Type": "String",
-      "MinLength": 1,
-      "MaxLength": 1024
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/authorizer/artifact-version",
+      "Description": "S3 object version of the authorizer ZIP, written by the publish workflow."
     },
     "PackageSha256": {
-      "Type": "String",
-      "AllowedPattern": "^[A-Za-z0-9+/]{43}=$",
-      "Description": "Base64 SHA-256 of the ZIP package, used to pin the published Lambda version."
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/authorizer/artifact-sha256",
+      "Description": "Base64 SHA-256 of the ZIP package, written by the publish workflow; pins the published Lambda version."
     },
     "ReleaseId": {
       "Type": "String",

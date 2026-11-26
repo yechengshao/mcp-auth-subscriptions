@@ -51,6 +51,10 @@ test('authorizer publisher can only add immutable release objects under its S3 p
     Effect: 'Allow',
     Action: 's3:PutObject',
     Resource: { 'Fn::Sub': '${AuthorizerArtifactBucket.Arn}/access/authorizer/*' },
+  }, {
+    Effect: 'Allow',
+    Action: 'ssm:PutParameter',
+    Resource: { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/authorizer/artifact-*' },
   }]);
   assert.equal(JSON.stringify(template).includes('s3:DeleteObject'), false);
   assert.equal(JSON.stringify(template).includes('lambda:UpdateFunctionCode'), false);
