@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tradingview-access": {
+      "type": "http",
+      "url": "https://access.tradingview.chat/mcp"
+    }
+  }
+}
