@@ -1213,7 +1213,7 @@
       "UpdateReplacePolicy": "Retain",
       "Properties": {
         "LogGroupName": {
-          "Fn::Sub": "/aws/apigateway/${RestApi}/${StageName}/access"
+          "Fn::Sub": "/aws/apigateway/mcp-access-${StageName}/access"
         },
         "RetentionInDays": 14,
         "Tags": [

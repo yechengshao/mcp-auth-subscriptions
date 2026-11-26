@@ -44,7 +44,7 @@ export function observabilityTemplate(): Json {
       Description: `Attach to the existing ${component.toLowerCase()} role; no business-data rights`,
       PolicyDocument: { Version: '2012-10-17', Statement: [
         { Effect: 'Allow', Action: ['logs:CreateLogStream','logs:PutLogEvents'], Resource: component === 'Gateway' ?
-          sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/${RestApiId}/${StageName}/access:log-stream:*') :
+          sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/mcp-access-${StageName}/access:log-stream:*') :
           sub(`arn:\${AWS::Partition}:logs:\${AWS::Region}:\${AWS::AccountId}:log-group:/aws/lambda/\${${component}FunctionName}:log-stream:*`) },
         ...(component === 'Gateway' ? [] : [{ 'Fn::If': ['TracingEnabled', {
           Effect: 'Allow', Action: ['xray:PutTraceSegments','xray:PutTelemetryRecords'], Resource: '*',
@@ -59,11 +59,11 @@ export function observabilityTemplate(): Json {
   } };
   const gatewayPolicy = resources.GatewayTelemetryPolicy as { Properties: { PolicyDocument: { Statement: Json[] } } };
   gatewayPolicy.Properties.PolicyDocument.Statement[0]!.Resource = [
-    sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/${RestApiId}/${StageName}/access:log-stream:*'),
+    sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/mcp-access-${StageName}/access:log-stream:*'),
     sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:API-Gateway-Execution-Logs_${RestApiId}/${StageName}:log-stream:*'),
   ];
   gatewayPolicy.Properties.PolicyDocument.Statement.push({ Effect: 'Allow', Action: ['logs:DescribeLogStreams'], Resource: [
-    sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/${RestApiId}/${StageName}/access'),
+    sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/apigateway/mcp-access-${StageName}/access'),
     sub('arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:API-Gateway-Execution-Logs_${RestApiId}/${StageName}'),
   ] }, { Effect: 'Allow', Action: ['logs:DescribeLogGroups'], Resource: '*' });
   resources.GatewaySampling = { Type: 'AWS::XRay::SamplingRule', Condition: 'TracingEnabled', Properties: { SamplingRule: {

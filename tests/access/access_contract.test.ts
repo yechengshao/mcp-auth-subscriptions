@@ -187,7 +187,7 @@ test('access functions keep their log groups in observability; the gateway owns 
   const gateway = JSON.parse(readFileSync('infra/access/gateway.yaml', 'utf8'));
   const groups = Object.entries(gateway.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::Logs::LogGroup');
   assert.deepEqual(groups.map(([name]) => name), ['AccessLogGroup']);
-  assert.deepEqual(gateway.Resources.AccessLogGroup.Properties.LogGroupName, { 'Fn::Sub': '/aws/apigateway/${RestApi}/${StageName}/access' });
+  assert.deepEqual(gateway.Resources.AccessLogGroup.Properties.LogGroupName, { 'Fn::Sub': '/aws/apigateway/mcp-access-${StageName}/access' });
   assert.deepEqual(gateway.Resources.Stage.Properties.AccessLogSetting.DestinationArn, { 'Fn::GetAtt': ['AccessLogGroup', 'Arn'] });
   assert.equal(gateway.Parameters.AccessLogGroupArn, undefined);
   assert.deepEqual(gateway.Resources.RestApiIdParameter.Properties.Name, { 'Fn::Sub': '/mcp/${Environment}/access-api/rest-api-id' });
