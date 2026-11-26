@@ -63,3 +63,17 @@ What remains, enforced on every request:
 - Cognito still authenticates the user, and billing still decides whether a subscription is active.
 
 Accepted risk, recorded by the owner: a user who signs in through an unfamiliar app can have a token issued to that app, and that token carries the subscriber's usage key. Detection is by logging `client_id` on issuance and monitoring. Restricting which clients may use the service is a later, separate decision and will need its own amendment.
+
+## Amendment: authorizer does not validate the API or stage (2026-11-26)
+
+The approved decision is that the REST authorizer does not check the request's account, region, REST API ID or named stage. The authorizer is attached to one REST API, and API Gateway invokes it only for that API's requests, so the check guarded only against an accidental reuse of the authorizer on another API or stage. It also made the authorizer depend on the gateway's REST API ID, which is created after the authorizer alias that the gateway needs at deploy time.
+
+What remains, enforced on every request:
+- One bounded, well-formed Bearer header; RS256 `kid`; trusted JWKS only.
+- Service issuer, audience, client, token type, scope, times and `usageIdentifierKey` checks, as before.
+- The request's method and path must match the route list, and the route's scope must be present in the token. The route list is authorizer configuration.
+- The returned policy allows only the exact request method ARN. No wildcard Allow.
+
+The authorizer config no longer carries `accountId`, `region`, `apiId` or `stage`. The REST API ID and stage still exist and are still published by the gateway for usage-plan provisioning, and the gateway still pins alias invocation permissions to the exact API, stage and method.
+
+This supersedes the account/region/API/stage validation in the authorizer paragraph above.
