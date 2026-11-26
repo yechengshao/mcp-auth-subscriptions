@@ -77,3 +77,34 @@ What remains, enforced on every request:
 The authorizer config no longer carries `accountId`, `region`, `apiId` or `stage`. The REST API ID and stage still exist and are still published by the gateway for usage-plan provisioning, and the gateway still pins alias invocation permissions to the exact API, stage and method.
 
 This supersedes the account/region/API/stage validation in the authorizer paragraph above.
+
+## Amendment: fixed public client registration (2026-11-26)
+
+The approved decision is that the coordinator offers RFC 7591 dynamic client registration in a limited form. Every registration returns the same fixed public client identifier. The coordinator stores no per-client record, and the registration does not create a Cognito app client.
+
+Discovery:
+- The authorization-server metadata document advertises `registration_endpoint` as `<issuer>/register`, derived in code from the issuer. It is not an SSM parameter.
+- The metadata keeps `token_endpoint_auth_methods_supported: ["none"]`, `code_challenge_methods_supported: ["S256"]` and the scopes already listed.
+
+`POST /register` accepts `application/json` only, with a bounded body size. The coordinator returns `201` with a JSON object containing:
+- `client_id`: the fixed public client identifier from configuration.
+- `redirect_uris`: the requested URIs, echoed unchanged.
+- `token_endpoint_auth_method`: `none`.
+
+Body validation, enforced before any response:
+- The body is a JSON object. Anything else is rejected with `invalid_client_metadata`.
+- `redirect_uris` is present and non-empty. Every entry follows the existing `redirect_uri` rule: HTTPS, no credentials, fragment or wildcard. One invalid entry rejects the whole request.
+- `token_endpoint_auth_method`, if present, must be `none`. Any client secret request is rejected.
+- `grant_types`, if present, may contain only `authorization_code` and `refresh_token`. `response_types`, if present, may contain only `code`.
+- Other metadata fields, such as `client_name` and `scope`, are accepted and not stored. `scope` requests must fall within `openid` and `mcp:invoke`, as for `/authorize`.
+- The body is not persisted and is not logged. Logs record only the outcome, the rejection reason code, the redirect URI scheme and host, and the correlation ID.
+
+Route and access:
+- `/register` is public and does not require a bearer token, API key or paid entitlement. It has its own gateway method with no authorizer.
+- Registration grants no access. Only a completed sign-in with a valid authorization code, PKCE and an exact `redirect_uri` match yields tokens.
+
+Monitoring, replacing the `client_id` basis of the accepted risk above:
+- Because all clients share one `client_id`, issuance logs must record the `redirect_uri` on each authorization and token exchange, with its scheme and host, so unfamiliar apps can be detected.
+- Restricting redirect URIs or clients remains a separate decision.
+
+The 2026-11-25 open-client rule is unchanged. Any well-formed HTTPS redirect URI can start a sign-in. This amendment only adds the registration document and the fixed client identifier.
