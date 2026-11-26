@@ -15,8 +15,9 @@ Parameters:
     Description: Public host name for the access service. Must match the issuer and resource URL parameters.
   HostedZoneId:
     Type: String
+    Default: Z00722586W60PHIOIIYF
     AllowedPattern: '^Z[A-Z0-9]{5,32}$'
-    Description: Route 53 public hosted zone that contains DomainName. Deploy input; the zone ID is public metadata.
+    Description: Route 53 public hosted zone for tradingview.chat. The zone ID is public metadata.
   RestApiId:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /mcp/test/access-api/rest-api-id

@@ -27,7 +27,7 @@ test('domain template writes the alias record into the hosted zone the deploy in
   assert.match(template, /HostedZoneId: !Ref HostedZoneId\n\s+Name: !Ref DomainName\n\s+Type: A/);
   assert.match(template, /DNSName: !GetAtt ApiDomainName\.RegionalDomainName/);
   assert.match(template, /HostedZoneId: !GetAtt ApiDomainName\.RegionalHostedZoneId/);
-  assert.match(template, /HostedZoneId:\n\s+Type: String\n\s+AllowedPattern: '\^Z/);
+  assert.match(template, /HostedZoneId:\n\s+Type: String\n\s+Default: Z00722586W60PHIOIIYF\n\s+AllowedPattern: '\^Z/);
 });
 
 test('domain template publishes no secrets and takes no URLs or stage names as deploy inputs beyond the host and zone', () => {
