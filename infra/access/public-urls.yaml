@@ -18,6 +18,11 @@ Parameters:
     Default: https://access.tradingview.chat/mcp
     AllowedPattern: '^(UNSET|https://[^\s]{1,2000}/mcp)$'
     Description: Public HTTPS URL of the protected MCP resource, ending in /mcp. UNSET until the domain is known.
+  ResourceMetadataUrl:
+    Type: String
+    Default: https://access.tradingview.chat/.well-known/oauth-protected-resource
+    AllowedPattern: '^(UNSET|https://[^\s]{1,2000}/\.well-known/oauth-protected-resource)$'
+    Description: Public HTTPS URL of the protected-resource metadata document, advertised in the 401 challenge. UNSET until the domain is known.
 Resources:
   IssuerUrlParameter:
     Type: AWS::SSM::Parameter
@@ -35,8 +40,18 @@ Resources:
       Tier: Standard
       Value: !Ref ResourceUrl
       Description: Public MCP resource URL read by the access runtime.
+  ResourceMetadataUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/resource-metadata-url'
+      Type: String
+      Tier: Standard
+      Value: !Ref ResourceMetadataUrl
+      Description: Protected-resource metadata URL read by the gateway at deploy time.
 Outputs:
   IssuerUrlParameterName:
     Value: !Ref IssuerUrlParameter
   ResourceUrlParameterName:
     Value: !Ref ResourceUrlParameter
+  ResourceMetadataUrlParameterName:
+    Value: !Ref ResourceMetadataUrlParameter

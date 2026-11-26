@@ -151,7 +151,7 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
   assert.deepEqual(plans[0]![1].Properties.Throttle, { RateLimit: 5, BurstLimit: 10 });
   assert.deepEqual(plans[0]![1].Properties.Quota, { Limit: 10000, Period: 'MONTH' });
   const methods = Object.entries(template.Resources).filter(([, value]: [string, any]) => value.Type === 'AWS::ApiGateway::Method') as [string, any][];
-  assert.equal(methods.length, 26);
+  assert.equal(methods.length, 24);
   const paid = methods.filter(([, value]) => value.Properties.AuthorizationType === 'CUSTOM').map(([name]) => name).sort();
   assert.deepEqual(paid, ['MHealth', 'MMcp']);
   for (const [name, value] of methods) {

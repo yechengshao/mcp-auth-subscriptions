@@ -32,15 +32,9 @@
       "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
     },
     "ResourceMetadataUrl": {
-      "Type": "String",
-      "Default": "https://access.tradingview.chat/.well-known/oauth-protected-resource",
-      "AllowedPattern": "^https://[^\\s]+$",
-      "Description": "Exact HTTPS URL advertised in the WWW-Authenticate challenge."
-    },
-    "IssuerPathPrefix": {
-      "Type": "String",
-      "AllowedPattern": "^[a-z0-9-]{1,64}$",
-      "Description": "Path component of the issuer URL; the path-suffixed discovery routes use it."
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/resource-metadata-url",
+      "Description": "SSM parameter holding the protected-resource metadata URL, published by infra/access/public-urls.yaml. Advertised in the WWW-Authenticate challenge."
     },
     "TracingEnabled": {
       "Type": "String",
@@ -570,20 +564,6 @@
         "PathPart": "oauth-authorization-server"
       }
     },
-    "ResWkAuthServerPrefix": {
-      "Type": "AWS::ApiGateway::Resource",
-      "Properties": {
-        "RestApiId": {
-          "Ref": "RestApi"
-        },
-        "ParentId": {
-          "Ref": "ResWkAuthServer"
-        },
-        "PathPart": {
-          "Ref": "IssuerPathPrefix"
-        }
-      }
-    },
     "ResWkOpenId": {
       "Type": "AWS::ApiGateway::Resource",
       "Properties": {
@@ -594,20 +574,6 @@
           "Ref": "ResWellKnown"
         },
         "PathPart": "openid-configuration"
-      }
-    },
-    "ResWkOpenIdPrefix": {
-      "Type": "AWS::ApiGateway::Resource",
-      "Properties": {
-        "RestApiId": {
-          "Ref": "RestApi"
-        },
-        "ParentId": {
-          "Ref": "ResWkOpenId"
-        },
-        "PathPart": {
-          "Ref": "IssuerPathPrefix"
-        }
       }
     },
     "MLogin": {
@@ -1030,27 +996,6 @@
         }
       }
     },
-    "MWkAuthServerPrefix": {
-      "Type": "AWS::ApiGateway::Method",
-      "Properties": {
-        "RestApiId": {
-          "Ref": "RestApi"
-        },
-        "ResourceId": {
-          "Ref": "ResWkAuthServerPrefix"
-        },
-        "HttpMethod": "GET",
-        "AuthorizationType": "NONE",
-        "Integration": {
-          "Type": "AWS_PROXY",
-          "IntegrationHttpMethod": "POST",
-          "TimeoutInMillis": 29000,
-          "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
-          }
-        }
-      }
-    },
     "MWkOpenId": {
       "Type": "AWS::ApiGateway::Method",
       "Properties": {
@@ -1059,27 +1004,6 @@
         },
         "ResourceId": {
           "Ref": "ResWkOpenId"
-        },
-        "HttpMethod": "GET",
-        "AuthorizationType": "NONE",
-        "Integration": {
-          "Type": "AWS_PROXY",
-          "IntegrationHttpMethod": "POST",
-          "TimeoutInMillis": 29000,
-          "Uri": {
-            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
-          }
-        }
-      }
-    },
-    "MWkOpenIdPrefix": {
-      "Type": "AWS::ApiGateway::Method",
-      "Properties": {
-        "RestApiId": {
-          "Ref": "RestApi"
-        },
-        "ResourceId": {
-          "Ref": "ResWkOpenIdPrefix"
         },
         "HttpMethod": "GET",
         "AuthorizationType": "NONE",
@@ -1187,9 +1111,7 @@
         "MJwks",
         "MWkProtectedResource",
         "MWkAuthServer",
-        "MWkAuthServerPrefix",
         "MWkOpenId",
-        "MWkOpenIdPrefix",
         "MStripeWebhook",
         "MMcp",
         "MHealth"
