@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Public issuer and MCP resource URLs for the access runtime, published to Parameter Store. Placeholders are UNSET until the real domain is known; the runtime refuses to start on a non-HTTPS value, so UNSET fails closed. Update by redeploying this stack with the real URLs.
+Description: Public issuer and MCP resource URLs for the access runtime, published to Parameter Store. Defaults are the tradingview.chat access host; the runtime refuses to start on a non-HTTPS or UNSET value, so a missing value fails closed. Update by redeploying this stack with the real URLs.
 Parameters:
   Environment:
     Type: String
@@ -10,12 +10,12 @@ Parameters:
     Default: test
   IssuerUrl:
     Type: String
-    Default: UNSET
+    Default: https://access.tradingview.chat
     AllowedPattern: '^(UNSET|https://[^\s]{1,2000})$'
     Description: Public HTTPS base URL that issues access tokens (the coordinator's issuer). UNSET until the domain is known.
   ResourceUrl:
     Type: String
-    Default: UNSET
+    Default: https://access.tradingview.chat/mcp
     AllowedPattern: '^(UNSET|https://[^\s]{1,2000}/mcp)$'
     Description: Public HTTPS URL of the protected MCP resource, ending in /mcp. UNSET until the domain is known.
 Resources:

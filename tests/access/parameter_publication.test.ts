@@ -97,8 +97,8 @@ test('the Cognito settings are published by the auth stack and read by the acces
 
 test('public issuer and resource URLs are published as placeholders from a template, updated by redeploy not by hand', () => {
   const template = readFileSync('infra/access/public-urls.yaml', 'utf8');
-  assert.match(template, /IssuerUrl:\n\s+Type: String\n\s+Default: UNSET/);
-  assert.match(template, /ResourceUrl:\n\s+Type: String\n\s+Default: UNSET/);
+  assert.match(template, /IssuerUrl:\n\s+Type: String\n\s+Default: https:\/\/access\.tradingview\.chat\n/);
+  assert.match(template, /ResourceUrl:\n\s+Type: String\n\s+Default: https:\/\/access\.tradingview\.chat\/mcp\n/);
   assert.match(template, /Name: !Sub '\/mcp\/\$\{Environment\}\/access\/issuer-url'/);
   assert.match(template, /Name: !Sub '\/mcp\/\$\{Environment\}\/access\/resource-url'/);
   assert.match(template, /AllowedPattern: '\^\(UNSET\|https:/);

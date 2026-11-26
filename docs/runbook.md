@@ -115,7 +115,7 @@ aws cloudformation deploy \
 
 ## 2a. Public issuer and resource URLs (placeholder until the domain is known)
 
-`infra/access/public-urls.yaml` publishes `/mcp/<env>/access/issuer-url` and `/mcp/<env>/access/resource-url`. Until the domain is known, both are `UNSET`, and the access runtime refuses to start on them. When the domain is known, redeploy this stack with `IssuerUrl` (HTTPS, no path after the host) and `ResourceUrl` (HTTPS, ending in `/mcp`). Do not edit the parameters in the console; a template-managed value keeps one owner.
+`infra/access/public-urls.yaml` publishes `/mcp/<env>/access/issuer-url` (`https://access.tradingview.chat`) and `/mcp/<env>/access/resource-url` (`https://access.tradingview.chat/mcp`). The access runtime refuses to start on an `UNSET` or non-HTTPS value. Before deploying, the custom domain, the certificate and the DNS record for `access.tradingview.chat` must exist, and the auth stack's `CoordinatorCallbackUri` must be `https://access.tradingview.chat/oauth/cognito/callback`. When the domain is known, redeploy this stack with `IssuerUrl` (HTTPS, no path after the host) and `ResourceUrl` (HTTPS, ending in `/mcp`). Do not edit the parameters in the console; a template-managed value keeps one owner.
 
 ## 3a. Stripe plans and prices (manual, per environment)
 
