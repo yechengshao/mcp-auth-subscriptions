@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Custom domain for the access REST API (ACM certificate in this region, regional API Gateway domain name, base path mapping to the access stage, and an alias record in the tradingview.chat hosted zone). Deploy after the gateway stack, which publishes the REST API ID and stage.
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - development
+      - test
+      - production
+    Default: test
+  DomainName:
+    Type: String
+    Default: access.tradingview.chat
+    AllowedPattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$'
+    Description: Public host name for the access service. Must match the issuer and resource URL parameters.
+  HostedZoneId:
+    Type: String
+    AllowedPattern: '^Z[A-Z0-9]{5,32}$'
+    Description: Route 53 public hosted zone that contains DomainName. Deploy input; the zone ID is public metadata.
+  RestApiId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /mcp/test/access-api/rest-api-id
+    Description: Access REST API ID published by the gateway stack.
+  RestApiStage:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /mcp/test/access-api/stage
+    Description: Access REST API stage name published by the gateway stack.
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+  ApiDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: !Ref DomainName
+      RegionalCertificateArn: !Ref Certificate
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      SecurityPolicy: TLS_1_2
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: access
+  BasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName: !Ref ApiDomainName
+      RestApiId: !Ref RestApiId
+      Stage: !Ref RestApiStage
+  DomainAliasRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiDomainName.RegionalDomainName
+        HostedZoneId: !GetAtt ApiDomainName.RegionalHostedZoneId
+        EvaluateTargetHealth: false
+Outputs:
+  AccessDomainName:
+    Value: !Ref DomainName
+  AccessDomainTarget:
+    Value: !GetAtt ApiDomainName.RegionalDomainName
