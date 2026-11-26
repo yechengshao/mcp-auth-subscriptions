@@ -33,6 +33,8 @@ test('check:access covers exactly the access test directory and typechecks first
 test('the constitution records the Service Decoupling principle and its current version', () => {
   const constitution = readFileSync('.specify/memory/constitution.md', 'utf8');
   assert.ok(constitution.includes('### Service Decoupling'));
-  assert.ok(constitution.includes('**Version**: 1.7.0'));
+  assert.ok(constitution.includes('**Version**: 1.8.0'));
   assert.ok(constitution.includes('- **1.7.0 — 2026-11-25**'));
+  assert.ok(constitution.includes('- **Deploy inputs are minimal.**'));
+  assert.ok(constitution.includes('- **1.8.0 — 2026-11-26**'));
 });

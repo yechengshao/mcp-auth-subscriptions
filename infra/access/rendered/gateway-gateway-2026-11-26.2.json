@@ -1,0 +1,1357 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Access REST API: REQUEST authorizer, paid MCP/health methods with CUSTOM auth and API keys, access OAuth/onboarding/billing routes on the access alias, the Stripe webhook on the billing alias, explicit deployment and named stage. Native usage plans are created from access provisioning inputs, not here.",
+  "Parameters": {
+    "StageName": {
+      "Type": "String",
+      "Default": "test",
+      "AllowedPattern": "^[a-z][a-z0-9-]{0,31}$"
+    },
+    "ReleaseId": {
+      "Type": "String",
+      "AllowedPattern": "[A-Za-z0-9_.-]{1,96}"
+    },
+    "ServiceAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/service/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
+    },
+    "AccessAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
+    },
+    "BillingWebhookAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/billing/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
+    },
+    "AuthorizerAliasParameter": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/authorizer/alias-arn",
+      "Description": "Name of the SSM parameter that publishes this alias ARN; resolved at deploy time."
+    },
+    "ResourceMetadataUrl": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/resource-metadata-url",
+      "Description": "SSM parameter holding the protected-resource metadata URL, published by infra/access/public-urls.yaml. Advertised in the WWW-Authenticate challenge."
+    },
+    "TracingEnabled": {
+      "Type": "String",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Default": "false"
+    },
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "development",
+        "test",
+        "production"
+      ],
+      "Default": "test"
+    }
+  },
+  "Resources": {
+    "RestApi": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "mcp-access-${StageName}"
+        },
+        "Description": "Access REST API for MCP subscriptions. No HTTP API payload-format fields.",
+        "ApiKeySourceType": "AUTHORIZER",
+        "EndpointConfiguration": {
+          "Types": [
+            "REGIONAL"
+          ]
+        },
+        "DisableExecuteApiEndpoint": false
+      }
+    },
+    "Authorizer": {
+      "Type": "AWS::ApiGateway::Authorizer",
+      "Properties": {
+        "Name": "mcp-access-request-authorizer",
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "Type": "REQUEST",
+        "IdentitySource": "method.request.header.Authorization",
+        "AuthorizerResultTtlInSeconds": 0,
+        "AuthorizerUri": {
+          "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthorizerAliasParameter}/invocations"
+        }
+      }
+    },
+    "AuthorizerInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "AuthorizerAliasParameter"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/authorizers/${Authorizer}"
+        }
+      }
+    },
+    "ServiceInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "ServiceAliasParameter"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/${StageName}/*/*"
+        }
+      }
+    },
+    "AccessInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "AccessAliasParameter"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/${StageName}/*/*"
+        }
+      }
+    },
+    "BillingWebhookInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "BillingWebhookAliasParameter"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/${StageName}/POST/webhooks/stripe"
+        }
+      }
+    },
+    "GatewayUnauthorizedResponse": {
+      "Type": "AWS::ApiGateway::GatewayResponse",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResponseType": "UNAUTHORIZED",
+        "StatusCode": "401",
+        "ResponseParameters": {
+          "gatewayresponse.header.WWW-Authenticate": {
+            "Fn::Sub": "'Bearer resource_metadata=\"${ResourceMetadataUrl}\"'"
+          }
+        }
+      }
+    },
+    "ResBillingRoot": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "billing"
+      }
+    },
+    "ResBillingPlans": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "plans"
+      }
+    },
+    "ResBillingCheckout": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "checkout"
+      }
+    },
+    "ResBillingOrders": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "orders"
+      }
+    },
+    "ResBillingOrderId": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingOrders"
+        },
+        "PathPart": "{orderId}"
+      }
+    },
+    "ResBillingReturn": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "return"
+      }
+    },
+    "ResBillingStatus": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "status"
+      }
+    },
+    "ResBillingSubscriptions": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "subscriptions"
+      }
+    },
+    "ResBillingSubscriptionRef": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingSubscriptions"
+        },
+        "PathPart": "{subscriptionRef}"
+      }
+    },
+    "ResBillingSubscriptionManage": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingSubscriptionRef"
+        },
+        "PathPart": "manage"
+      }
+    },
+    "ResBillingPortal": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResBillingRoot"
+        },
+        "PathPart": "portal"
+      }
+    },
+    "ResOnboardingRoot": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "onboarding"
+      }
+    },
+    "ResOnboardingStatus": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResOnboardingRoot"
+        },
+        "PathPart": "status"
+      }
+    },
+    "ResOnboardingResume": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResOnboardingRoot"
+        },
+        "PathPart": "resume"
+      }
+    },
+    "ResOauthRoot": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "oauth"
+      }
+    },
+    "ResOauthCognito": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResOauthRoot"
+        },
+        "PathPart": "cognito"
+      }
+    },
+    "ResOauthCognitoCallback": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResOauthCognito"
+        },
+        "PathPart": "callback"
+      }
+    },
+    "ResLogin": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "login"
+      }
+    },
+    "ResAuthorize": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "authorize"
+      }
+    },
+    "ResLogout": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "logout"
+      }
+    },
+    "ResRevoke": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "revoke"
+      }
+    },
+    "ResRegister": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "register"
+      }
+    },
+    "ResToken": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "token"
+      }
+    },
+    "ResJwks": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "jwks.json"
+      }
+    },
+    "ResWebhooksRoot": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "webhooks"
+      }
+    },
+    "ResWebhooksStripe": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResWebhooksRoot"
+        },
+        "PathPart": "stripe"
+      }
+    },
+    "ResMcp": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "mcp"
+      }
+    },
+    "ResHealth": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "health"
+      }
+    },
+    "ResWellKnown": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": ".well-known"
+      }
+    },
+    "ResWkProtectedResource": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResWellKnown"
+        },
+        "PathPart": "oauth-protected-resource"
+      }
+    },
+    "ResWkAuthServer": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResWellKnown"
+        },
+        "PathPart": "oauth-authorization-server"
+      }
+    },
+    "ResWkOpenId": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ParentId": {
+          "Ref": "ResWellKnown"
+        },
+        "PathPart": "openid-configuration"
+      }
+    },
+    "MLogin": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResLogin"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MAuthorize": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResAuthorize"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MCognitoCallback": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResOauthCognitoCallback"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MOnboarding": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResOnboardingRoot"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MOnboardingStatus": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResOnboardingStatus"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MOnboardingResume": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResOnboardingResume"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBilling": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingRoot"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingPlans": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingPlans"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingCheckout": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingCheckout"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingOrder": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingOrderId"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingReturn": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingReturn"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingStatus": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingStatus"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingManage": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingSubscriptionManage"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MBillingPortal": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResBillingPortal"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MLogout": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResLogout"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MRevoke": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResRevoke"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MToken": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResToken"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MRegister": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResRegister"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MJwks": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResJwks"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MWkProtectedResource": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResWkProtectedResource"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MWkAuthServer": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResWkAuthServer"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MWkOpenId": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResWkOpenId"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccessAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MStripeWebhook": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResWebhooksStripe"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BillingWebhookAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MMcp": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResMcp"
+        },
+        "HttpMethod": "ANY",
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": {
+          "Ref": "Authorizer"
+        },
+        "ApiKeyRequired": true,
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServiceAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "MHealth": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "ResourceId": {
+          "Ref": "ResHealth"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": {
+          "Ref": "Authorizer"
+        },
+        "ApiKeyRequired": true,
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Uri": {
+            "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServiceAliasParameter}/invocations"
+          }
+        }
+      }
+    },
+    "BasicUsagePlan": {
+      "Type": "AWS::ApiGateway::UsagePlan",
+      "DependsOn": [
+        "Stage"
+      ],
+      "Properties": {
+        "UsagePlanName": {
+          "Fn::Sub": "mcp-access-${StageName}-basic"
+        },
+        "Description": "Paid API-key usage plan for the basic catalog entry: 5 requests/second sustained, burst 10, quota 10,000 requests per month.",
+        "Throttle": {
+          "RateLimit": 5,
+          "BurstLimit": 10
+        },
+        "Quota": {
+          "Limit": 10000,
+          "Period": "MONTH"
+        },
+        "ApiStages": [
+          {
+            "ApiId": {
+              "Ref": "RestApi"
+            },
+            "Stage": {
+              "Ref": "StageName"
+            }
+          }
+        ]
+      }
+    },
+    "Stage": {
+      "Type": "AWS::ApiGateway::Stage",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "DeploymentId": {
+          "Ref": "Deploymentgateway202611262"
+        },
+        "StageName": {
+          "Ref": "StageName"
+        },
+        "TracingEnabled": {
+          "Ref": "TracingEnabled"
+        },
+        "AccessLogSetting": {
+          "DestinationArn": {
+            "Fn::GetAtt": [
+              "AccessLogGroup",
+              "Arn"
+            ]
+          },
+          "Format": "{\"requestId\":\"$context.requestId\",\"path\":\"$context.path\",\"status\":\"$context.status\",\"integrationStatus\":\"$context.integrationStatus\",\"errorType\":\"$context.error.responseType\",\"latencyMs\":\"$context.responseLatency\"}"
+        },
+        "MethodSettings": [
+          {
+            "ResourcePath": "/*",
+            "HttpMethod": "*",
+            "LoggingLevel": "ERROR",
+            "DataTraceEnabled": false,
+            "MetricsEnabled": false
+          }
+        ]
+      },
+      "DependsOn": [
+        "Account"
+      ]
+    },
+    "UsagePlanIdParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/access-api/usage-plan-id"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "BasicUsagePlan"
+        },
+        "Description": "Basic usage plan ID for the catalog. Read by the catalog check and purchase path."
+      }
+    },
+    "AccessLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/apigateway/mcp-access-${StageName}/access"
+        },
+        "RetentionInDays": 14,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcp-auth-subscriptions"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "RestApiIdParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/access-api/rest-api-id"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "RestApi"
+        },
+        "Description": "REST API ID for observability and the access gateway log group."
+      }
+    },
+    "RestApiStageParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "/mcp/${Environment}/access-api/stage"
+        },
+        "Type": "String",
+        "Tier": "Standard",
+        "Value": {
+          "Ref": "StageName"
+        },
+        "Description": "Deployed gateway stage name. Billing reads it to match plan mappings to this deployment."
+      }
+    },
+    "ApiGatewayCloudWatchRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Description": "Lets API Gateway write its access and execution logs to CloudWatch Logs. Account-level: set once through the AWS::ApiGateway::Account resource.",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+          }
+        ]
+      }
+    },
+    "Account": {
+      "Type": "AWS::ApiGateway::Account",
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "ApiGatewayCloudWatchRole",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "Deploymentgateway202611262": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "DependsOn": [
+        "MLogin",
+        "MAuthorize",
+        "MCognitoCallback",
+        "MOnboarding",
+        "MOnboardingStatus",
+        "MOnboardingResume",
+        "MBilling",
+        "MBillingPlans",
+        "MBillingCheckout",
+        "MBillingOrder",
+        "MBillingReturn",
+        "MBillingStatus",
+        "MBillingManage",
+        "MBillingPortal",
+        "MLogout",
+        "MRevoke",
+        "MToken",
+        "MRegister",
+        "MJwks",
+        "MWkProtectedResource",
+        "MWkAuthServer",
+        "MWkOpenId",
+        "MStripeWebhook",
+        "MMcp",
+        "MHealth"
+      ],
+      "Properties": {
+        "RestApiId": {
+          "Ref": "RestApi"
+        },
+        "Description": {
+          "Ref": "ReleaseId"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    }
+  },
+  "Outputs": {
+    "RestApiId": {
+      "Value": {
+        "Ref": "RestApi"
+      }
+    },
+    "InvokeUrl": {
+      "Value": {
+        "Fn::Sub": "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+      }
+    },
+    "McpUrl": {
+      "Value": {
+        "Fn::Sub": "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/mcp"
+      }
+    },
+    "BasicUsagePlanId": {
+      "Value": {
+        "Ref": "BasicUsagePlan"
+      }
+    }
+  }
+}

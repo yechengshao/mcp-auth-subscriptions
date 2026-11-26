@@ -18,6 +18,7 @@
     "test:billing": "npm run build && node --test --test-isolation=none dist/tests/billing/*.test.js dist/tests/observability/*.test.js",
     "check:billing": "npm run typecheck && npm run test:billing",
     "render:observability": "npm run build && node dist/infra/observability/render.js",
+    "render:gateway": "npm run build && node dist/infra/access/render-gateway.js",
     "render:billing-runtime": "npm run build && node dist/infra/billing/release.js",
     "package:authorizer": "npm run build && node scripts/package_authorizer.mjs",
     "prepare:gateway-cutover": "npm run build && node dist/scripts/prepare_gateway_cutover.js",
