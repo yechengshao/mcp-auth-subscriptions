@@ -5,18 +5,21 @@ import { header } from '../observability/context.js';
 import { withAuthorizerTelemetry, type HttpEvent } from '../observability/adapters.js';
 import { Telemetry } from '../observability/telemetry.js';
 import { configFromEnvironment } from '../observability/config.js';
-import { awsAccountIdPattern, identifierPattern } from '../contracts/patterns.js';
 export interface AuthorizerConfig extends TokenTrust {
-  region: string; accountId: string; apiId: string; stage: string;
   routes: Array<{ method: string; path: string; scope: string }>;
+}
+// REST methodArn is arn:aws:execute-api:<region>:<account>:<apiId>/<stage>/<METHOD>/<path>. The API and stage are not
+// checked (the authorizer is attached to one API); only the method and path select the route.
+export function methodAndPath(methodArn: string): { method: string; path: string } | undefined {
+  const match = /^arn:aws:execute-api:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9]+\/[A-Za-z0-9_.-]+\/([A-Z]+)\/([A-Za-z0-9_\/-]+)$/.exec(methodArn);
+  return match ? { method: match[1]!, path: match[2]! } : undefined;
 }
 export interface RequestEvent extends HttpEvent { type: string; methodArn: string; routeArn?: unknown; version?: unknown }
 export function validateAuthorizerConfig(input: AuthorizerConfig) {
-  const fields = ['issuer','resource','clockSkewSeconds','region','accountId','apiId','stage','routes'];
+  const fields = ['issuer','resource','clockSkewSeconds','routes'];
   if (!input || typeof input !== 'object' || Object.keys(input).some(key => !fields.includes(key))) throw new Error('invalid_authorizer_configuration');
   validateTrust(input);
-  if (!/^[a-z]{2}(?:-[a-z0-9]+)+-\d$/.test(input.region) || !awsAccountIdPattern.test(input.accountId) ||
-      !/^[a-z0-9]{1,32}$/.test(input.apiId) || !identifierPattern.test(input.stage) || !Array.isArray(input.routes) || !input.routes.length || input.routes.length > 32) throw new Error('invalid_authorizer_configuration');
+  if (!Array.isArray(input.routes) || !input.routes.length || input.routes.length > 32) throw new Error('invalid_authorizer_configuration');
   const seen = new Set<string>();
   for (const route of input.routes) {
     if (!route || typeof route !== 'object' || Object.keys(route).some(key => !['method','path','scope'].includes(key))) throw new Error('invalid_authorizer_configuration');
@@ -29,11 +32,11 @@ export function validateAuthorizerConfig(input: AuthorizerConfig) {
 }
 export function createAuthorizer(input: AuthorizerConfig, jwks: TrustedJwks, telemetry: Telemetry, now = () => Math.floor(Date.now() / 1000)) {
   const config = validateAuthorizerConfig(input);
-  const prefix = `arn:aws:execute-api:${config.region}:${config.accountId}:${config.apiId}/${config.stage}/`;
   const observed = withAuthorizerTelemetry(telemetry, async (event: RequestEvent) => {
     const deny = (): never => { throw new Error('Unauthorized'); };
-    if (event.type !== 'REQUEST' || event.routeArn !== undefined || event.version !== undefined || typeof event.methodArn !== 'string' || !event.methodArn.startsWith(prefix)) deny();
-    const route = config.routes.find(route => event.methodArn === `${prefix}${route.method}/${route.path}`);
+    if (event.type !== 'REQUEST' || event.routeArn !== undefined || event.version !== undefined || typeof event.methodArn !== 'string') deny();
+    const requested = methodAndPath(event.methodArn);
+    const route = requested && config.routes.find(route => route.method === requested.method && route.path === requested.path);
     if (!route) deny();
     const authorization = header(event.headers, 'authorization', event.multiValueHeaders);
     if (!authorization || authorization.length > 8192 || !/^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/i.test(authorization)) deny();

@@ -3,8 +3,7 @@ import type { ServiceClaims } from '../../../security/service-token.js';
 import type { AuthorizerConfig } from '../../../authorizer/handler.js';
 export const now = 1800000000;
 export const trust: AuthorizerConfig = { issuer: 'https://login.example.invalid/test', resource: 'https://api.example.invalid/test/mcp',
-  clockSkewSeconds: 0, region: 'us-east-1', accountId: '000000000000', apiId: 'fixtureapi', stage: 'test',
-  routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }, { method: 'GET', path: 'health', scope: 'mcp:invoke' }] };
+  clockSkewSeconds: 0, routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }, { method: 'GET', path: 'health', scope: 'mcp:invoke' }] };
 export const claims: ServiceClaims = { iss: trust.issuer, sub: 'subscriber_fixture', aud: trust.resource, client_id: 'host_fixture',
   grant_id: 'grant_fixture', scope: 'mcp:invoke', iat: now, nbf: now, exp: now + 3600, jti: 'jti_fixture', token_use: 'access',
   plan_id: 'basic', subscription_valid_until: now + 7200, entitlement_revision: 1, usageIdentifierKey: 'PRIVATEUSAGEKEYSENTINEL1234567890' };

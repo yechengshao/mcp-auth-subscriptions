@@ -124,7 +124,6 @@ test('payment recovery, activation, OAuth, authorization and bounded subscriptio
   const requestArn = 'arn:aws:execute-api:us-east-1:000000000000:fixturerest/test/POST/mcp';
   const authorizer = createAuthorizer({ issuer: 'https://access.example.invalid',
     resource: 'https://api.example.invalid/test/mcp', clockSkewSeconds: 5,
-    region: 'us-east-1', accountId: '000000000000', apiId: 'fixturerest', stage: 'test',
     routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }] },
     new TrustedJwks(async () => ({ keys: [jwk] })), telemetry, () => now);
   let mcpCalls = 0;

@@ -34,13 +34,20 @@ test('signed usage key tampering, embedded key URLs and foreign signatures deny 
   await assert.rejects(app().handler(event(await fixture.sign({}, { jku: 'https://evil.invalid/keys' })), {}), /Unauthorized/);
   const other = await identityFixture(); await assert.rejects(app().handler(event(await other.sign()), {}), /Unauthorized/);
 });
-test('wrong REST account/API/stage/method or HTTP-v2 events deny before key retrieval', async () => {
+test('wrong method or path, wildcard, malformed ARN or HTTP-v2 events deny before key retrieval', async () => {
   let reads = 0; const { handler } = app(now, async () => { reads++; return fixture.jwks; });
   const signed = await fixture.sign();
-  for (const changes of [{ methodArn: arn.replace('000000000000', '111111111111') }, { methodArn: arn.replace('/test/', '/other/') },
-    { methodArn: arn.replace('fixtureapi', 'otherapi') }, { methodArn: arn + '/*' }, { methodArn: arn.replace('POST', 'DELETE') },
-    { routeArn: arn }, { version: '2.0' }]) await assert.rejects(handler({ ...event(signed), ...changes }, {}), /Unauthorized/);
+  for (const changes of [{ methodArn: arn.replace('POST', 'DELETE') }, { methodArn: arn.replace('/mcp', '/mcp/other') },
+    { methodArn: arn.replace('/mcp', '/health') }, { methodArn: arn + '/*' }, { methodArn: arn.replace('/mcp', '/*') },
+    { methodArn: 'not-an-arn' }, { routeArn: arn }, { version: '2.0' }]) await assert.rejects(handler({ ...event(signed), ...changes }, {}), /Unauthorized/);
   assert.equal(reads, 0);
+});
+test('API ID and stage are not checked: the same method and path authorize for any API or stage in the ARN', async () => {
+  const { handler } = app();
+  const token = await fixture.sign();
+  const result = await handler({ ...event(token), methodArn: arn.replace('fixtureapi', 'otherapi').replace('/test/', '/other/') }, {});
+  assert.equal(result.policyDocument.Statement[0]!.Effect, 'Allow');
+  assert.equal(result.policyDocument.Statement[0]!.Resource, arn.replace('fixtureapi', 'otherapi').replace('/test/', '/other/'));
 });
 test('valid JWT with insufficient scope returns exact Deny policy without a key', async () => {
   const result = await app().handler(event(await fixture.sign({ scope: 'other:scope' })), {});

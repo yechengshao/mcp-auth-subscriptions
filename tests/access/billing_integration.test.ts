@@ -219,7 +219,6 @@ test('code exchange, PKCE, the authorizer, refresh and revocation all follow the
   await assert.rejects(exchange(verifier), /invalid_grant/, 'an authorization code is one use');
 
   const authorizer = createAuthorizer({ issuer, resource, clockSkewSeconds: 5,
-    region: 'us-east-1', accountId: '000000000000', apiId: 'fixturerest', stage: 'test',
     routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }] },
     new TrustedJwks(async () => ({ keys: [jwk] })), telemetry, () => now);
   const requestArn = 'arn:aws:execute-api:us-east-1:000000000000:fixturerest/test/POST/mcp';
@@ -246,7 +245,6 @@ test('code exchange, PKCE, the authorizer, refresh and revocation all follow the
 
   // Expired OAuth: the same token is denied once its signed expiry has passed (one-hour access window).
   const later = createAuthorizer({ issuer, resource, clockSkewSeconds: 5,
-    region: 'us-east-1', accountId: '000000000000', apiId: 'fixturerest', stage: 'test',
     routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }] },
     new TrustedJwks(async () => ({ keys: [jwk] })), telemetry, () => now + 3600 + 6);
   await assert.rejects(later({ type: 'REQUEST', methodArn: requestArn, headers: { authorization: `Bearer ${refreshed.access_token}` } }, {}),

@@ -86,8 +86,7 @@ test('authorizer ZIP is lean, carries checksums, and executes its real Lambda ha
 
     process.env.AUTHORIZER_CONFIG = JSON.stringify({
       issuer: 'https://login.example.invalid/test', resource: 'https://api.example.invalid/test/mcp',
-      clockSkewSeconds: 0, accountId: '000000000000', region: 'us-east-1',
-      apiId: 'fixtureapi', stage: 'test', routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }],
+      clockSkewSeconds: 0, routes: [{ method: 'POST', path: 'mcp', scope: 'mcp:invoke' }],
     });
     process.env.SERVICE_JWKS_URI = 'https://login.example.invalid/test/keys';
     process.env.MCP_ENVIRONMENT = 'test';
