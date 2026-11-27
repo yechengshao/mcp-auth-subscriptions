@@ -19,6 +19,7 @@ COPY scripts ./scripts
 COPY .github ./.github
 COPY tests ./tests
 COPY specs ./specs
+COPY .specify ./.specify
 RUN npm run check
 FROM ${NODE_BUILD_IMAGE} AS dependencies
 WORKDIR /app

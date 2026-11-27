@@ -38,3 +38,10 @@ test('the constitution records the Service Decoupling principle and its current 
   assert.ok(constitution.includes('- **Deploy inputs are minimal.**'));
   assert.ok(constitution.includes('- **1.8.0 — 2026-11-26**'));
 });
+
+test('the billing image copies the constitution before it runs the full check', () => {
+  const dockerfile = readFileSync('Dockerfile.billing', 'utf8');
+  const copy = dockerfile.indexOf('COPY .specify ./.specify');
+  const check = dockerfile.indexOf('RUN npm run check');
+  assert.ok(copy > 0 && check > copy, 'the constitution is copied before the test run that reads it');
+});
