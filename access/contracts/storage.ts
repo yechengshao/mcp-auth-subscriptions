@@ -25,7 +25,7 @@ export const accessRecordSchemas: Record<string, Schema> = {
   }, ['pkce_verifier']),
   authorization_code: object({ ...base, entity_type: constant('authorization_code'), SK: constant('CODE'),
     tx_id: id, subscriber_id: id, client_id: text, resource: { ...text, pattern: '^https://' },
-    redirect_uri: { ...text, pattern: '^https://' }, code_challenge: challenge, code_challenge_method: constant('S256'),
+    redirect_uri: { ...text, pattern: '^(https://|http://(localhost|127\\.0\\.0\\.1)([:/]|$)|claude://claude\\.ai([/?]|$))' }, code_challenge: challenge, code_challenge_method: constant('S256'),
     scopes, grant_id: id, issued_at: epoch, transaction_expires_at: epoch, expires_at: epoch, delete_after: epoch, consumed: boolean,
   }),
   grant_family: object({ ...base, entity_type: constant('grant_family'), SK: constant('FAMILY'), grant_id: id,

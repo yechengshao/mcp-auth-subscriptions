@@ -20,7 +20,7 @@ const txCommon = {
   error_category: choice('dependency_unavailable', 'session_expired', 'configuration_error'), selected_offer: selectedOffer,
 };
 const downstream = object({
-  client_id: text, redirect_uri: { ...text, pattern: '^https://' }, resource: { ...text, pattern: '^https://' },
+  client_id: text, redirect_uri: { ...text, pattern: '^(https://|http://(localhost|127\\.0\\.0\\.1)([:/]|$)|claude://claude\\.ai([/?]|$))' }, resource: { ...text, pattern: '^https://' },
   scopes: { type: 'array', uniqueItems: true, items: text },
   code_challenge: { type: 'string', pattern: s256ChallengePattern.source },
   code_challenge_method: constant('S256'), state: text, issuer: { ...text, pattern: '^https://' }, client_config_version: id,
