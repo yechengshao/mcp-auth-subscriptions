@@ -23,6 +23,8 @@ Parameters:
     Default: https://access.tradingview.chat/.well-known/oauth-protected-resource
     AllowedPattern: '^(UNSET|https://[^\s]{1,2000}/\.well-known/oauth-protected-resource)$'
     Description: Public HTTPS URL of the protected-resource metadata document, advertised in the 401 challenge. UNSET until the domain is known.
+Conditions:
+  IssuerIsSet: !Not [!Equals [!Ref IssuerUrl, UNSET]]
 Resources:
   IssuerUrlParameter:
     Type: AWS::SSM::Parameter
@@ -48,6 +50,22 @@ Resources:
       Tier: Standard
       Value: !Ref ResourceMetadataUrl
       Description: Protected-resource metadata URL read by the gateway at deploy time.
+  BillingSuccessUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/billing-success-url'
+      Type: String
+      Tier: Standard
+      Value: !If [IssuerIsSet, !Sub '${IssuerUrl}/billing/return', UNSET]
+      Description: Stripe Checkout success return URL for the billing runtime. Derived from the issuer URL.
+  BillingCancelUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/mcp/${Environment}/access/billing-cancel-url'
+      Type: String
+      Tier: Standard
+      Value: !If [IssuerIsSet, !Sub '${IssuerUrl}/billing', UNSET]
+      Description: Stripe Checkout cancel return URL for the billing runtime. Derived from the issuer URL.
 Outputs:
   IssuerUrlParameterName:
     Value: !Ref IssuerUrlParameter
@@ -55,3 +73,7 @@ Outputs:
     Value: !Ref ResourceUrlParameter
   ResourceMetadataUrlParameterName:
     Value: !Ref ResourceMetadataUrlParameter
+  BillingSuccessUrlParameterName:
+    Value: !Ref BillingSuccessUrlParameter
+  BillingCancelUrlParameterName:
+    Value: !Ref BillingCancelUrlParameter
