@@ -2,6 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { accessDependencyGrants, authorizerLogPolicy } from '../../access/contracts/infrastructure.js';
+
+/** The gateway deployment's logical ID changes each release, so tests find it by type. */
+function deploymentOf(template: { Resources: Record<string, any> }): any {
+  const deployments = Object.values(template.Resources).filter((resource: any) => resource.Type === 'AWS::ApiGateway::Deployment');
+  assert.equal(deployments.length, 1, 'the gateway has exactly one deployment');
+  return deployments[0];
+}
 test('access cross-stack grants target only the entitlement table and exact billing alias', () => {
   const grants = accessDependencyGrants('arn:aws:dynamodb:us-east-1:000000000000:table/entitlements', 'arn:aws:lambda:us-east-1:000000000000:function:billing:live');
   assert.deepEqual(grants[0]!.Action, ['dynamodb:GetItem','dynamodb:ConditionCheckItem']);
@@ -158,7 +165,8 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
   assert.equal(register.Properties.ApiKeyRequired, undefined, 'registration needs no usage-plan API key');
   assert.deepEqual(register.Properties.ResourceId, { Ref: 'ResRegister' });
   assert.equal(template.Resources.ResRegister.Properties.PathPart, 'register');
-  assert.ok(template.Resources.Deployment.DependsOn.includes('MRegister'), 'the deployment waits for the registration method');
+  const deployment = deploymentOf(template);
+  assert.ok(deployment.DependsOn.includes('MRegister'), 'the deployment waits for the registration method');
   const paid = methods.filter(([, value]) => value.Properties.AuthorizationType === 'CUSTOM').map(([name]) => name).sort();
   assert.deepEqual(paid, ['MHealth', 'MMcp']);
   for (const [name, value] of methods) {
@@ -182,7 +190,7 @@ test('REST gateway: paid MCP and health are the only API-key methods, every rout
   }
   assert.equal(template.Resources.Stage.Properties.MethodSettings[0].DataTraceEnabled, false);
   assert.equal(template.Resources.Stage.Properties.MethodSettings[0].LoggingLevel, 'ERROR');
-  assert.deepEqual([...template.Resources.Deployment.DependsOn].sort(), methods.map(([name]) => name).sort());
+  assert.deepEqual([...deploymentOf(template).DependsOn].sort(), methods.map(([name]) => name).sort());
   assert.equal(template.Resources.GatewayUnauthorizedResponse.Properties.StatusCode, '401');
 });
 

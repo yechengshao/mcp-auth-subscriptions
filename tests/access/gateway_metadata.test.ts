@@ -20,7 +20,8 @@ test('the issuer path prefix is gone: no parameter and no prefix discovery route
   for (const name of ['ResWkAuthServerPrefix', 'ResWkOpenIdPrefix', 'MWkAuthServerPrefix', 'MWkOpenIdPrefix']) {
     assert.equal(gateway.Resources[name], undefined, name);
   }
-  assert.equal(gateway.Resources.Deployment.DependsOn.some((name: string) => name.endsWith('Prefix')), false);
+  const deployment = Object.values(gateway.Resources).find((resource: any) => resource.Type === 'AWS::ApiGateway::Deployment') as any;
+  assert.equal(deployment.DependsOn.some((name: string) => name.endsWith('Prefix')), false);
 });
 
 test('the published metadata URL is on the authorizer issuer host and matches its path', () => {

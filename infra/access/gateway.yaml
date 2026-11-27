@@ -1124,8 +1124,10 @@
         }
       }
     },
-    "Deployment": {
+    "DeploymentGateway202611262": {
       "Type": "AWS::ApiGateway::Deployment",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
       "DependsOn": [
         "MLogin",
         "MAuthorize",
@@ -1199,7 +1201,7 @@
           "Ref": "RestApi"
         },
         "DeploymentId": {
-          "Ref": "Deployment"
+          "Ref": "DeploymentGateway202611262"
         },
         "StageName": {
           "Ref": "StageName"
