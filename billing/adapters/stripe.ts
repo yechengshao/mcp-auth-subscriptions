@@ -1,7 +1,13 @@
+import { createHash } from 'node:crypto';
 import Stripe from 'stripe';
 import type { Snapshot } from '../contracts/validate.js';
 import type { Telemetry } from '../../observability/telemetry.js';
 import type { BillingPayments } from '../ports.js';
+/** Stripe keeps the first reply for a key, so the key must change whenever the session request changes
+ * (return URLs, price, customer). Same order and same body keep the key, so a retry stays idempotent. */
+export function checkoutIdempotencyKey(operationId: string, body: URLSearchParams): string {
+  return `checkout_${operationId}_${createHash('sha256').update(body.toString()).digest('hex').slice(0, 32)}`;
+}
 export const STRIPE_API_VERSION = '2025-02-24.acacia';
 type Json = Record<string, any>;
 export interface StripeSettings { account: string; live: boolean; successUrl: string; cancelUrl: string; maxPages: number }
@@ -66,7 +72,7 @@ export class StripeAdapter implements BillingPayments {
     }
     if (customer) body.set('customer', customer); else body.set('customer_creation', 'always');
     // Never retry this POST after the provider's idempotency retention window.
-    return this.request('checkout/sessions', 'POST', body, `checkout_${order.operation_id}`);
+    return this.request('checkout/sessions', 'POST', body, checkoutIdempotencyKey(String(order.operation_id), body));
   }
   async session(id: string): Promise<Json> {
     if (!/^cs_[A-Za-z0-9_]+$/.test(id)) throw new Error('invalid_session_reference');

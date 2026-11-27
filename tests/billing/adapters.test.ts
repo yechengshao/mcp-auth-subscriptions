@@ -344,3 +344,13 @@ test('exhausted recovery retains repair evidence, leaves the due index, and does
   assert.equal([...h.rows.values()].find(row => row.entity_type === 'entitlement')!.allowed, true);
   assert.equal(h.counts().posts, 1);
 });
+
+test('checkout idempotency key changes when the session request changes and stays the same on retry', async () => {
+  const { checkoutIdempotencyKey } = await import('../../billing/adapters/stripe.js');
+  const body = (success: string) => new URLSearchParams({ mode: 'payment', success_url: success, 'line_items[0][price]': 'price_fixture' });
+  const first = checkoutIdempotencyKey('op_fixture', body('https://access.example.invalid/billing/return'));
+  assert.equal(checkoutIdempotencyKey('op_fixture', body('https://access.example.invalid/billing/return')), first, 'a retry keeps the key');
+  assert.notEqual(checkoutIdempotencyKey('op_fixture', body('https://access-placeholder.invalid/success')), first, 'changed return URL changes the key');
+  assert.ok(first.startsWith('checkout_op_fixture_'));
+  assert.ok(first.length <= 255, 'within Stripe key length');
+});
