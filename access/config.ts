@@ -65,12 +65,20 @@ export function stringParameters(input: unknown, allowed: string[]): Record<stri
   return result;
 }
 
-/** Any client may start a sign-in. Its redirect URI must be an HTTPS URL without credentials, fragment or wildcard. */
+/**
+ * Any client may start a sign-in. Allowed redirect URIs (2026-11-27 amendment): HTTPS to any host, HTTP to exactly
+ * localhost or 127.0.0.1 (native loopback callback), or the claude://claude.ai custom scheme. Never credentials,
+ * fragments, wildcards, or URIs over 2048 characters.
+ */
 export function redirectUriAllowed(uri: string | undefined): uri is string {
   if (typeof uri !== 'string' || uri.length > 2048 || uri.includes('*')) return false;
   let parsed: URL;
   try { parsed = new URL(uri); } catch { return false; }
-  return parsed.protocol === 'https:' && !parsed.username && !parsed.password && !parsed.hash;
+  if (parsed.username || parsed.password || parsed.hash) return false;
+  if (parsed.protocol === 'https:') return parsed.hostname.length > 0;
+  if (parsed.protocol === 'http:') return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  if (parsed.protocol === 'claude:') return parsed.hostname === 'claude.ai';
+  return false;
 }
 
 export function authorizeParameters(config: AccessConfiguration, input: unknown) {

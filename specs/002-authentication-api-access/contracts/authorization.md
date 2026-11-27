@@ -57,7 +57,7 @@ The approved decision is that any client may start a sign-in. The static client 
 
 What remains, enforced on every request:
 - `client_id` must be a well-formed identifier. The token's `client_id` claim must match the same format.
-- `redirect_uri` must be an HTTPS URL without credentials, fragment or wildcard. The authorization code is bound to the exact `redirect_uri` it was issued for, and `/token` refuses any different value.
+- `redirect_uri` must be an allowed URI under the 2026-11-27 amendment below, without credentials, fragment or wildcard. The authorization code is bound to the exact `redirect_uri` it was issued for, and `/token` refuses any different value.
 - PKCE with `S256` is required, and the authorization code is single-use and bound to the client that obtained it.
 - Requested scopes must be within `openid` and `mcp:invoke`. The access token carries the granted scopes, and the authorizer checks the MCP scope on each route.
 - Cognito still authenticates the user, and billing still decides whether a subscription is active.
@@ -93,7 +93,7 @@ Discovery:
 
 Body validation, enforced before any response:
 - The body is a JSON object. Anything else is rejected with `invalid_client_metadata`.
-- `redirect_uris` is present and non-empty. Every entry follows the existing `redirect_uri` rule: HTTPS, no credentials, fragment or wildcard. One invalid entry rejects the whole request.
+- `redirect_uris` is present and non-empty. Every entry follows the `redirect_uri` rule in the 2026-11-27 amendment: no credentials, fragment or wildcard, and one of the allowed forms. One invalid entry rejects the whole request.
 - `token_endpoint_auth_method`, if present, must be `none`. Any client secret request is rejected.
 - `grant_types`, if present, may contain only `authorization_code` and `refresh_token`. `response_types`, if present, may contain only `code`.
 - Other metadata fields, such as `client_name` and `scope`, are accepted and not stored. `scope` requests must fall within `openid` and `mcp:invoke`, as for `/authorize`.
@@ -107,4 +107,17 @@ Monitoring, replacing the `client_id` basis of the accepted risk above:
 - Because all clients share one `client_id`, issuance logs must record the `redirect_uri` on each authorization and token exchange, with its scheme and host, so unfamiliar apps can be detected.
 - Restricting redirect URIs or clients remains a separate decision.
 
-The 2026-11-25 open-client rule is unchanged. Any well-formed HTTPS redirect URI can start a sign-in. This amendment only adds the registration document and the fixed client identifier.
+The 2026-11-25 open-client rule is unchanged in spirit: any client may start a sign-in. Its redirect URI form is narrowed by the 2026-11-27 amendment below. This amendment adds the registration document and the fixed client identifier.
+
+## Amendment: native-app redirect URIs (2026-11-27)
+
+The approved decision (owner, option 1) is that a sign-in may use any of these redirect URI forms, and no others:
+- `https://` with any host, as before.
+- `http://localhost` or `http://127.0.0.1`, with any port and path. This is the loopback callback native clients use to receive the result. The host must match exactly; `localhost.example.invalid` is not allowed.
+- `claude://claude.ai/...`, the custom scheme the Claude app uses. The host must be `claude.ai`.
+
+Every form still rejects credentials, fragments, wildcards and URIs longer than 2048 characters. The authorization code is still bound to the exact `redirect_uri` it was issued for, and `/token` still refuses any different value.
+
+Reason: the Claude client registers both a `claude://` redirect and a loopback `http://localhost` redirect. Under the HTTPS-only rule, registration rejected the whole request, so sign-in failed before it began. Cognito needs no change, because it only returns the browser to this service's own callback.
+
+Accepted risk, recorded by the owner: loopback and custom-scheme redirects are reachable by local software on the user's computer, so a local program can receive a code for a sign-in the user started. The code is single-use, PKCE-bound and sent only to the URI it was issued for, so a program without the PKCE verifier cannot redeem it.

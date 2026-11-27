@@ -471,3 +471,24 @@ test('redirect fields carry only scheme and host and reject unparseable or overs
   assert.equal(redirectFields(42), undefined);
   assert.equal(redirectFields('https://a.example.invalid/' + 'x'.repeat(2100)), undefined);
 });
+
+test('registration accepts the native-app redirect forms the 2026-11-27 amendment allows', async () => {
+  const value = await fixture();
+  const accepted = ['https://claude.example.invalid/callback', 'http://localhost:53682/callback', 'http://127.0.0.1/cb', 'claude://claude.ai/oauth/callback'];
+  const response = await invoke(value.handler, 'POST', '/register', { headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ redirect_uris: accepted }) });
+  assert.equal(response.statusCode, 201);
+  assert.deepEqual(JSON.parse(response.body!).redirect_uris, accepted);
+});
+
+test('registration rejects redirect lookalikes outside the 2026-11-27 forms', async () => {
+  const value = await fixture();
+  for (const uri of ['http://claude.example.invalid/cb', 'http://localhost.example.invalid/cb', 'http://192.168.1.10/cb',
+    'claude://evil.invalid/cb', 'claude://claude.ai.evil.invalid/cb', 'ftp://claude.example.invalid/cb',
+    'http://user:pass@localhost/cb', 'http://localhost/cb#frag', 'claude://claude.ai/cb#frag', 'javascript:alert(1)']) {
+    const response = await invoke(value.handler, 'POST', '/register', { headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ redirect_uris: [uri] }) });
+    assert.equal(response.statusCode, 400, uri);
+    assert.deepEqual(JSON.parse(response.body!), { error: 'invalid_redirect_uri' }, uri);
+  }
+});
