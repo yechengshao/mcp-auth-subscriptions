@@ -143,19 +143,10 @@ environment after registry access is configured, add
 `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` so npm trusts the session proxy.
 The CA is a build secret mount and is not copied into the image.
 
-Render the deployment template for that immutable artifact:
-
-```sh
-npm run render:billing-runtime -- \
-  '000000000000.dkr.ecr.us-east-1.amazonaws.com/billing@sha256:REPLACE_WITH_64_HEX_DIGEST' \
-  /tmp/billing-release.yaml
-cfn-lint /tmp/billing-release.yaml
-```
-
-The renderer creates a new retained Lambda version resource per image and points
-the `live` alias to it. Deploy the **rendered** template; reusing the unrendered
-Version logical ID would not reliably publish a new version on later releases.
-Retaining old versions supports rollback and also requires deliberate cleanup.
+Deploy `infra/billing/runtime.yaml` with `ImageUri` set to that digest-pinned image and
+`ReleaseId` set to the release tag. The Lambda version's description is the image URI, so each
+new image creates a new retained version, and the `live` alias moves to it. Old versions are
+kept for rollback and need deliberate cleanup.
 
 ## 6. Configure and deploy the disabled test runtime
 

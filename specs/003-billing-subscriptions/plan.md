@@ -17,7 +17,6 @@ Access owns browser sessions, CSRF, OAuth state and final code redirect. Billing
 | `billing/` | Isolated package, provider adapter, eligibility reducer, transaction repository, order operations, webhook and bounded reconciliation dispatcher |
 | `infra/billing/storage.yaml` | Retained BillingState (including history), BillingEntitlements and work indexes/stream; no Cognito/gateway/function dependency |
 | `infra/billing/runtime.yaml` | Billing function/version/alias, scoped roles, reconciliation SQS/DLQ/Pipe/mapping/replay and telemetry-policy attachment; no gateway attachments |
-| `infra/billing/release.ts` | Render distinct retained version resources for digest-pinned images |
 | `infra/billing/publication.yaml` | Independent ECR/protected OIDC publication bootstrap without access/MCP publishing rights |
 | `scripts/verify_billing.ts` | Redacted local/live evidence, selected tests, schemas and artifact identity; no provisioning or charge side effects |
 

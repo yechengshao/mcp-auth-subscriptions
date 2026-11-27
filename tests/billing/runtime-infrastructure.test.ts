@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { releaseTemplate } from '../../infra/billing/release.js';
 import { runtimeConfig } from '../../billing/handler.js';
 import { budgets } from '../fixtures/storage.js';
 const template = JSON.parse(readFileSync('infra/billing/runtime.yaml', 'utf8'));
@@ -33,15 +32,13 @@ test('Pipe filter matches storage contract and literal generation keeps DynamoDB
   assert.equal(input.includes('NewImage.generation.N'), false);
   assert.equal(input.includes('payment_intent'), false);
 });
-test('release rendering requires an image digest and changes retained version per artifact', () => {
-  const prefix = '000000000000.dkr.ecr.us-east-1.amazonaws.com/billing@sha256:';
-  const first = releaseTemplate(prefix + 'a'.repeat(64));
-  const second = releaseTemplate(prefix + 'b'.repeat(64));
-  const version = (t: any) => Object.keys(t.Resources).find(key => key.startsWith('Version'))!;
-  assert.notEqual(version(first), version(second));
-  assert.equal(first.Resources[version(first)].DeletionPolicy, 'Retain');
-  assert.deepEqual(first.Resources.Alias.Properties.FunctionVersion['Fn::GetAtt'], [version(first), 'Version']);
-  assert.throws(() => releaseTemplate('repository:latest'));
+test('the billing runtime publishes a new Lambda version for each image, so no renderer is needed', () => {
+  const runtime = JSON.parse(readFileSync('infra/billing/runtime.yaml', 'utf8'));
+  const version = runtime.Resources.Version;
+  assert.equal(version.Type, 'AWS::Lambda::Version');
+  assert.deepEqual(version.Properties.Description, { Ref: 'ImageUri' }, 'the version description follows the image, a replacement property');
+  assert.equal(version.DeletionPolicy, 'Retain');
+  assert.deepEqual(runtime.Resources.Alias.Properties.FunctionVersion, { 'Fn::GetAtt': ['Version', 'Version'] });
 });
 test('runtime configuration rejects budget/IaC drift and cross-account sources', () => {
   const source = { MCP_ENVIRONMENT: 'test', AWS_ACCOUNT_ID: '000000000000', AWS_REGION: 'us-east-1', STRIPE_LIVE: 'false',
