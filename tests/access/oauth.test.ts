@@ -492,3 +492,9 @@ test('registration rejects redirect lookalikes outside the 2026-11-27 forms', as
     assert.deepEqual(JSON.parse(response.body!), { error: 'invalid_redirect_uri' }, uri);
   }
 });
+
+test('pages send a referrer policy that keeps the origin on same-site form posts', async () => {
+  const value = await fixture();
+  const response = await invoke(value.handler, 'GET', '/.well-known/oauth-authorization-server');
+  assert.equal(responseHeader(response, 'referrer-policy'), 'strict-origin-when-cross-origin');
+});

@@ -27,7 +27,8 @@ export async function createAccessApp(input: AccessConfiguration, sessions: Brow
     response.set({
       'cache-control': 'no-store',
       pragma: 'no-cache',
-      'referrer-policy': 'no-referrer',
+      // Browsers send Origin: null on form posts under no-referrer; this policy keeps a real Origin for the CSRF check.
+      'referrer-policy': 'strict-origin-when-cross-origin',
       'x-content-type-options': 'nosniff',
       'content-security-policy': "default-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'",
     });
