@@ -57,10 +57,14 @@
       "Type": "String"
     },
     "SuccessUrl": {
-      "Type": "String"
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/billing-success-url",
+      "Description": "SSM parameter holding the Stripe Checkout success URL, published by the access public-URLs stack."
     },
     "CancelUrl": {
-      "Type": "String"
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/mcp/test/access/billing-cancel-url",
+      "Description": "SSM parameter holding the Stripe Checkout cancel URL, published by the access public-URLs stack."
     },
     "StripeLive": {
       "Type": "String",
