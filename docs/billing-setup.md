@@ -143,16 +143,18 @@ environment after registry access is configured, add
 `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` so npm trusts the session proxy.
 The CA is a build secret mount and is not copied into the image.
 
-Deploy `infra/billing/runtime.yaml` with `ImageUri` set to that digest-pinned image and
-`ReleaseId` set to the release tag. The Lambda version's description is the image URI, so each
-new image creates a new retained version, and the `live` alias moves to it. Old versions are
+The publish workflow writes the tested image digest to `/mcp/test/billing/image-uri`.
+Deploy `infra/billing/runtime.yaml` through a change set with `ReleaseId` set to the release tag.
+The runtime reads `ImageUri` from SSM. Each new image creates a new retained Lambda version
+(the version description is the image), and the `live` alias moves to it. Old versions are
 kept for rollback and need deliberate cleanup.
 
 ## 6. Configure and deploy the disabled test runtime
 
 Supply the parameters declared in `runtime.yaml`: storage/monitoring outputs,
-parameter names/ARNs, Stripe account, HTTPS return URLs, support email, image and
-release identifier. The runtime grants no invoke permission to any role; no public
+parameter names/ARNs, Stripe account, HTTPS return URLs, support email and
+release identifier. The image comes from `/mcp/test/billing/image-uri`, which the publish
+workflow writes after its smoke test; it is not a deploy input. The runtime grants no invoke permission to any role; no public
 Function URL is created. The access role's own IAM policy allows InvokeFunction on the
 billing alias only, and projection-read permissions come from the access infrastructure
 contract. Never expose native billing operations directly as browser JSON APIs.

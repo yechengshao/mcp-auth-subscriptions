@@ -71,6 +71,12 @@ jobs:
           IMAGE: ${{ vars.BILLING_ECR_REPOSITORY_URI }}@${{ steps.build.outputs.digest }}
         run: |
           docker run --rm --platform linux/arm64 --entrypoint /var/lang/bin/node "$IMAGE" -e "import('file:///var/task/dist/billing/handler.js').then(m=>{if(typeof m.handler!=='function')throw new Error('handler_missing');console.log('handler_ok')}).catch(e=>{console.error(e.message);process.exit(1)})"
+      - name: Publish the tested image URI to SSM
+        env:
+          IMAGE_URI: ${{ vars.BILLING_ECR_REPOSITORY_URI }}@${{ steps.build.outputs.digest }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          aws ssm put-parameter --region "$AWS_REGION" --name "/mcp/test/billing/image-uri" --type String --value "$IMAGE_URI" --overwrite
       - name: Write immutable release evidence
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}

@@ -18,8 +18,9 @@ test('billing publication role is restricted to the named GitHub environment and
   assert.doesNotMatch('repo:yechengshao/mcp-auth-subscriptions', new RegExp(prefix.AllowedPattern));
   const statements = role.Properties.Policies[0].PolicyDocument.Statement;
   assert.deepEqual(statements[0], { Effect: 'Allow', Action: 'ecr:GetAuthorizationToken', Resource: '*' });
-  assert.deepEqual(statements[1].Resource, { 'Fn::GetAtt': ['BillingRepository', 'Arn'] });
-  assert.deepEqual(statements[1].Action, ['ecr:BatchCheckLayerAvailability', 'ecr:BatchGetImage', 'ecr:CompleteLayerUpload', 'ecr:GetDownloadUrlForLayer', 'ecr:InitiateLayerUpload', 'ecr:PutImage', 'ecr:UploadLayerPart']);
+  const registry = statements.find((statement: any) => Array.isArray(statement.Action) && statement.Action.includes('ecr:PutImage'));
+  assert.deepEqual(registry.Resource, { 'Fn::GetAtt': ['BillingRepository', 'Arn'] });
+  assert.deepEqual(registry.Action, ['ecr:BatchCheckLayerAvailability', 'ecr:BatchGetImage', 'ecr:CompleteLayerUpload', 'ecr:GetDownloadUrlForLayer', 'ecr:InitiateLayerUpload', 'ecr:PutImage', 'ecr:UploadLayerPart']);
   assert.equal(JSON.stringify(template).includes('lambda:UpdateFunctionCode'), false);
   assert.equal(JSON.stringify(template).includes('dynamodb:'), false);
   assert.equal(JSON.stringify(template).includes('s3:'), false);

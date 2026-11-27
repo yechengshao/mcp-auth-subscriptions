@@ -17,6 +17,11 @@
       "Default": "billing-publish",
       "AllowedPattern": "^[A-Za-z0-9_-]{1,40}$"
     },
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": ["development", "test", "production"],
+      "Default": "test"
+    },
     "RepositoryName": {
       "Type": "String",
       "Default": "mcp-billing",
@@ -59,6 +64,7 @@
             "Version": "2012-10-17",
             "Statement": [
               { "Effect": "Allow", "Action": "ecr:GetAuthorizationToken", "Resource": "*" },
+              { "Effect": "Allow", "Action": "ssm:PutParameter", "Resource": { "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mcp/${Environment}/billing/image-uri" } },
               {
                 "Effect": "Allow",
                 "Action": ["ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:CompleteLayerUpload", "ecr:GetDownloadUrlForLayer", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart"],

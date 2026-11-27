@@ -70,3 +70,14 @@ test('billing runtime publishes its live alias ARN under the shared /mcp/<enviro
   assert.deepEqual(parameter.Properties.Value, { Ref: 'Alias' });
   assert.equal(parameter.Properties.Type, 'String');
 });
+
+test('billing image is published to SSM by the workflow and read by the runtime, not passed at deploy time', () => {
+  const runtime = JSON.parse(readFileSync('infra/billing/runtime.yaml', 'utf8'));
+  assert.equal(runtime.Parameters.ImageUri.Type, 'AWS::SSM::Parameter::Value<String>');
+  assert.equal(runtime.Parameters.ImageUri.Default, '/mcp/test/billing/image-uri');
+  const publication = readFileSync('infra/billing/publication.yaml', 'utf8');
+  assert.match(publication, /"Action": "ssm:PutParameter", "Resource": \{ "Fn::Sub": "arn:\$\{AWS::Partition\}:ssm:\$\{AWS::Region\}:\$\{AWS::AccountId\}:parameter\/mcp\/\$\{Environment\}\/billing\/image-uri" \}/);
+  const workflow = readFileSync('.github/workflows/publish-billing-image.yml', 'utf8');
+  assert.match(workflow, /aws ssm put-parameter --region "\$AWS_REGION" --name "\/mcp\/test\/billing\/image-uri" --type String --value "\$IMAGE_URI" --overwrite/);
+  assert.ok(workflow.indexOf('Publish the tested image URI to SSM') > workflow.indexOf('Smoke test the pushed ARM64 image'), 'SSM is written only after the smoke test');
+});
