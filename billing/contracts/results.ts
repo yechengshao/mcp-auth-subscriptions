@@ -7,7 +7,7 @@ const orderStatus = object({
   activation_ref: id,
 });
 const checkout = object({
-  order_id: id, checkout_url: { type: 'string', pattern: '^https://checkout\\.stripe\\.com/c/pay/[^\\s]+$', maxLength: 4096 },
+  order_id: id, checkout_url: { type: 'string', pattern: '^https://checkout\\.stripe\\.com/[cg]/pay/[^\\s]+$', maxLength: 4096 },
 });
 const planList = object({ catalog_version: id, plans: { type: 'array', maxItems: 100, items: object({
   plan_id: id, name: text, description: text, duration_options: { type: 'array', minItems: 1, maxItems: 100,

@@ -132,3 +132,14 @@ test('upgrade orders preserve full catalog price and separately bind the quoted 
   assert.throws(() => validateBillingRecord({ ...upgrade, intent: 'purchase' }, 'test'));
   assert.throws(() => validateBillingRecord({ ...order, intent: 'upgrade' }, 'test'));
 });
+
+test('checkout results accept both Stripe hosted paths and reject other hosts and paths', () => {
+  const result = (checkout_url: string) => ({ schema_version: 1, correlation_id: 'corr_fixture', message: 'Safe summary', retryable: false,
+    outcome: 'ok', payload: { order_id: 'order_fixture', checkout_url } });
+  validateResult(result('https://checkout.stripe.com/c/pay/cs_test_fixture'), 'createCheckout');
+  validateResult(result('https://checkout.stripe.com/g/pay/cs_test_fixture'), 'createCheckout');
+  for (const bad of ['https://checkout.stripe.com/x/pay/cs_test_fixture', 'https://checkout.stripe.com.evil.invalid/g/pay/cs_test_fixture',
+    'http://checkout.stripe.com/g/pay/cs_test_fixture', 'https://checkout.stripe.com/g/pay/cs_test_fixture\n']) {
+    assert.throws(() => validateResult(result(bad), 'createCheckout'), /.*/, bad);
+  }
+});

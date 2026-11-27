@@ -215,7 +215,7 @@ export class Management {
     let url: URL;
     try { url = new URL(value); }
     catch { throw new ManagementFailure(503, 'invalid_billing_response', true); }
-    if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com' || !url.pathname.startsWith('/c/pay/')) {
+    if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com' || !/^\/[cg]\/pay\//.test(url.pathname)) {
       throw new ManagementFailure(503, 'invalid_billing_response', true);
     }
     return url.toString();

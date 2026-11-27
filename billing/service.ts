@@ -140,7 +140,7 @@ export class BillingService {
         }
         throw error;
       }
-      if (!/^cs_[A-Za-z0-9_]+$/.test(session.id) || typeof session.url !== 'string' || !session.url.startsWith('https://checkout.stripe.com/c/pay/')) throw new Error('invalid_checkout_response');
+      if (!/^cs_[A-Za-z0-9_]+$/.test(session.id) || typeof session.url !== 'string' || !/^https:\/\/checkout\.stripe\.com\/[cg]\/pay\/[^\s]+$/.test(session.url)) throw new Error('invalid_checkout_response');
       const next = { ...order, checkout_session_id: session.id, revision: order.revision + 1, updated_at: this.now() };
       const lookup = { ...this.base(request.identity, 'OWNER', 'provider_lookup'),
         PK: `ENV#${this.store.environment}#STRIPE#${this.stripeAccount}#checkout_session#${session.id}`,
